@@ -50,7 +50,7 @@
 
   <section class="painel">
     <div class="filtros">
-      <input id="busca" type="search" placeholder="Buscar nº, assunto ou interessado">
+      <input id="busca" type="search" placeholder="Buscar nº, assunto, interessado ou documento">
       <select id="fStatus">
         <option value="abertos">Em aberto</option>
         <option value="">Todos</option>
@@ -98,6 +98,8 @@
           <select id="p_status"><option value="recebido">Recebido</option><option value="em_analise">Em análise</option><option value="aguardando">Aguardando terceiros</option><option value="respondido">Respondido</option><option value="arquivado">Arquivado</option></select></div>
         <div><label for="p_respondido">Respondido em</label><input id="p_respondido" type="date"></div>
       </div>
+      <label for="p_docresp">Nº do documento de resposta</label>
+      <input id="p_docresp" placeholder="Ex.: Ofício nº 123/2026/SMECEL, Parecer Técnico nº 45/2026">
       <p class="dica" id="infoLimite"></p>
       <div class="grade2">
         <div><label for="p_responsavel">Responsável</label><input id="p_responsavel"></div>
@@ -214,7 +216,7 @@ function desenhar() {
   let l = lista.filter(p =>
     (filtroKpi ? fK[filtroKpi](p) : (!st || (st === 'abertos' ? !FECHADOS.includes(p.status) : p.status === st))) &&
     (!ob || p.obra_id === ob) &&
-    (!q || [p.numero, p.assunto, p.interessado, p.tipo].some(x => (x || '').toUpperCase().includes(q))));
+    (!q || [p.numero, p.assunto, p.interessado, p.tipo, p.documento_resposta].some(x => (x || '').toUpperCase().includes(q))));
   l = l.map(p => ({ p, s: situacao(p) })).sort((a, b) => a.s[2] - b.s[2] || (a.p.data_limite || '9').localeCompare(b.p.data_limite || '9'));
   if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="7" class="vazio">${lista.length ? 'Nenhum processo com estes filtros.' : 'Nenhum processo cadastrado. Clique em <b>+ Novo processo</b>.'}</td></tr>`; return; }
   $('linhas').innerHTML = l.map(({ p, s }) => `<tr data-id="${p.id}" style="cursor:pointer">
@@ -224,7 +226,7 @@ function desenhar() {
     <td>${F.data(p.data_entrada)}</td>
     <td class="limite">${F.data(p.data_limite)}${p.prazo_dias != null ? `<div class="sub">${p.prazo_dias} dias ${p.contagem === 'uteis' ? 'úteis' : 'corridos'}</div>` : ''}</td>
     <td><span class="etiqueta ${s[1]}">${s[0]}</span></td>
-    <td>${STATUS[p.status]}</td></tr>`).join('');
+    <td>${STATUS[p.status]}${p.documento_resposta ? `<div class="sub">${F.esc(p.documento_resposta)}</div>` : ''}</td></tr>`).join('');
   document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => abrir(tr.dataset.id));
 }
 
@@ -260,7 +262,7 @@ async function abrir(id) {
     if (!p) return;
     const v = { p_numero: p.numero, p_tipo: p.tipo, p_assunto: p.assunto, p_interessado: p.interessado, p_obra: p.obra_id, p_entrada: p.data_entrada,
       p_prazo: p.prazo_dias, p_contagem: p.contagem, p_limite: p.data_limite, p_status: p.status, p_respondido: p.respondido_em,
-      p_responsavel: p.responsavel, p_link: p.link, p_obs: p.observacoes };
+      p_responsavel: p.responsavel, p_link: p.link, p_obs: p.observacoes, p_docresp: p.documento_resposta };
     for (const [k, val] of Object.entries(v)) $(k).value = val ?? '';
     // data-limite diferente do cálculo = foi digitada à mão
     limiteManual = !!(p.data_limite && p.prazo_dias != null && Prazos.limite(p.data_entrada, p.prazo_dias, p.contagem) !== p.data_limite) || (p.data_limite && p.prazo_dias == null);
@@ -282,7 +284,8 @@ async function salvar(e) {
     obra_id: $('p_obra').value || null, data_entrada: $('p_entrada').value,
     prazo_dias: $('p_prazo').value === '' ? null : parseInt($('p_prazo').value, 10), contagem: $('p_contagem').value,
     data_limite: $('p_limite').value || null, status: $('p_status').value, respondido_em: $('p_respondido').value || null,
-    responsavel: txt('p_responsavel'), link: txt('p_link'), observacoes: txt('p_obs')
+    responsavel: txt('p_responsavel'), link: txt('p_link'), observacoes: txt('p_obs'),
+    documento_resposta: txt('p_docresp')
   };
   if (!reg.numero || !reg.assunto || !reg.data_entrada) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'Preencha nº, assunto e data de entrada.'; return; }
   if (reg.status === 'respondido' && !reg.respondido_em) reg.respondido_em = Prazos.hoje();
