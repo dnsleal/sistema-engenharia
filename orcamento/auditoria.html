@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoria de planilha — Sistema de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  .filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros input, .filtros select { width: auto; min-width: 170px; }
+  .origem { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .origem .painel { margin: 0; }
+  .params { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0 14px; }
+  .kpi { cursor: pointer; }
+  .kpi.sel { outline: 2px solid var(--azul); }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.cod { font-family: ui-monospace, Consolas, monospace; font-size: .82rem; white-space: nowrap; }
+  td.desc { min-width: 260px; max-width: 460px; font-size: .85rem; }
+  .sub { color: var(--texto-2); font-size: .78rem; }
+  .ach { display: flex; flex-wrap: wrap; gap: 4px; }
+  .aviso { padding: 10px 12px; border-radius: 6px; margin: 8px 0; font-size: .9rem; background: color-mix(in srgb, var(--alerta) 14%, transparent); }
+  .aviso.ok { background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .dica { font-size: .82rem; color: var(--texto-2); margin: 6px 0 0; }
+  .oculto { display: none !important; }
+  .so-imp { display: none; }
+  @media (max-width: 760px) { .origem { grid-template-columns: 1fr; } }
+  @media print {
+    .topo, .origem, .params-box, .filtros, .botoes, .rodape, .nao-imp { display: none !important; }
+    .so-imp { display: block; }
+    body { background: #fff; font-size: 10px; }
+    main { padding: 0; max-width: none; }
+    .kpi { box-shadow: none; padding: 6px 8px; } .kpi .valor { font-size: 1rem; }
+    table { font-size: 9px; } td.desc { max-width: none; }
+    tr { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav>
+    <a href="../index.html">Central</a><a href="../processos/index.html">Processos</a>
+    <a href="index.html">Orçamento</a><a href="auditoria.html" class="ativo">Auditoria</a>
+    <a href="../laudos/index.html">Documentos</a><a href="../backup.html">Backup</a>
+  </nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div><h2>Auditoria de planilha × SINAPI-MT</h2>
+      <p>Confere preços, códigos, unidades e BDI de uma planilha orçamentária contra a base oficial de Mato Grosso.</p></div>
+    <div class="botoes" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="sec" id="bXlsx" disabled>Exportar Excel</button>
+      <button id="bImprimir" disabled>Imprimir relatório</button>
+    </div>
+  </div>
+
+  <div class="so-imp" id="cabImp"></div>
+
+  <section class="origem">
+    <div class="painel">
+      <h3 style="margin:0 0 6px">Planilha da contratada (.xlsx)</h3>
+      <input type="file" id="arquivo" accept=".xlsx,.xls,.xlsm,.ods">
+      <div id="cxAba" class="oculto"><label for="aba">Aba do orçamento</label><select id="aba"></select></div>
+      <p class="dica">Precisa ter as colunas Item, Código, Descrição, Unid., Quant. e preço com BDI. Banco e preço sem BDI melhoram a análise.</p>
+    </div>
+    <div class="painel">
+      <h3 style="margin:0 0 6px">…ou uma planilha já cadastrada</h3>
+      <label for="obra">Obra</label><select id="obra"><option value="">— escolha —</option></select>
+      <label for="planilha">Planilha</label><select id="planilha" disabled></select>
+    </div>
+  </section>
+
+  <section class="painel params-box" style="margin-top:16px">
+    <div class="params">
+      <div><label for="base">Base de referência</label><select id="base"></select></div>
+      <div><label for="regime">Regime</label><select id="regime"><option>Não desonerado</option><option>Desonerado</option></select></div>
+      <div><label for="tol">Tolerância de preço (%)</label><input id="tol" type="number" step="0.1" min="0" value="0.5"></div>
+      <div><label for="tipologia">Tipologia (faixa de BDI)</label><select id="tipologia"></select></div>
+      <div><label for="bdiMin">BDI mínimo (%)</label><input id="bdiMin" type="number" step="0.01"></div>
+      <div><label for="bdiMax">BDI máximo — 3º quartil (%)</label><input id="bdiMax" type="number" step="0.01"></div>
+    </div>
+    <p class="dica">Faixas do Acórdão TCU 2622/2013-Plenário (1º e 3º quartis, sem CPRB). Confira se a faixa vigente é a mesma do edital e ajuste os campos, se precisar. Mudanças nos parâmetros refazem a análise na hora.</p>
+    <p class="msg" id="msg"></p>
+  </section>
+
+  <div id="avisos"></div>
+  <section class="kpis" id="kpis" style="margin-top:16px"></section>
+
+  <section class="painel oculto" id="cxTab">
+    <div class="filtros">
+      <input id="busca" type="search" placeholder="Buscar item, código ou descrição">
+      <select id="fAchado"><option value="com">Só itens com achado</option><option value="">Todos os itens</option></select>
+    </div>
+    <div class="tabela-wrap">
+      <table>
+        <thead><tr><th>Item</th><th>Banco / código</th><th>Descrição</th><th>Un.</th><th>Quant.</th><th>PU s/ BDI</th><th>SINAPI-MT</th><th>Dif.</th><th>BDI</th><th>Sobrepreço c/ BDI</th><th>Achados</th></tr></thead>
+        <tbody id="linhas"></tbody>
+      </table>
+    </div>
+    <p class="dica">Sobrepreço potencial = (PU sem BDI − custo SINAPI) × quantidade × (1 + BDI do item), só nos itens acima da tolerância. Itens de composição própria ou cotação não têm referência automática: confira a composição analítica e as três cotações.</p>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script src="../comum/importar.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+// Acórdão TCU 2622/2013-Plenário — 1º quartil / 3º quartil (sem CPRB)
+const TIPOLOGIAS = [
+  ['Construção e reforma de edifícios', 20.34, 25.00],
+  ['Rodovias e ferrovias', 19.60, 24.23],
+  ['Redes de água, esgoto e correlatas', 20.76, 26.44],
+  ['Estações e redes de energia elétrica', 24.00, 27.86],
+  ['Obras portuárias, marítimas e fluviais', 22.80, 30.95],
+  ['Fornecimento de materiais e equipamentos', 11.10, 16.80]
+];
+const BANCOS_OK = ['SINAPI', 'SICRO'];
+const TIPOS = {
+  sobrepreco: ['Preço acima do SINAPI', 'critico'], naoachado: ['Código não encontrado', 'alerta'], unidade: ['Unidade diferente', 'alerta'],
+  bdi: ['BDI fora da faixa', 'alerta'], banco: ['Base não SINAPI/SICRO', 'alerta'], propria: ['Composição própria / cotação', 'neutro'],
+  af: ['Descrição/AF diferente', 'neutro'], semcod: ['Sem código', 'alerta'], sicro: ['SICRO — conferir à parte', 'neutro']
+};
+let base = null, baseInfo = null, itens = null, origem = null, wb = null, resultado = [], filtroKpi = null;
+
+(async function iniciar() {
+  const u = await SE.exigirLogin(); if (!u) return;
+  $('uEmail').textContent = u.email; $('bSair').onclick = SE.sair;
+  $('tipologia').innerHTML = TIPOLOGIAS.map((t, i) => `<option value="${i}">${t[0]} (${F.num(t[1], 2)}–${F.num(t[2], 2)}%)</option>`).join('');
+  aplicaTipologia();
+  $('tipologia').onchange = () => { aplicaTipologia(); analisar(); };
+  for (const id of ['regime', 'tol', 'bdiMin', 'bdiMax']) $(id).oninput = analisar;
+  $('busca').oninput = desenharTabela; $('fAchado').onchange = () => { filtroKpi = null; desenhar(); };
+  $('arquivo').onchange = abrirArquivo; $('aba').onchange = lerAba;
+  $('obra').onchange = listarPlanilhas; $('planilha').onchange = carregarPlanilha;
+  $('bImprimir').onclick = () => window.print(); $('bXlsx').onclick = exportar;
+  $('base').onchange = carregarBase;
+
+  const [{ data: obras }, idx] = await Promise.all([
+    sb.from('obras').select('id, nome').order('nome'),
+    fetch('bases/index.json').then(r => r.json()).catch(() => [])
+  ]);
+  $('obra').innerHTML += (obras || []).map(o => `<option value="${o.id}">${F.esc(o.nome)}</option>`).join('');
+  $('base').innerHTML = idx.map(b => `<option value="${b.arquivo}">${F.esc(b.rotulo)}</option>`).join('');
+  await carregarBase();
+})();
+
+function aplicaTipologia() { const t = TIPOLOGIAS[$('tipologia').value]; $('bdiMin').value = t[1]; $('bdiMax').value = t[2]; }
+
+async function carregarBase() {
+  msg('Carregando a base SINAPI-MT…');
+  try {
+    const d = await (await fetch('bases/' + $('base').value)).json();
+    baseInfo = { mes: d.mes, uf: d.uf, banco: d.banco };
+    base = {};
+    for (const b of d.bases) {
+      base[b.regime] = base[b.regime] || {};
+      for (const [cod, desc, un, preco] of b.itens) base[b.regime][cod] = { desc, un, preco, tipo: b.tipoItem };
+    }
+    msg('');
+    analisar();
+  } catch (e) { msg('Não consegui carregar a base: ' + e.message, true); }
+}
+
+// ---------- origem 1: arquivo ----------
+async function abrirArquivo() {
+  const f = $('arquivo').files[0]; if (!f) return;
+  try { wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellFormula: true }); }
+  catch (e) { msg('Não consegui abrir o arquivo: ' + e.message, true); return; }
+  corrigirLinks(wb);
+  let achou = null;
+  for (const n of wb.SheetNames) { try { Importar.lerOrcamento(linhas(n, true), linhas(n, false)); achou = n; break; } catch (_) {} }
+  $('aba').innerHTML = wb.SheetNames.map(n => `<option ${n === achou ? 'selected' : ''}>${F.esc(n)}</option>`).join('');
+  $('cxAba').classList.remove('oculto');
+  $('obra').value = ''; $('planilha').innerHTML = ''; $('planilha').disabled = true;
+  lerAba();
+}
+// código SINAPI dentro de =HYPERLINK(...;"104658") fica com valor 0 em cache
+function corrigirLinks(wb) {
+  for (const n of wb.SheetNames) {
+    const ws = wb.Sheets[n];
+    for (const ref in ws) {
+      const c = ws[ref];
+      if (ref[0] === '!' || !c || !c.f || !/HYPERLINK/i.test(c.f)) continue;
+      const m = c.f.match(/,\s*"?(\d+)"?\s*\)\s*$/);
+      if (m && (!c.v || c.v === 0 || c.v === '0')) { c.v = m[1]; c.w = m[1]; c.t = 's'; }
+    }
+  }
+}
+const linhas = (nome, raw) => XLSX.utils.sheet_to_json(wb.Sheets[nome], { header: 1, raw, defval: null, blankrows: true });
+function lerAba() {
+  try {
+    const L = Importar.lerOrcamento(linhas($('aba').value, true), linhas($('aba').value, false));
+    itens = L.itens.filter(i => i.tipo === 'servico');
+    origem = { nome: $('arquivo').files[0].name + ' — aba ' + $('aba').value, data_base: L.meta.data_base, fonte: L.meta.fonte_precos, obra: L.meta.obra, total: L.totalCalculado };
+    regimeDaPlanilha(); msg(''); analisar();
+  } catch (e) { msg(e.message, true); }
+}
+
+// ---------- origem 2: planilha cadastrada ----------
+async function listarPlanilhas() {
+  const id = $('obra').value; $('planilha').innerHTML = ''; $('planilha').disabled = true;
+  if (!id) return;
+  const { data } = await sb.from('planilhas').select('id, tipo, numero').eq('obra_id', id).order('tipo', { ascending: false }).order('numero');
+  $('planilha').innerHTML = '<option value="">— escolha —</option>' + (data || []).map(p => `<option value="${p.id}">${p.tipo === 'original' ? 'Planilha original' : 'Aditivo ' + p.numero}</option>`).join('');
+  $('planilha').disabled = false;
+  if (data && data.length === 1) { $('planilha').value = data[0].id; carregarPlanilha(); }
+}
+async function carregarPlanilha() {
+  const pid = $('planilha').value; if (!pid) return;
+  msg('Carregando itens…');
+  try {
+    const [rows, { data: ob }] = await Promise.all([
+      SE.todos(() => sb.from('itens').select('item, codigo, banco, descricao, unidade, quantidade, pu_sem_bdi, pu_com_bdi, tipo, ordem').eq('planilha_id', pid).eq('tipo', 'servico').order('ordem').order('id')),
+      sb.from('obras').select('nome, data_base, fonte_precos').eq('id', $('obra').value).single()
+    ]);
+    itens = rows.map(r => ({ ...r, quantidade: Number(r.quantidade), pu_sem_bdi: r.pu_sem_bdi == null ? null : Number(r.pu_sem_bdi), pu_com_bdi: r.pu_com_bdi == null ? null : Number(r.pu_com_bdi) }));
+    origem = { nome: `${ob.nome} — ${$('planilha').selectedOptions[0].text}`, data_base: ob.data_base, fonte: ob.fonte_precos, obra: ob.nome };
+    regimeDaPlanilha();
+    $('arquivo').value = ''; $('cxAba').classList.add('oculto');
+    msg(''); analisar();
+  } catch (e) { msg('Erro: ' + e.message, true); }
+}
+
+// ---------- análise ----------
+const r2 = n => Math.round((Number(Number(n).toPrecision(15)) + Number.EPSILON) * 100) / 100;
+const normUn = u => String(u || '').toUpperCase().replace(/²/g, '2').replace(/³/g, '3').replace(/[.\s]/g, '')
+  .replace(/^UND$|^UNID$|^UNIDADE$|^PC$|^PÇ$/, 'UN').replace(/^MES$/, 'MÊS').replace(/^H$|^HORA$/, 'H').replace(/^VB$|^VERBA$/, 'VB');
+const af = s => (String(s || '').match(/AF_\d{2}\/\d{4}/) || [null])[0];
+const normBanco = b => String(b || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+
+// ajusta o regime pelo que a planilha declara (só ao carregar; depois o usuário manda)
+function regimeDaPlanilha() {
+  const f = normBanco(origem && origem.fonte);
+  if (!f) return;
+  if (/NAO[ -]?DESON/.test(f)) $('regime').value = 'Não desonerado';
+  else if (f.includes('DESON')) $('regime').value = 'Desonerado';
+}
+
+function analisar() {
+  if (!base || !itens) return;
+  const tab = base[$('regime').value] || {};
+  const tol = Number($('tol').value || 0) / 100, bmin = Number($('bdiMin').value), bmax = Number($('bdiMax').value);
+  resultado = itens.map(i => {
+    const r = { ...i, achados: [], ref: null, dif: null, bdi: null, impacto: 0 };
+    const banco = normBanco(i.banco);
+    const cod = String(i.codigo || '').trim().replace(/^(SINAPI|SICRO)[\s\-:]*/i, '');
+    if (i.pu_sem_bdi && i.pu_com_bdi) r.bdi = (i.pu_com_bdi / i.pu_sem_bdi - 1) * 100;
+    if (r.bdi != null && (r.bdi < bmin - 0.005 || r.bdi > bmax + 0.005)) r.achados.push(['bdi', `BDI ${F.num(r.bdi, 2)}% fora da faixa ${F.num(bmin, 2)}–${F.num(bmax, 2)}%`]);
+    const ehSinapi = !banco || banco.includes('SINAPI');
+    if (banco && !BANCOS_OK.some(b => banco.includes(b))) {
+      if (/PROPRI|CPU|COMPOS|COTA|MERCADO/.test(banco)) r.achados.push(['propria', `${i.banco}: exige composição analítica / 3 cotações`]);
+      else r.achados.push(['banco', `Base "${i.banco}" não é SINAPI/SICRO: justificar (Dec. 7.983/2013)`]);
+      return r;
+    }
+    if (banco.includes('SICRO')) { r.achados.push(['sicro', 'Item SICRO: a base carregada é só SINAPI']); return r; }
+    if (!cod) { r.achados.push(['semcod', 'Item sem código de referência']); return r; }
+    const ref = ehSinapi ? tab[cod] : null;
+    if (!ref) { r.achados.push(['naoachado', `Código ${cod} não existe no SINAPI-MT ${baseInfo.mes} (desativado ou incorreto)`]); return r; }
+    r.ref = ref;
+    if (normUn(i.unidade) !== normUn(ref.un)) r.achados.push(['unidade', `Unidade ${i.unidade || '—'} × SINAPI ${ref.un}`]);
+    const a1 = af(i.descricao), a2 = af(ref.desc);
+    if (a1 && a2 && a1 !== a2) r.achados.push(['af', `${a1} na planilha × ${a2} na base`]);
+    // custo da planilha sem BDI: coluna própria ou o PU com BDI tirando o BDI máximo da faixa (estimativa conservadora)
+    let custo = i.pu_sem_bdi, estimado = false;
+    if (custo == null && i.pu_com_bdi != null) { custo = i.pu_com_bdi / (1 + bmax / 100); estimado = true; }
+    if (custo != null && ref.preco > 0) {
+      r.dif = (custo / ref.preco - 1) * 100; r.custoEstimado = estimado;
+      if (custo > ref.preco * (1 + tol) + 0.005) {
+        const fator = 1 + (r.bdi != null ? r.bdi : bmax) / 100;
+        r.impacto = r2((custo - ref.preco) * (i.quantidade || 0) * fator);
+        r.achados.push(['sobrepreco', `Custo ${F.rs(custo)}${estimado ? ' (estimado)' : ''} × SINAPI ${F.rs(ref.preco)} (+${F.num(r.dif, 2)}%)`]);
+      }
+    }
+    return r;
+  });
+  $('cxTab').classList.remove('oculto'); $('bXlsx').disabled = false; $('bImprimir').disabled = false;
+  desenhar();
+}
+
+function desenharAvisos() {
+  const av = [];
+  const db = String(origem.data_base || '');
+  if (!db) av.push('A planilha não informa a data-base. A comparação assume a mesma data-base da referência carregada (' + baseInfo.mes + ').');
+  else if (!db.includes(baseInfo.mes)) av.push(`Data-base da planilha: <b>${F.esc(db)}</b>; referência carregada: <b>SINAPI-MT ${baseInfo.mes}</b>. Diferenças de preço entre data-bases diferentes não são sobrepreço; use o resultado como indicativo ou carregue a base do mesmo mês.`);
+  const fonte = normBanco(origem.fonte);
+  const decl = /NAO[ -]?DESON/.test(fonte) ? 'Não desonerado' : fonte.includes('DESON') ? 'Desonerado' : null;
+  if (decl && decl !== $('regime').value) av.push(`A planilha declara o regime <b>${decl.toLowerCase()}</b>, mas a análise está em ${$('regime').value.toLowerCase()}.`);
+  if (resultado.some(r => r.custoEstimado)) av.push(`Sem coluna de preço sem BDI: o custo foi estimado tirando o BDI máximo da faixa (${F.num(Number($('bdiMax').value), 2)}%) do preço com BDI. Isso tende a subestimar o sobrepreço.`);
+  $('avisos').innerHTML = av.map(a => `<div class="aviso">${a}</div>`).join('');
+}
+
+function desenhar() {
+  desenharAvisos();
+  const conta = t => resultado.filter(r => r.achados.some(a => a[0] === t)).length;
+  const total = r2(resultado.reduce((s, r) => s + r2((r.quantidade || 0) * (r.pu_com_bdi || 0)), 0));
+  const imp = r2(resultado.reduce((s, r) => s + r.impacto, 0));
+  const ref = resultado.filter(r => r.ref).length;
+  const K = [
+    ['sobrepreco', 'Sobrepreço potencial', F.rs(imp), `${conta('sobrepreco')} item(ns) · ${total ? F.pct(imp / total * 100) : '—'} do total`, imp > 0 ? 'critico' : ''],
+    ['', 'Itens analisados', resultado.length, `${ref} com referência SINAPI · total ${F.rs(total)}`, ''],
+    ['naoachado', 'Código não encontrado', conta('naoachado') + conta('semcod'), 'desativado, incorreto ou sem código', ''],
+    ['banco', 'Outras bases / próprias', conta('banco') + conta('propria') + conta('sicro'), 'exigem justificativa', ''],
+    ['bdi', 'BDI fora da faixa', conta('bdi'), 'pelo PU com ÷ PU sem BDI', ''],
+    ['unidade', 'Unidade diferente', conta('unidade'), 'confira quantitativo e preço', '']
+  ];
+  $('kpis').innerHTML = K.map(([k, rot, v, det, cls]) => `<div class="kpi ${cls} ${filtroKpi === k && k ? 'sel' : ''}" data-k="${k}"><div class="rotulo">${rot}</div><div class="valor">${v}</div><div class="det">${det}</div></div>`).join('');
+  document.querySelectorAll('.kpi[data-k]').forEach(el => el.onclick = () => { const k = el.dataset.k; filtroKpi = !k || filtroKpi === k ? null : k; desenhar(); });
+  $('cabImp').innerHTML = `<h2 style="margin:0">Relatório de conferência orçamentária</h2>
+    <p style="margin:4px 0 10px">${F.esc(origem.nome)} · Referência: SINAPI-${baseInfo.uf} ${baseInfo.mes}, ${$('regime').value} · Tolerância ${F.num(Number($('tol').value), 1)}% · BDI ${F.num(Number($('bdiMin').value), 2)}–${F.num(Number($('bdiMax').value), 2)}% (${TIPOLOGIAS[$('tipologia').value][0]}, Acórdão TCU 2622/2013) · Emitido em ${new Date().toLocaleDateString('pt-BR')}</p>`;
+  desenharTabela();
+}
+
+const grupoKpi = { naoachado: ['naoachado', 'semcod'], banco: ['banco', 'propria', 'sicro'] };
+function desenharTabela() {
+  const q = $('busca').value.trim().toUpperCase(), so = $('fAchado').value === 'com';
+  const tipos = filtroKpi ? (grupoKpi[filtroKpi] || [filtroKpi]) : null;
+  const l = resultado.filter(r => (tipos ? r.achados.some(a => tipos.includes(a[0])) : (!so || r.achados.length)) &&
+    (!q || [r.item, r.codigo, r.descricao].some(x => String(x || '').toUpperCase().includes(q))))
+    .sort((a, b) => b.impacto - a.impacto || 0);
+  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="11" class="vazio">${resultado.length ? 'Nenhum item com estes filtros. ✓' : 'Nenhum item.'}</td></tr>`; return; }
+  $('linhas').innerHTML = l.map(r => `<tr>
+    <td>${F.esc(r.item || '')}</td><td class="cod">${F.esc(r.banco || '')}<div>${F.esc(r.codigo || '—')}</div></td>
+    <td class="desc">${F.esc(r.descricao)}${r.ref && r.achados.some(a => a[0] === 'af' || a[0] === 'unidade') ? `<div class="sub">SINAPI: ${F.esc(r.ref.desc.slice(0, 140))}</div>` : ''}</td>
+    <td>${F.esc(r.unidade || '')}</td><td class="n">${F.num(r.quantidade, 2)}</td>
+    <td class="n">${r.pu_sem_bdi != null ? F.rs(r.pu_sem_bdi) : '<span class="sub">—</span>'}</td>
+    <td class="n">${r.ref ? F.rs(r.ref.preco) : '—'}</td>
+    <td class="n">${r.dif != null ? `<span style="color:${r.dif > Number($('tol').value) ? 'var(--critico)' : 'inherit'}">${r.dif > 0 ? '+' : ''}${F.num(r.dif, 1)}%</span>` : '—'}</td>
+    <td class="n">${r.bdi != null ? F.num(r.bdi, 2) + '%' : '—'}</td>
+    <td class="n">${r.impacto ? '<b>' + F.rs(r.impacto) + '</b>' : '—'}</td>
+    <td><div class="ach">${r.achados.map(a => `<span class="etiqueta ${TIPOS[a[0]][1]}" title="${F.esc(a[1])}">${TIPOS[a[0]][0]}</span>`).join('') || '<span class="etiqueta ok">OK</span>'}</div>
+      ${r.achados.length ? `<div class="sub">${r.achados.map(a => F.esc(a[1])).join(' · ')}</div>` : ''}</td></tr>`).join('');
+}
+
+function exportar() {
+  const rows = resultado.map(r => ({
+    Item: r.item, Banco: r.banco, Código: r.codigo, Descrição: r.descricao, Unidade: r.unidade, Quantidade: r.quantidade,
+    'PU sem BDI': r.pu_sem_bdi, 'PU com BDI': r.pu_com_bdi, 'BDI (%)': r.bdi != null ? +r.bdi.toFixed(2) : null,
+    'Custo SINAPI-MT': r.ref ? r.ref.preco : null, 'Unidade SINAPI': r.ref ? r.ref.un : null, 'Diferença (%)': r.dif != null ? +r.dif.toFixed(2) : null,
+    'Sobrepreço c/ BDI (R$)': r.impacto || 0, Achados: r.achados.map(a => TIPOS[a[0]][0]).join('; '), Detalhe: r.achados.map(a => a[1]).join(' | ')
+  }));
+  const imp = r2(resultado.reduce((s, r) => s + r.impacto, 0));
+  const resumo = [['Relatório de conferência orçamentária'], ['Planilha', origem.nome], ['Data-base da planilha', origem.data_base || '—'],
+    ['Referência', `SINAPI-${baseInfo.uf} ${baseInfo.mes} — ${$('regime').value}`], ['Tolerância (%)', Number($('tol').value)],
+    ['Faixa de BDI (%)', `${$('bdiMin').value} a ${$('bdiMax').value} — ${TIPOLOGIAS[$('tipologia').value][0]} (Acórdão TCU 2622/2013)`],
+    [], ['Achado', 'Itens'], ...Object.entries(TIPOS).map(([k, [rot]]) => [rot, resultado.filter(r => r.achados.some(a => a[0] === k)).length]),
+    [], ['Sobrepreço potencial total (R$)', imp], [], ['Emitido em', new Date().toLocaleString('pt-BR')], ['Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420']];
+  const wbOut = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wbOut, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
+  const ws = XLSX.utils.json_to_sheet(rows);
+  ws['!cols'] = [8, 9, 10, 60, 7, 11, 12, 12, 8, 12, 9, 10, 14, 30, 60].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wbOut, ws, 'Itens');
+  XLSX.writeFile(wbOut, `auditoria-${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
+function msg(t, erro) { $('msg').className = 'msg' + (erro ? ' erro' : ''); $('msg').textContent = t; }
+</script>
+</body>
+</html>
