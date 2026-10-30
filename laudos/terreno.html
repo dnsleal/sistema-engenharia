@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laudo de Avaliação — Terreno Urbano</title>
+<style>
+  :root{
+    --tinta:#1a1a1a; --cinza:#555; --linha:#c9c9c9; --linha-forte:#333;
+    --realce:#f4f4f0; --azul:#1f4e79; --edit:#fffbe6; --edit-borda:#e0c76b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    font-family:"Segoe UI",Calibri,Arial,sans-serif; color:var(--tinta);
+    max-width:900px; margin:0 auto; padding:32px 40px; line-height:1.5;
+    font-size:14px; background:#fff;
+  }
+  h1{font-size:20px; text-align:center; margin:0 0 4px; letter-spacing:.5px;}
+  h2{
+    font-size:15px; color:var(--azul); border-bottom:2px solid var(--azul);
+    padding-bottom:3px; margin:26px 0 12px; text-transform:uppercase; letter-spacing:.3px;
+  }
+  h3{font-size:13.5px; margin:16px 0 6px; color:var(--linha-forte);}
+  .sub{text-align:center; color:var(--cinza); margin:0 0 8px; font-size:12.5px;}
+  .norma{text-align:center; font-size:11.5px; color:var(--cinza); margin-bottom:20px; font-style:italic;}
+  table{width:100%; border-collapse:collapse; margin:8px 0 14px; font-size:12.5px;}
+  th,td{border:1px solid var(--linha); padding:5px 8px; text-align:left; vertical-align:top;}
+  th{background:var(--realce); font-weight:600;}
+  .rot{background:var(--realce); font-weight:600; width:34%;}
+  .c{text-align:center;} .r{text-align:right;}
+
+  /* Campos de formulário reais */
+  input[type=text], textarea{
+    font-family:inherit; font-size:12.5px; color:var(--tinta);
+    background:var(--edit); border:1px solid var(--edit-borda); border-radius:3px;
+    padding:3px 6px; width:100%; }
+  input[type=text]{height:26px;}
+  input.mini{width:auto; min-width:70px; display:inline-block;}
+  input.med{width:auto; min-width:140px; display:inline-block;}
+  textarea{resize:vertical; min-height:44px; line-height:1.4;}
+  input:focus, textarea:focus{outline:2px solid var(--azul); background:#fff;}
+  td.ed-cell{padding:2px;}
+  td.ed-cell input[type=text]{border:none; border-radius:0; background:var(--edit);}
+  td.ed-cell textarea{border:none; border-radius:0; background:var(--edit);}
+
+  .nota{font-size:11.5px; color:var(--cinza); font-style:italic; margin:4px 0 12px;}
+  ul,ol{margin:6px 0 12px; padding-left:22px;} li{margin:3px 0;}
+  .ass{margin-top:48px; text-align:center;}
+  .ass .linha{border-top:1px solid var(--linha-forte); width:320px; margin:0 auto 4px;}
+  .aviso{
+    background:#fff8e1; border:1px solid var(--edit-borda); border-radius:5px;
+    padding:10px 14px; font-size:12px; margin:18px 0; color:#6b5600;
+  }
+  .formula{background:var(--realce); border-left:3px solid var(--azul); padding:8px 12px;
+    font-size:12.5px; margin:8px 0;}
+  table.fatores td{vertical-align:middle;}
+  table.fatores .chk{width:34px; text-align:center;}
+  table.fatores input[type=checkbox]{width:16px; height:16px; cursor:pointer;}
+  table.fatores .val{width:150px;}
+  table.fatores .nome{white-space:nowrap;}
+  table.fatores tr.on{background:#eef5ec;}
+
+  /* Tabela de referência de fatores */
+  table.ref-fatores{font-size:11.5px;}
+  table.ref-fatores th{background:var(--azul); color:#fff; text-align:center; font-weight:600; padding:5px 6px;}
+  table.ref-fatores td{vertical-align:middle;}
+  table.ref-fatores .nome{white-space:nowrap; background:var(--realce); font-weight:600;}
+  table.ref-fatores td:nth-child(3),
+  table.ref-fatores td:nth-child(4){text-align:center; white-space:nowrap;}
+
+  /* Tabela de cálculo */
+  table.calc{font-size:11.5px;}
+  table.calc th{font-size:11px; text-align:center; padding:4px 3px;}
+  table.calc td{padding:2px;}
+  table.calc input[type=text]{min-width:0; text-align:center;}
+  table.calc .num{text-align:right;}
+  table.calc .calc-cell{background:#eef5ec; font-weight:600; text-align:center;
+    color:var(--azul); white-space:nowrap;}
+  table.calc input[type=checkbox]{width:15px; height:15px; cursor:pointer;}
+  output{font-family:inherit; font-size:12.5px; color:var(--azul); font-weight:600;
+    display:inline-block; padding:2px 4px;}
+  #out-valor-total, #out-total-r{font-size:14px;}
+  input#in-area-terreno{background:var(--edit); border:1px solid var(--edit-borda);}
+  @media print{ table.calc .calc-cell, output{background:none;} }
+
+  /* Barra de ações */
+  .barra{
+    position:sticky; top:0; z-index:10; background:#fff; border-bottom:1px solid var(--linha);
+    padding:10px 0; margin:-32px -40px 20px; padding-left:40px; padding-right:40px;
+    display:flex; gap:10px; align-items:center;
+  }
+  .barra button{
+    font-family:inherit; font-size:13px; padding:7px 16px; border-radius:5px;
+    border:1px solid var(--azul); cursor:pointer; background:var(--azul); color:#fff;
+  }
+  .barra button.sec{background:#fff; color:var(--azul);}
+  .barra button:hover{opacity:.88;}
+  .barra .dica{font-size:11.5px; color:var(--cinza); margin-left:auto;}
+
+  @media print{
+    body{padding:12px;} .barra{display:none;}
+    .aviso{background:none; border-color:var(--cinza);}
+    input[type=text], textarea, td.ed-cell input, td.ed-cell textarea{
+      background:none !important; border:none; box-shadow:none; padding:1px 2px;
+      -webkit-appearance:none; appearance:none;
+    }
+    input[type=text]{border-bottom:1px solid var(--linha) !important;}
+    table td input[type=text]{border-bottom:none !important;}
+    textarea{overflow:visible; resize:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="barra">
+  <button onclick="window.print()">Imprimir / Salvar em PDF</button>
+  <button class="sec" onclick="limpar()">Limpar campos</button>
+  <span class="dica">Digite direto nos campos amarelos. Ctrl/Cmd+P gera o PDF.</span>
+</div>
+
+<h1>LAUDO DE AVALIAÇÃO IMOBILIÁRIA</h1>
+<p class="sub">Terreno Urbano — Método Comparativo Direto de Dados de Mercado</p>
+<p class="norma">Elaborado em conformidade com a ABNT NBR 14653-1 e NBR 14653-2</p>
+
+<div class="aviso">
+<strong>Como usar:</strong> preencha os campos amarelos digitando diretamente sobre eles.
+Na Seção 5.2, clique na linha para marcar o fator utilizado. A planilha de homogeneização
+(Seção 5.3) traz estrutura-modelo — substitua pelos dados reais. Confirme os requisitos de
+enquadramento de grau na versão vigente da NBR 14653-2 antes de declarar os graus na Seção 6.
+</div>
+
+<h2>Identificação</h2>
+<table>
+  <tr><td class="rot">Solicitante</td><td class="ed-cell"><input type="text" placeholder="nome / órgão solicitante"></td></tr>
+  <tr><td class="rot">Finalidade da avaliação</td><td class="ed-cell"><input type="text" placeholder="ex.: valor de mercado para desapropriação / garantia / ITBI / venda"></td></tr>
+  <tr><td class="rot">Tipo de valor</td><td class="ed-cell"><input type="text" value="Valor de mercado"></td></tr>
+  <tr><td class="rot">Data de referência do valor</td><td class="ed-cell"><input type="text" class="med" placeholder="__/__/____"></td></tr>
+  <tr><td class="rot">Data da vistoria</td><td class="ed-cell"><input type="text" class="med" placeholder="__/__/____"></td></tr>
+  <tr><td class="rot">Responsável técnico</td><td class="ed-cell"><input type="text" value="Diego Nascimento Soares Leal — Eng. Civil — CREA-MT 37420"></td></tr>
+  <tr><td class="rot">ART nº</td><td class="ed-cell"><input type="text" class="med" placeholder="número da ART"></td></tr>
+</table>
+
+<h2>1. Objeto e Finalidade</h2>
+<p>O presente laudo tem por objeto a avaliação do terreno urbano abaixo caracterizado, para
+apuração do <strong>valor de mercado</strong> na data de referência indicada. O imóvel encontra-se
+<strong>desprovido de edificação</strong>, avaliando-se exclusivamente a fração terreno.</p>
+
+<table>
+  <tr><td class="rot">Endereço</td><td class="ed-cell"><input type="text" placeholder="logradouro, nº, bairro, cidade/UF"></td></tr>
+  <tr><td class="rot">Matrícula / Cartório</td><td class="ed-cell"><input type="text" placeholder="nº da matrícula — CRI"></td></tr>
+  <tr><td class="rot">Inscrição cadastral</td><td class="ed-cell"><input type="text" placeholder="inscrição municipal"></td></tr>
+  <tr><td class="rot">Proprietário registral</td><td class="ed-cell"><input type="text" placeholder="conforme matrícula"></td></tr>
+</table>
+
+<h2>2. Pressupostos, Ressalvas e Documentos</h2>
+<h3>2.1 Documentos analisados</h3>
+<textarea placeholder="Liste os documentos analisados: matrícula / certidão de ônus, cadastro imobiliário (IPTU), planta, croqui, etc."></textarea>
+<h3>2.2 Pressupostos e ressalvas</h3>
+<ul>
+  <li>A avaliação considera o imóvel livre e desembaraçado de ônus, salvo o que constar da matrícula.</li>
+  <li>Adotou-se a situação física e ocupacional constatada na vistoria como representativa na data de referência.</li>
+  <li>O valor apurado refere-se exclusivamente ao terreno, sem benfeitorias.</li>
+</ul>
+<textarea placeholder="Demais ressalvas: gravames, irregularidade, restrição ambiental/urbanística, se houver."></textarea>
+
+<h2>3. Caracterização do Imóvel e da Região</h2>
+<h3>3.1 O terreno</h3>
+<table>
+  <tr><td class="rot">Área do terreno (m²)</td><td class="ed-cell"><input type="text" id="in-area-31" placeholder="m²"></td></tr>
+  <tr><td class="rot">Testada / frente (m)</td><td class="ed-cell"><input type="text" placeholder="m"></td></tr>
+  <tr><td class="rot">Formato / topografia</td><td class="ed-cell"><input type="text" placeholder="ex.: retangular, plano / aclive / declive"></td></tr>
+  <tr><td class="rot">Situação na quadra</td><td class="ed-cell"><input type="text" placeholder="meio de quadra / esquina"></td></tr>
+  <tr><td class="rot">Zoneamento / uso permitido</td><td class="ed-cell"><input type="text" placeholder="conforme lei de uso e ocupação do solo"></td></tr>
+  <tr><td class="rot">Infraestrutura disponível</td><td class="ed-cell"><input type="text" placeholder="água, esgoto, energia, drenagem, pavimentação, iluminação"></td></tr>
+</table>
+<h3>3.2 A região</h3>
+<textarea placeholder="Descreva o entorno: padrão predominante (residencial/comercial), grau de urbanização, equipamentos públicos, vocação da região, tendência de valorização."></textarea>
+<h3>3.3 Vistoria</h3>
+<p>Vistoria realizada em <input type="text" class="med" placeholder="__/__/____"> por
+<input type="text" class="med" placeholder="responsável">, com registro fotográfico anexo (Anexo I).</p>
+
+<h2>4. Metodologia</h2>
+<p>Adotou-se o <strong>Método Comparativo Direto de Dados de Mercado</strong> (NBR 14653-2),
+que identifica o valor de mercado a partir de uma amostra de imóveis semelhantes ao avaliando,
+com tratamento dos dados por <strong>homogeneização por fatores</strong>. A escolha justifica-se
+pela <strong>disponibilidade de dados de mercado</strong> de terrenos comparáveis na região e por
+ser o método de maior aceitação e fundamentação para terrenos urbanos com amostra disponível.</p>
+<p class="nota">Havendo amostra ampla, pode-se optar por tratamento por inferência estatística
+(regressão), o que tende a permitir grau de fundamentação mais elevado — verificar pressupostos
+do modelo. A Planta de Valores Genéricos (PVG) municipal, quando existente, é empregada apenas
+como referência subsidiária de cotejo, não como método avaliatório.</p>
+
+<h2>5. Desenvolvimento / Memória de Cálculo</h2>
+
+<h3>5.1 Amostra de mercado e homogeneização</h3>
+<p class="nota">Digite <strong>fonte/data, área e preço total</strong> de cada dado — o preço
+unitário é calculado automaticamente. Informe os <strong>fatores de homogeneização</strong> por dado
+(deixe em branco ou 1 os que não se aplicam); o produto dos fatores e o valor homogeneizado são
+calculados sozinhos. Marque a coluna <strong>Usar</strong> para incluir o dado no tratamento (dados
+saneados devem ser desmarcados, com justificativa na Seção 5.4). Consulte a legenda de fatores abaixo.</p>
+
+<div style="overflow-x:auto;">
+<table id="tab-amostra" class="calc">
+  <tr>
+    <th>Usar</th><th>Nº</th><th>Fonte / data</th><th>Tipo</th>
+    <th>Área<br>(m²)</th><th>Preço total<br>(R$)</th><th>V. unit.<br>(R$/m²)</th>
+    <th>Fo</th><th>Fa</th><th>Fl</th><th>Ff</th><th>Fp</th><th>Ft</th><th>Fout</th>
+    <th>&Pi; fat.</th><th>V. unit. homog.<br>(R$/m²)</th>
+  </tr>
+</table>
+</div>
+<p class="nota">Fo=oferta, Fa=área, Fl=localização, Ff=frente, Fp=profundidade, Ft=topografia,
+Fout=outro fator (esquina, pedologia, zoneamento, infraestrutura, tempo, etc.). Campo em branco
+conta como fator 1,00 (sem ajuste).</p>
+
+<h3>5.2 Guia dos fatores de homogeneização</h3>
+<p>Referência dos fatores aplicáveis a terreno urbano. Use apenas os fatores em que exista diferença
+mensurável entre o dado e o avaliando — o excesso de fatores enfraquece o laudo, e a NBR 14653-2
+limita a amplitude dos ajustes nos graus mais altos. Registre a justificativa de cada fator adotado
+na coluna abaixo.</p>
+<table class="fatores">
+  <tr><th class="nome">Fator</th><th>Aplicação</th><th>Justificativa / fonte adotada</th></tr>
+  <tr><td class="nome"><strong>Oferta (Fo)</strong></td><td>Ajusta preço de oferta ao provável valor de transação. Só para dados de oferta (típico ~0,90).</td><td class="ed-cell"><input type="text" placeholder="elasticidade do mercado local"></td></tr>
+  <tr><td class="nome"><strong>Área (Fa)</strong></td><td>Economia/deseconomia de escala conforme a área.</td><td class="ed-cell"><input type="text"></td></tr>
+  <tr><td class="nome"><strong>Localização (Fl)</strong></td><td>Diferença de valorização entre o local do dado e o do avaliando.</td><td class="ed-cell"><input type="text" placeholder="PVG / relação de mercado"></td></tr>
+  <tr><td class="nome"><strong>Frente / testada (Ff)</strong></td><td>Testada diferente da referência (acesso / aproveitamento).</td><td class="ed-cell"><input type="text"></td></tr>
+  <tr><td class="nome"><strong>Profundidade (Fp)</strong></td><td>Profundidade excessiva/insuficiente frente ao padrão da região.</td><td class="ed-cell"><input type="text"></td></tr>
+  <tr><td class="nome"><strong>Topografia (Ft)</strong></td><td>Aclive, declive acentuado ou nível abaixo da via.</td><td class="ed-cell"><input type="text"></td></tr>
+  <tr><td class="nome"><strong>Outro (Fout)</strong></td><td>Esquina, pedologia, zoneamento/aproveitamento, infraestrutura, tempo/atualização.</td><td class="ed-cell"><input type="text" placeholder="identificar e justificar o fator"></td></tr>
+</table>
+
+<h4 style="font-size:12.5px; margin:18px 0 6px; color:var(--linha-forte);">Referência de valores e condições</h4>
+<p class="nota">O fator ajusta o dado <em>em direção</em> ao avaliando: <strong>fator &gt; 1</strong> quando o
+dado é <em>inferior</em> ao avaliando naquele atributo (precisa subir para se equiparar);
+<strong>fator &lt; 1</strong> quando o dado é <em>superior</em>; <strong>1,00</strong> quando são
+equivalentes. As faixas abaixo são ordens de grandeza usuais de mercado — <strong>não são tabeladas
+pela NBR 14653-2</strong> (salvo onde indicado) e devem ser deduzidas de dados ou de fonte técnica e
+justificadas no laudo.</p>
+<table class="ref-fatores">
+  <tr>
+    <th>Fator</th><th>Quando o dado é…</th><th>Sentido</th>
+    <th>Faixa usual</th><th>Base / como obter</th>
+  </tr>
+  <tr>
+    <td rowspan="1" class="nome"><strong>Oferta (Fo)</strong></td>
+    <td>preço de anúncio (oferta), não transação</td>
+    <td>&lt; 1</td><td>0,80 – 0,95<br>(usual 0,90)</td>
+    <td>Desconto de negociação do mercado local; pesquisa de diferença oferta×fechamento. Transações reais: Fo = 1,00.</td>
+  </tr>
+  <tr>
+    <td rowspan="2" class="nome"><strong>Área (Fa)</strong></td>
+    <td>menor que o avaliando (unit. tende a ser maior)</td>
+    <td>&lt; 1</td>
+    <td rowspan="2">0,85 – 1,15</td>
+    <td rowspan="2">Deseconomia de escala: terrenos maiores têm R$/m² menor. Ideal: expoente/curva do próprio mercado. Diferenças pequenas de área ⇒ 1,00.</td>
+  </tr>
+  <tr>
+    <td>maior que o avaliando (unit. tende a ser menor)</td>
+    <td>&gt; 1</td>
+  </tr>
+  <tr>
+    <td rowspan="2" class="nome"><strong>Localização (Fl)</strong></td>
+    <td>em local menos valorizado que o avaliando</td>
+    <td>&gt; 1</td>
+    <td rowspan="2">0,70 – 1,30</td>
+    <td rowspan="2">Relação entre valores de mercado dos dois locais (R$/m² médio de cada trecho) ou razão de PVG. O mais influente — fundamentar bem.</td>
+  </tr>
+  <tr>
+    <td>em local mais valorizado que o avaliando</td>
+    <td>&lt; 1</td>
+  </tr>
+  <tr>
+    <td rowspan="2" class="nome"><strong>Frente / testada (Ff)</strong></td>
+    <td>testada menor que a de referência</td>
+    <td>&gt; 1</td>
+    <td rowspan="2">0,90 – 1,10</td>
+    <td rowspan="2">Fórmula de testada (ex.: raiz da razão testada/​testada-padrão da região). Aplicar só se a diferença for relevante.</td>
+  </tr>
+  <tr>
+    <td>testada maior que a de referência</td>
+    <td>&lt; 1</td>
+  </tr>
+  <tr>
+    <td rowspan="2" class="nome"><strong>Profundidade (Fp)</strong></td>
+    <td>profundidade dentro do padrão</td>
+    <td>= 1</td>
+    <td rowspan="2">0,90 – 1,05</td>
+    <td rowspan="2">Fator de profundidade (ex.: raiz da razão prof.-padrão/​profundidade). Excesso de profundidade reduz aproveitamento ⇒ deprecia.</td>
+  </tr>
+  <tr>
+    <td>profundidade excessiva / insuficiente</td>
+    <td>&lt; 1</td>
+  </tr>
+  <tr>
+    <td rowspan="3" class="nome"><strong>Topografia (Ft)</strong></td>
+    <td>plano, ao nível da via (referência)</td>
+    <td>= 1</td><td>1,00</td>
+    <td rowspan="3">Custo adicional de terraplenagem/​fundação estimado. Aclive é mais tolerável que declive; abaixo do nível da via é o pior caso.</td>
+  </tr>
+  <tr>
+    <td>aclive ou leve desnível</td>
+    <td>&gt; 1</td><td>1,00 – 1,10</td>
+  </tr>
+  <tr>
+    <td>declive acentuado / abaixo do nível</td>
+    <td>&gt; 1</td><td>1,10 – 1,30</td>
+  </tr>
+  <tr>
+    <td rowspan="3" class="nome"><strong>Outro (Fout)</strong></td>
+    <td>esquina — dado meio de quadra, avaliando esquina (uso comercial)</td>
+    <td>&gt; 1</td><td>1,05 – 1,15</td>
+    <td>Valorização de esquina (dupla testada); pode ser &lt; 1 em uso residencial. Inverter o sentido se o avaliando for meio de quadra.</td>
+  </tr>
+  <tr>
+    <td>pedologia — dado firme, avaliando solo mole/alagadiço</td>
+    <td>&gt; 1</td><td>1,05 – 1,20</td>
+    <td>Custo adicional de fundação/​aterro. Sentido conforme quem tem o solo pior.</td>
+  </tr>
+  <tr>
+    <td>infraestrutura / zoneamento / tempo</td>
+    <td>conforme</td><td>caso a caso</td>
+    <td>Infra: proporção de melhorias faltantes. Zoneamento: razão de potencial construtivo. Tempo: índice de valorização entre as datas.</td>
+  </tr>
+</table>
+<p class="nota"><strong>Cautela normativa:</strong> a NBR 14653-2 restringe a amplitude admissível dos
+ajustes para os graus de fundamentação mais altos — fatores individuais e o conjunto muito afastados
+de 1,00 rebaixam o grau ou invalidam a homogeneização. Fatores fora das faixas acima exigem
+justificativa reforçada. Quando a amostra permitir, prefira tratamento por inferência estatística
+(regressão), que dispensa a arbitragem de fatores.</p>
+
+<h3>5.3 Saneamento e tratamento estatístico</h3>
+<p class="nota">Calculado sobre os dados marcados como <strong>Usar</strong>. Para excluir um outlier,
+desmarque o dado na tabela acima e justifique abaixo.</p>
+<table>
+  <tr><td class="rot">Nº de dados utilizados</td><td class="ed-cell r"><output id="out-n">—</output></td></tr>
+  <tr><td class="rot">Média dos valores homogeneizados</td><td class="ed-cell r"><output id="out-media">—</output></td></tr>
+  <tr><td class="rot">Desvio-padrão (amostral)</td><td class="ed-cell r"><output id="out-dp">—</output></td></tr>
+  <tr><td class="rot">Coeficiente de variação</td><td class="ed-cell r"><output id="out-cv">—</output></td></tr>
+  <tr><td class="rot">Intervalo de saneamento (média ± 30%)</td><td class="ed-cell r"><output id="out-san">—</output></td></tr>
+  <tr><td class="rot">Dados excluídos (outliers) e justificativa</td><td class="ed-cell"><input type="text" placeholder="identificar o dado desmarcado e justificar a exclusão"></td></tr>
+</table>
+
+<h3>5.4 Cálculo do valor</h3>
+<div class="formula">
+Valor do terreno = Valor unitário homogeneizado médio (R$/m²) &times; Área do terreno (m²)<br><br>
+<output id="out-vunit-f" style="font-weight:600;">—</output> &times;
+<output id="out-area-terreno">—</output> m² =
+<strong><output id="out-valor-total">—</output></strong>
+</div>
+<p class="nota">A área usada é a informada na Seção 3.1 (preenchimento automático). O valor unitário
+adotado é a média dos valores homogeneizados dos dados utilizados; o avaliador pode arbitrar dentro
+do campo de arbítrio (Seção 6).</p>
+
+<h2>6. Resultado</h2>
+<table>
+  <tr><td class="rot">Valor unitário de mercado</td><td class="ed-cell r"><output id="out-vunit-r">—</output></td></tr>
+  <tr><td class="rot">Valor total do terreno</td><td class="ed-cell r"><strong><output id="out-total-r">—</output></strong></td></tr>
+  <tr><td class="rot">Campo de arbítrio (± 15%)</td><td class="ed-cell r"><output id="out-arbitrio">—</output></td></tr>
+  <tr><td class="rot">Grau de fundamentação atingido</td><td class="ed-cell"><input type="text" class="mini" placeholder="Grau"></td></tr>
+  <tr><td class="rot">Grau de precisão atingido</td><td class="ed-cell"><input type="text" class="mini" placeholder="Grau"></td></tr>
+</table>
+<p class="nota">Os graus devem ser enquadrados conforme os critérios da NBR 14653-2 vigente
+(quantidade de dados, amplitude dos fatores, tratamento) e não presumidos.</p>
+
+<h2>7. Conclusão</h2>
+<p>Com base no procedimento avaliatório descrito, atribui-se ao terreno objeto deste laudo,
+na data de referência de <input type="text" class="med" placeholder="__/__/____">,
+o valor de mercado de:</p>
+<p style="text-align:center; margin:14px 0;">
+<input type="text" style="max-width:300px; text-align:center; font-size:16px;" placeholder="R$ (valor total)"><br>
+<input type="text" style="max-width:480px; text-align:center; font-size:12.5px; margin-top:6px;" placeholder="valor por extenso">
+</p>
+
+<div class="ass">
+  <div class="linha"></div>
+  <div>Diego Nascimento Soares Leal</div>
+  <div style="font-size:12.5px; color:var(--cinza);">Engenheiro Civil — CREA-MT 37420</div>
+  <div style="font-size:12.5px; color:var(--cinza);">ART nº
+    <input type="text" class="mini" placeholder="nº"></div>
+  <div style="font-size:12.5px; color:var(--cinza); margin-top:6px;">
+    <input type="text" class="mini" placeholder="Local">,
+    <input type="text" class="med" placeholder="__/__/____">
+  </div>
+</div>
+
+<h2 style="margin-top:36px;">Anexos</h2>
+<ul>
+  <li>Anexo I — Relatório fotográfico da vistoria</li>
+  <li>Anexo II — Documentos do imóvel (matrícula, cadastro)</li>
+  <li>Anexo III — Fichas dos dados de mercado da amostra</li>
+  <li>Anexo IV — Planilha de tratamento (homogeneização)</li>
+</ul>
+
+<script>
+var N_DADOS = 6; // linhas da amostra
+
+// Converte texto BR em número; vazio => NaN.
+// Trata "320.000" como 320 mil e "0,90"/"1.05" como decimais.
+function num(v){
+  if(v==null) return NaN;
+  v=(''+v).trim(); if(v==='') return NaN;
+  v=v.replace(/[R$\s]/g,'');
+  var temVirg=v.indexOf(',')>-1, temPonto=v.indexOf('.')>-1;
+  if(temVirg && temPonto){ v=v.replace(/\./g,'').replace(',','.'); }
+  else if(temVirg){ v=v.replace(',','.'); }
+  else if(temPonto){
+    if(/^\d{1,3}(\.\d{3})+$/.test(v)) v=v.replace(/\./g,'');
+  }
+  var n=parseFloat(v);
+  return isNaN(n)?NaN:n;
+}
+// Fator: vazio => 1 (sem ajuste)
+function fator(v){
+  var n=num(v);
+  return isNaN(n)?1:n;
+}
+function moeda(n){
+  if(!isFinite(n)) return '—';
+  return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function un(n){
+  if(!isFinite(n)) return '—';
+  return n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' /m²';
+}
+
+function construirTabela(){
+  var t=document.getElementById('tab-amostra');
+  for(var i=1;i<=N_DADOS;i++){
+    var tr=document.createElement('tr');
+    var nn=(i<10?'0':'')+i;
+    tr.innerHTML=
+      '<td class="c"><input type="checkbox" class="usar" checked></td>'+
+      '<td class="c">'+nn+'</td>'+
+      '<td class="ed-cell"><input type="text" class="txt"></td>'+
+      '<td class="ed-cell"><input type="text" class="txt" placeholder="of./tr."></td>'+
+      '<td class="ed-cell"><input type="text" class="area num"></td>'+
+      '<td class="ed-cell"><input type="text" class="preco num"></td>'+
+      '<td class="c calc-cell vunit">—</td>'+
+      '<td class="ed-cell"><input type="text" class="f fo num"></td>'+
+      '<td class="ed-cell"><input type="text" class="f fa num"></td>'+
+      '<td class="ed-cell"><input type="text" class="f fl num"></td>'+
+      '<td class="ed-cell"><input type="text" class="f ff num"></td>'+
+      '<td class="ed-cell"><input type="text" class="f fp num"></td>'+
+      '<td class="ed-cell"><input type="text" class="f ft num"></td>'+
+      '<td class="ed-cell"><input type="text" class="f fout num"></td>'+
+      '<td class="c calc-cell prod">—</td>'+
+      '<td class="c calc-cell vhom">—</td>';
+    t.appendChild(tr);
+  }
+}
+
+function recalc(){
+  var linhas=document.querySelectorAll('#tab-amostra tr');
+  var homs=[];
+  linhas.forEach(function(tr){
+    if(!tr.querySelector('.area')) return; // cabeçalho
+    var area=num(tr.querySelector('.area').value);
+    var preco=num(tr.querySelector('.preco').value);
+    var vunit=(isFinite(area)&&area>0&&isFinite(preco))?preco/area:NaN;
+    tr.querySelector('.vunit').textContent=isFinite(vunit)?un(vunit):'—';
+
+    var fs=['fo','fa','fl','ff','fp','ft','fout'];
+    var prod=1, temFator=false;
+    fs.forEach(function(cls){
+      var el=tr.querySelector('.'+cls);
+      var raw=el.value.trim();
+      if(raw!==''){ temFator=true; }
+      prod*=fator(raw);
+    });
+    tr.querySelector('.prod').textContent=isFinite(prod)?prod.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4}):'—';
+
+    var vhom=(isFinite(vunit))?vunit*prod:NaN;
+    tr.querySelector('.vhom').textContent=isFinite(vhom)?un(vhom):'—';
+
+    var usar=tr.querySelector('.usar').checked;
+    tr.style.opacity=usar?'1':'0.45';
+    if(usar && isFinite(vhom)) homs.push(vhom);
+  });
+
+  // estatística
+  var n=homs.length;
+  var media=NaN, dp=NaN, cv=NaN;
+  if(n>0){
+    media=homs.reduce(function(a,b){return a+b;},0)/n;
+    if(n>1){
+      var s2=homs.reduce(function(a,b){return a+Math.pow(b-media,2);},0)/(n-1);
+      dp=Math.sqrt(s2);
+      cv=(dp/media)*100;
+    }
+  }
+  document.getElementById('out-n').textContent=n||'—';
+  document.getElementById('out-media').textContent=isFinite(media)?un(media):'—';
+  document.getElementById('out-dp').textContent=isFinite(dp)?dp.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}):(n===1?'(1 dado)':'—');
+  document.getElementById('out-cv').textContent=isFinite(cv)?cv.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+' %':'—';
+  document.getElementById('out-san').textContent=isFinite(media)?(un(media*0.70)+'  a  '+un(media*1.30)):'—';
+
+  // valor final
+  document.getElementById('out-vunit-f').textContent=isFinite(media)?un(media):'—';
+  document.getElementById('out-vunit-r').textContent=isFinite(media)?un(media):'—';
+  var areaT=num(document.getElementById('in-area-31').value);
+  document.getElementById('out-area-terreno').textContent=isFinite(areaT)?areaT.toLocaleString('pt-BR'):'—';
+  var total=(isFinite(media)&&isFinite(areaT))?media*areaT:NaN;
+  document.getElementById('out-valor-total').textContent=isFinite(total)?moeda(total):'—';
+  document.getElementById('out-total-r').textContent=isFinite(total)?moeda(total):'—';
+  document.getElementById('out-arbitrio').textContent=isFinite(total)?(moeda(total*0.85)+'  a  '+moeda(total*1.15)):'—';
+}
+
+function limpar(){
+  if(!confirm('Limpar todos os campos preenchidos?')) return;
+  document.querySelectorAll('input[type=text]').forEach(function(i){
+    if(i.value==='Valor de mercado') return;
+    if(i.value.indexOf('Diego Nascimento')===0) return;
+    i.value='';
+  });
+  document.querySelectorAll('textarea').forEach(function(t){t.value='';});
+  document.querySelectorAll('#tab-amostra .usar').forEach(function(c){c.checked=true;});
+  recalc();
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+  construirTabela();
+  document.addEventListener('input',recalc);
+  document.addEventListener('change',recalc);
+  recalc();
+});
+</script>
+<script>
+// integração com o Sistema de Engenharia (salvar/abrir este laudo)
+window.LAUDO_CFG = {
+  tipo: 'terreno', nome: 'Laudo de avaliação de terreno',
+  titulo: () => { const e = document.querySelector('input[placeholder^="logradouro"]'); return (e && e.value.trim()) || 'Laudo de terreno'; },
+  valor: () => { const t = document.getElementById('out-total-r').textContent || ''; const n = num(t); return isFinite(n) ? n : null; },
+  depois: () => recalc()
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/laudo-nuvem.js"></script>
+</body>
+</html>

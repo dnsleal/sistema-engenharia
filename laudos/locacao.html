@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laudo de Avaliação de Imóvel Urbano</title>
+<style>
+  :root{--azul:#1f4e79;--azul2:#2e75b6;--cinza:#f2f4f7;--linha:#cfd6de;--verde:#1e7d4f;--texto:#1a1a1a;}
+  *{box-sizing:border-box;}
+  body{font-family:"Segoe UI",Arial,sans-serif;color:var(--texto);margin:0;background:#e9edf2;padding:24px;line-height:1.5;}
+  .folha{max-width:920px;margin:0 auto;}
+  /* Páginas A4 simuladas (preview de documento) */
+  .pagina{width:210mm;min-height:297mm;background:#fff;margin:0 auto 22px;padding:18mm 16mm;
+    box-shadow:0 2px 14px rgba(0,0,0,.18);border-radius:2px;box-sizing:border-box;position:relative;}
+  .pagina::after{content:attr(data-pag);position:absolute;bottom:6mm;right:14mm;font-size:10px;color:#aaa;}
+  .pagina.capa{display:flex;flex-direction:column;}
+  .capa-corpo{flex:1 1 auto;}
+  .capa-data{flex:0 0 auto;text-align:center;padding-top:20px;border-top:1px solid var(--linha);margin-top:20px;}
+  /* Modo exportação PDF: visual de documento final */
+  body.exportando-pdf .pagina::after{display:none;}
+  body.exportando-pdf input,body.exportando-pdf select,body.exportando-pdf textarea{
+    border:none!important;background:transparent!important;padding:2px 0!important;color:#000!important;}
+  body.exportando-pdf .no-print{display:none!important;}
+  body.exportando-pdf details>div{display:block!important;}
+  body.exportando-pdf .foto-drop .ph,body.exportando-pdf .logo-box .ph{display:none!important;}
+  @media (max-width:880px){ .pagina{width:100%;min-height:auto;padding:24px;} .pagina::after{display:none;} }
+  h1{font-size:20px;text-align:center;color:var(--azul);margin:0 0 4px;}
+  h2{font-size:15px;color:var(--azul);border-bottom:2px solid var(--azul2);padding-bottom:4px;margin:28px 0 14px;}
+  h3{font-size:13px;color:var(--azul);margin:18px 0 8px;text-transform:uppercase;}
+  .sub{text-align:center;color:#555;font-size:13px;margin-bottom:20px;}
+  label{display:block;font-size:12px;font-weight:600;color:#333;margin:8px 0 3px;}
+  input,select,textarea{width:100%;padding:7px 9px;font-size:13px;border:1px solid var(--linha);border-radius:4px;font-family:inherit;background:#fff;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--azul2);box-shadow:0 0 0 2px rgba(46,117,182,.18);}
+  textarea{resize:vertical;min-height:70px;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px 18px;}
+  .calc{background:var(--cinza);border:1px solid var(--linha);border-radius:6px;padding:14px 16px;margin-top:10px;}
+  .resultado{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed #d3d9e0;font-size:13px;gap:12px;}
+  .resultado:last-child{border-bottom:none;}
+  .resultado .v{font-weight:700;color:var(--azul);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .destaque{background:#eef6f0;border:1px solid #bfe0cd;border-radius:5px;padding:6px 10px;margin-top:4px;}
+  .destaque .v{color:var(--verde);font-size:15px;}
+  .nota{font-size:11px;color:#666;margin-top:6px;}
+  .cab{display:flex;align-items:center;gap:18px;border-bottom:2px solid var(--azul);padding-bottom:14px;margin-bottom:18px;}
+  .logo-box{width:140px;min-width:140px;height:90px;border:1px dashed var(--linha);border-radius:6px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fafbfc;cursor:pointer;}
+  .logo-box img{max-width:100%;max-height:100%;object-fit:contain;}
+  .logo-box .ph{font-size:11px;color:#9aa3ad;text-align:center;padding:6px;}
+  .cab-txt{flex:1;}
+  .cab-txt input{border:none;font-weight:700;color:var(--azul);font-size:15px;padding:2px 0;}
+  .cab-txt input.small{font-weight:400;color:#555;font-size:12px;}
+  .file-mini{font-size:11px;margin-top:6px;}
+  .secao-tit{background:#eef3f9;border-left:4px solid var(--azul);padding:8px 12px;font-weight:700;color:var(--azul);font-size:14px;margin:26px 0 12px;}
+  .fixo{background:#f7f8fa;border:1px solid var(--linha);border-radius:5px;padding:10px 12px;font-size:12.5px;color:#333;line-height:1.6;}
+  .fotos{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .foto-card{border:1px solid var(--linha);border-radius:6px;padding:10px;background:#fafbfc;}
+  .foto-drop{width:100%;aspect-ratio:1/1;border:1px dashed var(--linha);border-radius:5px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#fff;cursor:pointer;}
+  .foto-drop img{width:100%;height:100%;object-fit:cover;}
+  .foto-drop .ph{color:#9aa3ad;font-size:12px;}
+  .foto-card input[type=text]{margin-top:8px;}
+  .mapa-wrap{margin-top:8px;}
+  .mapa-frame{width:100%;height:360px;border:1px solid var(--linha);border-radius:6px;overflow:hidden;background:#f3f5f8;}
+  .mapa-frame iframe{width:100%;height:100%;border:0;}
+  .mapa-ph{display:flex;align-items:center;justify-content:center;height:100%;color:#9aa3ad;font-size:13px;text-align:center;padding:20px;}
+  table.rh{border-collapse:collapse;font-size:10px;width:100%;margin-top:8px;}
+  table.rh th,table.rh td{border:1px solid #c9d0d8;padding:2px 4px;text-align:center;}
+  table.rh th{background:var(--azul2);color:#fff;}
+  table.rh td.idx{background:#fce9d6;font-weight:600;}
+  table.rh tr.hit td{background:#fff3bf;font-weight:700;}
+  table.rh td.hitcell{background:#1e7d4f!important;color:#fff;}
+  table.resumo{width:100%;border-collapse:collapse;margin-top:8px;}
+  table.resumo th,table.resumo td{border:1px solid var(--linha);padding:8px 10px;font-size:13px;text-align:left;}
+  table.resumo th{background:var(--azul);color:#fff;}
+  table.resumo td.val{text-align:right;font-weight:700;color:var(--azul);white-space:nowrap;}
+  .extenso-box{background:#eef6f0;border:1px solid #bfe0cd;border-radius:5px;padding:10px 14px;margin-top:10px;font-size:13px;line-height:1.6;}
+  details{margin-top:10px;}
+  summary{cursor:pointer;font-size:12px;color:var(--azul2);font-weight:600;}
+  .badge{display:inline-block;background:#eef3f9;border:1px solid #cddff0;color:var(--azul);font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;}
+  .estado-resumo{margin-top:12px;border:1px solid #cddff0;border-left:4px solid var(--azul2);background:#f5f9fd;border-radius:6px;padding:12px 16px;font-size:12px;}
+  .estado-resumo .er-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+  .estado-resumo .er-ref{background:var(--azul);color:#fff;font-weight:700;border-radius:5px;padding:3px 10px;font-size:13px;}
+  .estado-resumo .er-nome{font-weight:700;color:var(--azul);font-size:13px;}
+  .estado-resumo .er-dep{margin-left:auto;background:#1e7d4f;color:#fff;border-radius:10px;padding:2px 10px;font-weight:700;white-space:nowrap;}
+  .estado-resumo .er-desc{color:#333;line-height:1.55;}
+  hr.sep{border:none;border-top:1px solid var(--linha);margin:18px 0;}
+  .barra{display:flex;gap:10px;margin-top:24px;flex-wrap:wrap;}
+  button{background:var(--azul);color:#fff;border:none;padding:10px 18px;border-radius:5px;font-size:13px;cursor:pointer;font-weight:600;}
+  button.sec{background:#6b7785;}
+  button:hover{filter:brightness(1.08);}
+  .assin{margin-top:30px;text-align:center;font-size:13px;}
+  .assin .l{border-top:1px solid #555;width:280px;margin:40px auto 4px;}
+  .memoria{background:#fcfcfd;border:1px solid var(--linha);border-radius:6px;padding:16px 20px;font-size:12px;line-height:1.7;font-family:"Consolas",monospace;white-space:pre-wrap;}
+  .memoria b{font-family:"Segoe UI",Arial,sans-serif;color:var(--azul);}
+  @media print{
+    body{background:#fff;padding:0;}
+    .folha{box-shadow:none;max-width:100%;padding:0;}
+    .pagina{width:auto;min-height:auto;margin:0;padding:0 6mm;box-shadow:none;border-radius:0;
+      page-break-after:always;}
+    .pagina:last-of-type{page-break-after:auto;}
+    .pagina::after{display:none;}
+    .barra,summary,.nota,.file-mini,.no-print{display:none!important;}
+    details{display:block;} details>div{display:block!important;}
+    input,select,textarea{border:none;background:transparent;padding:2px 0;font-weight:600;color:#000;}
+    .cab-txt input{padding:0;}
+    .calc,.memoria,.destaque,.fixo{background:#fff;}
+    .logo-box,.foto-drop,.foto-card{border:1px solid #ddd;}
+    .foto-drop .ph,.logo-box .ph{display:none;}
+    textarea{resize:none;}
+    .pagebreak{display:none;}
+  }
+  @page{size:A4;margin:12mm;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head>
+<body>
+<div class="folha">
+
+  <!-- ===== PÁGINA 1 — CAPA ===== -->
+  <div class="pagina capa" data-pag="Página 1 — Capa">
+
+  <!-- CABEÇALHO -->
+  <div class="cab">
+    <div class="logo-box" id="logoBox" onclick="document.getElementById('logoInput').click()">
+      <span class="ph" id="logoPh">Clique para inserir o logo</span>
+      <img id="logoImg" style="display:none;">
+    </div>
+    <div class="cab-txt">
+      <input id="empNome" value="SECRETARIA MUNICIPAL DE EDUCAÇÃO" placeholder="Nome do órgão">
+      <input class="small" id="empSub" value="Coordenadoria Técnica de Infraestrutura – CTI/SMECEL" placeholder="Subtítulo / departamento">
+      <div class="file-mini"><input type="file" id="logoInput" accept="image/*" onchange="carregarLogo(event)"></div>
+    </div>
+  </div>
+
+  <!-- CAPA -->
+  <div class="capa-corpo">
+  <h1>LAUDO DE AVALIAÇÃO DE IMÓVEL URBANO</h1>
+  <div class="sub">Avaliação de Imóvel Urbano — Para Fins de Locação</div>
+  <div class="grid2">
+    <div><label>Interessado</label><input id="interessado" value="Secretaria Municipal de Educação, Cultura, Esporte e Lazer - SMECEL" oninput="sync()"></div>
+    <div><label>Proprietário</label><input id="proprietario" value="CIMAFRAN COMÉRCIO INDÚSTRIA E EXPORTAÇÃO DE MADEIRAS LTDA." oninput="sync()"></div>
+    <div><label>CNPJ</label><input id="cnpj" value="15.059.900/0001-81" oninput="sync()"></div>
+    <div><label>Inscrição Estadual</label><input id="ie" value="04.1.13.013.0824.001" oninput="sync()"></div>
+  </div>
+  <label>Local / Endereço</label>
+  <input id="local" value="Rod BR 364, KM 10, Bairro Coxipó – Av. Fernando Correa da Costa, nº 9650, Cuiabá - MT" oninput="sync()">
+  <label>Município / UF</label>
+  <input id="municipio" value="Cuiabá - MT" oninput="sync()">
+  </div><!-- /capa-corpo -->
+
+  <div class="capa-data">
+    <label style="text-align:center;">Mês / Ano de referência</label>
+    <input id="mesano" value="Dezembro de 2025" oninput="sync()" style="text-align:center;font-weight:700;color:var(--azul);font-size:15px;max-width:300px;margin:0 auto;">
+  </div>
+
+  </div><!-- /pagina capa -->
+
+  <!-- ===== PÁGINA 2 — INTRODUÇÃO + CARACTERIZAÇÃO ===== -->
+  <div class="pagina" data-pag="Página 2 — Introdução / Caracterização">
+
+  <!-- I INTRODUÇÃO -->
+  <div class="secao-tit">I — INTRODUÇÃO</div>
+
+  <h3>1 — Autoria do trabalho</h3>
+  <textarea id="autoria">Prefeitura Municipal de Cuiabá
+Secretaria Municipal de Educação, Cultura, Esporte e Lazer
+Coordenadoria Técnica de Infraestrutura – CTI/SMECEL</textarea>
+
+  <h3>2 — Objeto</h3>
+  <input id="objeto" value="Avaliação de imóvel para fins de locação.">
+
+  <h3>3 — Inscrição cadastral</h3>
+  <div class="fixo" id="inscricaoView">—</div>
+  <p class="nota">Preenchido automaticamente a partir dos dados da capa (proprietário, CNPJ, local, inscrição estadual).</p>
+
+  <h3>4 — Objetivo da avaliação</h3>
+  <input id="objetivo" value="Estabelecer parâmetros de valor, com fins de locação.">
+
+  <h3>5 — Resumo dos valores</h3>
+  <table class="resumo">
+    <tr><th>Especificação</th><th style="text-align:right;">Valor (R$)</th></tr>
+    <tr><td>Vl = Terreno + Construção 1 (dep.) + Construção 2 (dep.)</td><td class="val" id="rs_vtotal">—</td></tr>
+    <tr><td>Valor Final (VL) — 0,5% a 1%</td><td class="val" id="rs_faixa">—</td></tr>
+  </table>
+
+  <!-- II CARACTERIZAÇÃO DA AVALIAÇÃO -->
+  <div class="secao-tit">II — CARACTERIZAÇÃO DA AVALIAÇÃO</div>
+
+  <h3>1 — Nível de precisão</h3>
+  <textarea id="precisaoTxt">Em função das características da região, localização do bem avaliado e de dados do mercado imobiliário mato-grossense, optou-se pelo nível de avaliação de precisão normal.</textarea>
+
+  <h3>2 — Metodologia</h3>
+  <label>2.1 — Método utilizado</label>
+  <input id="metodo" value="Método direto comparativo.">
+  <label>2.2 — Critérios utilizados</label>
+  <textarea id="criterios">Para o imóvel avaliado, foi desenvolvido um critério de cálculo específico no sentido de adaptar o método às características do bem avaliado. Os valores coletados permitem a utilização dos preços básicos a seguir para o bem avaliado.</textarea>
+  <div class="fixo" style="margin-top:8px;">
+    <b>Fonte de Dados (terreno):</b> Planta de Valores Genéricos do Município de Cuiabá — PVG, Exercício 2025 (Tabela I).<br>
+    Para a área do terreno, conforme padrão de rua (BCI), aplica-se o valor unitário correspondente.<br>
+    <b>Fonte de Dados (construção):</b> Sinduscon-MT — NBR 12.721:2006 (CUB). Projeto-padrão conforme tipologia da edificação.
+  </div>
+
+  <label style="margin-top:14px;">2.3 — Pesquisa de valores</label>
+  <textarea id="pesquisa">A pesquisa de valores foi efetuada de acordo com a natureza da avaliação (imóvel urbano), respeitando-se as prescrições do nível de precisão selecionado, sua complexidade pela própria natureza do bem avaliado, devido à sua especificidade e particularidade individual e fator geométrico. A pesquisa foi desenvolvida junto a instituições diretamente ligadas ao mercado imobiliário de Cuiabá.</textarea>
+
+  <div class="fixo" style="margin-top:10px;">
+    <b>2.4 — Determinação do valor</b><br>
+    Em função do método direto de avaliação, o valor final será a soma do terreno com o valor depreciado de cada uma das edificações existentes no imóvel.<br><br>
+    <b>Fórmula:</b> V = Vt + Vc1_dep + Vc2_dep<br>
+    V = valor final da avaliação &nbsp;|&nbsp; Vt = valor do terreno (sem depreciação) &nbsp;|&nbsp; Vc1_dep, Vc2_dep = valor depreciado de cada edificação<br>
+    At = área do terreno &nbsp;|&nbsp; Ac = área construída &nbsp;|&nbsp; FD = fator de depreciação (Ross-Heidecke) &nbsp;|&nbsp; Vl = valor da locação
+  </div>
+
+  <h3 style="margin-top:18px;">Dados para cálculo</h3>
+  <div style="margin-bottom:4px;font-weight:600;font-size:12px;color:#1f4e79;">2.4.1 — Valor do terreno (Vt) — único para o imóvel</div>
+  <div class="grid3">
+    <div><label>Área do terreno — At (m²)</label><input type="text" id="at" value="28.860,00" oninput="calcular()"></div>
+    <div><label>Padrão de rua (BCI) <span class="badge">busca PVG</span></label><input type="text" id="padraorua" value="52" oninput="buscarPVG()"></div>
+    <div><label>Valor unitário do terreno (R$/m²)</label><input type="text" id="vut" value="580,89" oninput="marcarManual();calcular()"></div>
+  </div>
+  <p class="nota" id="pvgInfo">Padrão de rua 52 → R$ 580,89/m² (Tabela I do PVG 2025). Digite o padrão (1 a 138) e o valor é preenchido automaticamente; você pode sobrescrever manualmente.</p>
+  <p class="nota">O terreno não sofre depreciação — a depreciação de Ross-Heidecke se aplica apenas às edificações.</p>
+
+  <!-- CONSTRUÇÃO 1 — PRINCIPAL -->
+  <div style="margin:20px 0 4px;font-weight:700;font-size:13px;color:#1f4e79;background:#eef3f9;padding:6px 10px;border-left:4px solid var(--azul);">2.4.2 — Construção 1 (Principal)</div>
+  <div class="grid2">
+    <div><label>Área construída — Ac1 (m²)</label><input type="text" id="ac_1" value="4.200,00" oninput="calcular()"></div>
+    <div><label>Valor unitário — CUB (R$/m²)</label><input type="text" id="vuc_1" value="1.653,82" oninput="calcular()"></div>
+  </div>
+  <div class="grid3" style="margin-top:8px;">
+    <div><label>Idade (anos)</label><input type="text" id="idade_1" value="30" oninput="calcular()"></div>
+    <div><label>Vida útil estimada (anos)</label><input type="text" id="vida_1" value="60" oninput="calcular()"></div>
+    <div><label>Estado de conservação</label>
+      <select id="estado_1" onchange="calcular()">
+        <option value="A">A — Nova</option>
+        <option value="B">B — Entre nova e regular</option>
+        <option value="C">C — Regular</option>
+        <option value="D">D — Entre regular e reparos simples</option>
+        <option value="E" selected>E — Necessitando de reparos simples</option>
+        <option value="F">F — Reparos simples a importantes</option>
+        <option value="G">G — Necessitando de reparos importantes</option>
+        <option value="H">H — Reparos importantes a sem valor</option>
+      </select>
+    </div>
+  </div>
+  <div id="estadoResumo_1" class="estado-resumo"></div>
+  <details><summary>Ver tabela Ross-Heidecke — Construção 1 (linha selecionada em destaque)</summary><div class="rh-wrap" id="rhWrap_1"></div></details>
+
+  <!-- CONSTRUÇÃO 2 — ANEXO -->
+  <div style="margin:20px 0 4px;font-weight:700;font-size:13px;color:#1f4e79;background:#eef3f9;padding:6px 10px;border-left:4px solid var(--azul);">2.4.3 — Construção 2 (Anexo)</div>
+  <div class="grid2">
+    <div><label>Área construída — Ac2 (m²)</label><input type="text" id="ac_2" value="1.400,00" oninput="calcular()"></div>
+    <div><label>Valor unitário — CUB (R$/m²)</label><input type="text" id="vuc_2" value="1.653,82" oninput="calcular()"></div>
+  </div>
+  <div class="grid3" style="margin-top:8px;">
+    <div><label>Idade (anos)</label><input type="text" id="idade_2" value="15" oninput="calcular()"></div>
+    <div><label>Vida útil estimada (anos)</label><input type="text" id="vida_2" value="60" oninput="calcular()"></div>
+    <div><label>Estado de conservação</label>
+      <select id="estado_2" onchange="calcular()">
+        <option value="A">A — Nova</option>
+        <option value="B">B — Entre nova e regular</option>
+        <option value="C">C — Regular</option>
+        <option value="D">D — Entre regular e reparos simples</option>
+        <option value="E" selected>E — Necessitando de reparos simples</option>
+        <option value="F">F — Reparos simples a importantes</option>
+        <option value="G">G — Necessitando de reparos importantes</option>
+        <option value="H">H — Reparos importantes a sem valor</option>
+      </select>
+    </div>
+  </div>
+  <div id="estadoResumo_2" class="estado-resumo"></div>
+  <details><summary>Ver tabela Ross-Heidecke — Construção 2 (linha selecionada em destaque)</summary><div class="rh-wrap" id="rhWrap_2"></div></details>
+  <p class="nota">% de vida = idade ÷ vida útil. O sistema busca a linha mais próxima da tabela Ross-Heidecke de cada construção e cruza com o estado de conservação para obter a depreciação (%). FD = 1 − depreciação/100.</p>
+
+  <!-- Mapa -->
+  <h3 style="margin-top:18px;">Mapa de localização (Figura 1)</h3>
+  <div class="grid2">
+    <div><label>Endereço / local para o mapa</label><input id="mapaEndereco" value="Av. Fernando Correa da Costa, 9650, Coxipó, Cuiabá - MT" oninput="atualizaMapa()"></div>
+    <div style="display:flex;align-items:flex-end;"><button class="sec no-print" style="width:100%;" onclick="atualizaMapa()">Atualizar mapa</button></div>
+  </div>
+  <div class="mapa-wrap"><div class="mapa-frame" id="mapaFrame"><div class="mapa-ph">Digite um endereço acima e clique em “Atualizar mapa”.</div></div></div>
+  <input id="mapaLegenda" value="Figura 1 — Mapa de localização do imóvel. Fonte: Google Maps." style="margin-top:8px;font-size:12px;">
+
+  <!-- RESULTADOS -->
+  <h3 style="margin-top:20px;">Resultados do cálculo</h3>
+  <div class="calc">
+    <div class="resultado"><span>Valor do terreno (Vt = At × Vut) — sem depreciação</span><span class="v" id="r_vt">—</span></div>
+  </div>
+
+  <div class="calc" style="margin-top:10px;">
+    <div class="resultado"><span><b>Construção 1 — Principal</b></span><span class="v"></span></div>
+    <div class="resultado"><span>Valor da construção (Vc1 = Ac1 × Vuc1)</span><span class="v" id="r_vc_1">—</span></div>
+    <div class="resultado"><span>% de vida (idade ÷ vida útil)</span><span class="v" id="r_pv_1">—</span></div>
+    <div class="resultado"><span>Linha da tabela utilizada</span><span class="v" id="r_linha_1">—</span></div>
+    <div class="resultado"><span>Depreciação (Ross-Heidecke)</span><span class="v" id="r_dep_1">—</span></div>
+    <div class="resultado"><span>Fator de depreciação (FD1)</span><span class="v" id="r_fd_1">—</span></div>
+  </div>
+  <div class="resultado destaque"><span><b>Valor depreciado — Construção 1 (Vc1_dep)</b></span><span class="v" id="r_vcdep_1">—</span></div>
+
+  <div class="calc" style="margin-top:14px;">
+    <div class="resultado"><span><b>Construção 2 — Anexo</b></span><span class="v"></span></div>
+    <div class="resultado"><span>Valor da construção (Vc2 = Ac2 × Vuc2)</span><span class="v" id="r_vc_2">—</span></div>
+    <div class="resultado"><span>% de vida (idade ÷ vida útil)</span><span class="v" id="r_pv_2">—</span></div>
+    <div class="resultado"><span>Linha da tabela utilizada</span><span class="v" id="r_linha_2">—</span></div>
+    <div class="resultado"><span>Depreciação (Ross-Heidecke)</span><span class="v" id="r_dep_2">—</span></div>
+    <div class="resultado"><span>Fator de depreciação (FD2)</span><span class="v" id="r_fd_2">—</span></div>
+  </div>
+  <div class="resultado destaque"><span><b>Valor depreciado — Construção 2 (Vc2_dep)</b></span><span class="v" id="r_vcdep_2">—</span></div>
+
+  <div class="resultado destaque" style="margin-top:14px;"><span><b>Valor total consolidado (Vtotal = Vt + Vc1_dep + Vc2_dep)</b></span><span class="v" id="r_vtotal">—</span></div>
+  <div class="calc" style="margin-top:14px;">
+    <div class="resultado"><span>Valor de locação — 0,5% do Vtotal</span><span class="v" id="r_loc05">—</span></div>
+    <div class="resultado"><span>Valor de locação — 1,0% do Vtotal</span><span class="v" id="r_loc10">—</span></div>
+  </div>
+  <div class="resultado destaque"><span><b>Faixa de valor locatício mensal</b></span><span class="v" id="r_faixa">—</span></div>
+
+  </div><!-- /pagina 2 -->
+
+  <!-- ===== PÁGINA 3 — VISTORIA + FOTOS ===== -->
+  <div class="pagina" data-pag="Página 3 — Vistoria / Fotos">
+
+  <!-- III VISTORIA -->
+  <div class="secao-tit">III — VISTORIA</div>
+  <h3>1 — Caracterização do imóvel avaliado</h3>
+
+  <label>1.1 — Terreno</label>
+  <input id="vTerreno" value="Classificação: Urbana.">
+
+  <label>1.2a — Construção 1 (Principal)</label>
+  <textarea id="vConstrucao1" style="min-height:110px;">O imóvel avaliado consiste em uma edificação em alvenaria, com estrutura em concreto pré-moldado, apresentando padrão construtivo sólido e funcional. Foram realizadas intervenções de adequação interna, incluindo execução de grades metálicas divisórias, além de pintura geral e revitalização de esquadrias. O sistema predial foi modernizado com melhorias nas instalações elétricas, iluminação e implantação de rede lógica.
+
+A edificação apresenta estado de conservação regular, compatível com o padrão construtivo e com as melhorias recentemente executadas, encontrando-se em condições adequadas de uso.</textarea>
+
+  <label>1.2b — Construção 2 (Anexo)</label>
+  <textarea id="vConstrucao2" style="min-height:90px;">Edificação anexa ao imóvel principal, de padrão construtivo compatível, utilizada como área de apoio. Apresenta estado de conservação regular, com desgastes naturais decorrentes do uso, sem patologias que comprometam sua funcionalidade ou integridade.</textarea>
+
+  <label>1.3 — Localização do imóvel</label>
+  <input id="vLocalizacao" value="Rod BR 364, KM 10, Bairro Coxipó – Av. Fernando Correa da Costa, nº 9650, Cuiabá - MT.">
+
+  <label>1.4 — Características da região</label>
+  <input id="vRegiao" value="O imóvel possui nas proximidades imóveis residenciais e comerciais.">
+
+  <label>1.5 — Melhoramentos públicos existentes</label>
+  <textarea id="vMelhoramentos" style="min-height:50px;">Possui como infraestrutura: rede de energia elétrica, rede de água, asfalto, telefone, coleta de lixo, transporte coletivo, rede de esgoto e internet.</textarea>
+
+  <label>1.6 — Destinação do imóvel</label>
+  <input id="vDestinacao" value="Locação.">
+
+  <!-- REGISTRO FOTOGRÁFICO -->
+  <h3 style="margin-top:20px;">2 — Registro fotográfico</h3>
+  <div class="fotos" id="fotos"></div>
+  <button class="sec no-print" style="margin-top:12px;" onclick="addFoto()">+ Adicionar foto</button>
+
+  <!-- IV DETERMINAÇÃO DOS VALORES -->
+  </div><!-- /pagina 3 -->
+
+  <!-- ===== PÁGINA 4 — DETERMINAÇÃO + ENCERRAMENTO ===== -->
+  <div class="pagina" data-pag="Página 4 — Determinação / Encerramento">
+
+  <div class="secao-tit">IV — DETERMINAÇÃO DOS VALORES</div>
+  <h3>1 — Valor final da avaliação</h3>
+  <table class="resumo">
+    <tr><th>Especificação</th><th style="text-align:right;">Valor (R$)</th></tr>
+    <tr><td>Terreno (sem depreciação)</td><td class="val" id="dv_vt">—</td></tr>
+    <tr><td>Construção 1 — Principal (valor depreciado)</td><td class="val" id="dv_vc1">—</td></tr>
+    <tr><td>Construção 2 — Anexo (valor depreciado)</td><td class="val" id="dv_vc2">—</td></tr>
+    <tr><td><b>Valor Total Consolidado</b></td><td class="val" id="dv_vtotal">—</td></tr>
+  </table>
+  <div class="extenso-box" id="conclusaoTxt">—</div>
+
+  <!-- ENCERRAMENTO -->
+  <div class="secao-tit">ENCERRAMENTO</div>
+  <div class="grid2">
+    <div><label>Cidade</label><input id="encCidade" value="Cuiabá" oninput="sync()"></div>
+    <div><label>Data por extenso</label><input id="encData" value="22 de dezembro de 2025" oninput="sync()"></div>
+  </div>
+  <div class="assin">
+    <div class="l"></div>
+    <div><input id="a_nome" value="Diego N S Leal" style="text-align:center;border:none;font-weight:700;width:auto;display:inline;"></div>
+    <div><input id="a_emp" value="TNS Engenharia Civil" style="text-align:center;border:none;width:auto;display:inline;"></div>
+    <div><input id="a_mat" value="Matrícula Nº 4936597" style="text-align:center;border:none;width:auto;display:inline;"></div>
+    <div><input id="a_crea" value="CREA N.º MT 37420" style="text-align:center;border:none;width:auto;display:inline;"></div>
+  </div>
+
+  </div><!-- /pagina 4 -->
+
+  <!-- ===== PÁGINA 5 — APÊNDICE ===== -->
+  <div class="pagina" data-pag="Página 5 — Apêndice">
+
+  <!-- APÊNDICE -->
+  <div class="secao-tit">APÊNDICE — MEMÓRIA DE CÁLCULO</div>
+  <div class="memoria" id="memoria">—</div>
+
+  </div><!-- /pagina 5 -->
+
+  <!-- RODAPÉ (config + visualização) -->
+  <hr class="sep">
+  <h2 class="no-print">Rodapé do documento</h2>
+  <div class="rodape-edit no-print">
+    <label>Texto do rodapé</label>
+    <textarea id="rodapeTxt" oninput="atualizaRodape()" style="min-height:50px;">Rua Domingos Diogo Ferreira, 292, Bairro Bandeirantes — CEP 78010-090 — Cuiabá – Mato Grosso  |  cuiaba.mt.gov.br</textarea>
+  </div>
+  <div id="rodapeView" style="text-align:center;font-size:11px;color:#555;border-top:1px solid var(--linha);padding-top:8px;margin-top:8px;"></div>
+  <div id="creditoFixo" style="text-align:center;font-size:11px;color:#1f4e79;font-weight:700;margin-top:6px;">Desenvolvido por Eng. Civil Diego Leal — CREA MT 37420</div>
+
+  <div class="barra">
+    <button onclick="exportarPDF()">Exportar PDF</button>
+    <button onclick="exportarWord()">Exportar Word (.doc)</button>
+    <button class="sec" onclick="window.print()">Imprimir</button>
+    <button class="sec" onclick="resetar()">Restaurar valores do laudo</button>
+  </div>
+</div>
+
+<script>
+const PVG={1:1.11,2:2.23,3:6.7,4:11.17,5:17.86,6:22.34,7:26.81,8:33.51,9:40.22,10:44.67,11:55.86,12:67.03,13:78.19,14:89.37,15:100.53,16:111.71,17:122.88,18:134.04,19:145.23,20:156.4,21:167.56,22:178.74,23:189.9,24:201.07,25:212.25,26:223.41,27:234.58,28:245.77,29:256.93,30:268.11,31:279.27,32:290.44,33:301.62,34:312.78,35:323.95,36:335.13,37:346.3,38:357.46,39:368.64,40:379.81,41:390.97,42:402.15,43:413.31,44:424.5,45:435.67,46:446.83,47:469.18,48:491.52,49:513.85,50:536.2,51:558.55,52:580.89,53:603.22,54:625.57,55:647.91,56:670.25,57:714.94,58:759.61,59:781.96,60:804.31,61:848.98,62:893.68,63:938.35,64:983.04,65:1005.38,66:1027.72,67:1072.41,68:1117.09,69:1161.76,70:1206.46,71:1228.79,72:1251.13,73:1295.82,74:1340.5,75:1385.19,76:1429.87,77:1452.21,78:1474.56,79:1519.24,80:1563.92,81:1608.6,82:1653.29,83:1675.64,84:1697.97,85:1742.66,86:1787.34,87:1832.02,88:1876.71,89:1899.05,90:1921.39,91:1966.07,92:2010.76,93:2055.44,94:2100.13,95:2122.47,96:2144.8,97:2189.5,98:2234.17,99:2345.88,100:2457.58,101:2569.3,102:2681.02,103:2792.72,104:2904.43,105:3016.13,106:3127.85,107:3239.55,108:3351.26,109:3462.97,110:3574.67,111:3686.4,112:3798.09,113:3909.81,114:4021.51,115:4133.22,116:4244.94,117:4356.64,118:4468.35,119:4691.76,120:4915.19,121:5138.6,122:5362.02,123:5585.43,124:5808.84,125:6032.28,126:6255.69,127:6479.11,128:6702.52,129:6925.93,130:7149.36,131:7372.77,132:7596.2,133:7819.61,134:8043.04,135:8266.45,136:8489.86,137:8713.28,138:8936.69};
+
+const RH={
+ "2,00":[1.02,1.05,3.51,9.03,18.90,39.30,53.10,75.40],"4,00":[2.08,2.11,4.55,10.00,19.80,34.60,53.60,75.70],
+ "6,00":[3.18,3.21,5.62,11.00,20.70,35.30,54.10,76.00],"8,00":[4.32,4.35,6.73,12.10,21.60,36.10,54.60,76.30],
+ "10,00":[5.50,5.53,7.88,13.20,22.60,36.90,55.20,76.60],"12,00":[6.72,6.75,9.07,14.30,23.60,37.70,55.80,76.90],
+ "14,00":[7.98,8.01,10.30,15.40,24.60,38.50,56.40,77.20],"16,00":[9.28,9.31,11.60,16.60,25.70,39.40,57.00,77.50],
+ "18,00":[10.60,10.60,12.90,17.80,26.80,40.30,57.60,77.80],"20,00":[12.00,12.00,14.20,19.10,27.90,41.80,58.30,78.20],
+ "22,00":[13.40,13.40,15.60,20.40,29.10,42.20,59.00,78.50],"24,00":[14.90,14.90,17.00,21.80,30.30,43.10,59.60,78.90],
+ "26,00":[16.40,16.40,18.50,23.10,31.50,44.10,60.40,79.30],"28,00":[17.90,17.90,20.00,24.60,32.80,45.20,61.10,79.60],
+ "30,00":[19.50,19.50,21.50,26.00,34.10,46.20,61.80,80.00],"32,00":[21.10,21.10,23.10,27.50,35.40,47.30,62.60,80.40],
+ "34,00":[22.80,22.80,24.70,29.00,36.80,48.40,63.40,80.80],"36,00":[24.50,24.50,26.40,30.50,38.10,49.50,64.20,81.30],
+ "38,00":[26.20,26.20,28.10,32.20,39.60,50.70,65.00,81.70],"40,00":[28.80,28.80,29.90,33.80,41.00,51.90,65.90,82.10],
+ "42,00":[29.90,29.80,31.60,35.50,42.50,53.10,66.70,82.60],"44,00":[31.70,31.70,33.40,37.20,44.00,54.40,67.60,83.10],
+ "46,00":[33.60,33.60,35.20,38.90,45.60,55.60,68.50,83.50],"48,00":[35.60,35.50,37.10,40.70,47.20,56.90,69.40,84.00],
+ "50,00":[37.50,37.50,39.10,42.60,48.80,58.20,70.40,84.50],"52,00":[39.50,39.50,41.90,44.00,50.50,59.60,71.30,85.00],
+ "54,00":[41.60,41.60,43.00,46.30,52.10,61.00,72.30,85.50],"56,00":[43.70,43.70,45.10,48.20,53.90,62.40,73.30,86.00],
+ "58,00":[45.80,45.80,47.20,50.20,55.60,63.80,74.30,86.60],"60,00":[48.80,48.80,49.30,52.20,57.40,65.30,75.30,87.10],
+ "62,00":[50.20,50.20,51.50,54.20,59.20,66.70,75.40,87.70],"64,00":[52.50,52.50,53.70,56.30,61.10,68.30,77.50,88.20],
+ "66,00":[54.80,54.80,55.90,58.40,69.00,69.80,78.60,88.80],"68,00":[57.10,57.10,58.20,60.60,64.90,71.40,79.70,89.40],
+ "70,00":[59.50,59.50,60.50,62.80,66.60,72.90,80.80,90.40],"72,00":[62.20,62.20,62.90,65.00,68.80,74.60,81.90,90.90],
+ "74,00":[64.40,64.40,65.30,67.30,70.80,76.20,83.10,91.20],"76,00":[66.90,66.90,67.70,69.60,72.90,77.90,84.30,91.80],
+ "78,00":[69.40,69.40,72.20,71.90,74.90,89.60,85.50,92.40],"80,00":[72.00,72.00,72.70,74.30,77.10,81.30,86.70,93.10],
+ "82,00":[74.60,74.60,75.30,76.70,79.20,83.00,88.00,93.70],"84,00":[77.30,77.30,77.80,79.10,81.40,84.50,89.20,94.40],
+ "86,00":[80.00,80.00,80.50,81.60,83.60,86.60,90.50,95.00],"88,00":[82.70,82.70,83.20,84.10,85.80,88.50,91.80,95.70],
+ "90,00":[85.50,85.50,85.90,86.70,88.10,90.30,93.10,96.40],"92,00":[88.30,88.30,88.60,89.30,90.40,92.20,94.50,97.10],
+ "94,00":[91.20,91.20,91.40,91.90,92.80,94.10,95.80,97.80],"96,00":[94.10,94.10,94.20,94.60,95.10,96.00,97.20,98.50],
+ "98,00":[97.00,97.00,97.10,97.30,97.60,98.00,98.00,99.80],"100,00":[100.00,100.00,100.0,100.00,100.00,100.0,100.0,100.0]
+};
+const COLS=["A","B","C","D","E","F","G","H"];
+const ESTADOS={
+ A:{nome:"Nova",dep:0.00,desc:"Edificação nova ou com reforma geral e substancial, com menos de dois anos, que apresente sinais de desgaste natural da pintura externa."},
+ B:{nome:"Entre nova e regular",dep:0.32,desc:"Edificação nova ou com reforma geral e substancial, com menos de dois anos, que apresente necessidade apenas de uma demão leve de pintura para recompor sua aparência."},
+ C:{nome:"Regular",dep:2.52,desc:"Edificação seminova ou com reforma geral ou substancial entre dois a cinco anos, cujo estado geral possa ser recuperado apenas com reparos de eventuais fissuras superficiais localizadas e/ou pintura externa e interna."},
+ D:{nome:"Entre regular e necessitando de reparos simples",dep:8.09,desc:"Edificação nova ou com reforma geral ou substancial entre dois a cinco anos, cujo estado geral possa ser recuperado com reparos de fissuras e trincas localizadas e superficiais e pintura externa e interna."},
+ E:{nome:"Necessitando de reparos simples",dep:18.10,desc:"Edificação cujo estado geral possa ser recuperado com pintura externa e interna após reparos de fissuras e trincas superficiais generalizadas, sem recuperação do sistema estrutural. Eventualmente, revisão do sistema hidráulico e elétrico."},
+ F:{nome:"Necessitando de reparos simples a importantes",dep:33.20,desc:"Edificação cujo estado geral possa ser recuperado com pintura externa e interna após reparos de fissuras e trincas, com estabilização e/ou recuperação localizada do sistema estrutural. As instalações hidráulicas e elétricas podem ser restauradas mediante revisão e substituição parcial de peças degastadas naturalmente. Eventualmente, substituição dos revestimentos de pisos e paredes de um ou outro cômodo. Revisão da impermeabilização e/ou substituição de telhas de cobertura."},
+ G:{nome:"Necessitando de reparos importantes",dep:52.60,desc:"Edificação cujo estado geral possa ser recuperado mediante reparos importantes, com substituição de peças de regularização da alvenaria, fissuras e trincas, com estabilização e/ou recuperação de grande parte do sistema estrutural. Instalações restauradas com substituição de peças aparentes. Substituição dos revestimentos de pisos e paredes da maioria dos cômodos. Substituição da impermeabilização e/ou do telhado."},
+ H:{nome:"Necessitando de reparos importantes a edificação sem valor",dep:75.20,desc:"Edificação cujo estado geral possa ser recuperado com recuperação do sistema estrutural, substituição da regularização da alvenaria, fissuras e trincas. Instalações hidráulicas e elétricas totalmente substituídas. Substituição da impermeabilização e/ou do telhado."}
+};
+let vutManual=false;
+
+function num(s){if(s==null)return NaN;let x=String(s).trim().replace(/\./g,'').replace(',','.');return parseFloat(x);}
+function fmt(n){if(!isFinite(n))return"—";return"R$ "+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtNum(n,d){if(!isFinite(n))return"—";return n.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});}
+function gv(id){const el=document.getElementById(id);return el?(el.value||''):'';}
+function gt(id){const el=document.getElementById(id);return el?el.textContent:'';}
+function linhaMaisProxima(pv){let b=null,bd=Infinity;for(const k in RH){const kv=parseFloat(k.replace(',','.'));const d=Math.abs(kv-pv);if(d<bd){bd=d;b=k;}}return b;}
+
+// ---- valor por extenso ----
+function extenso(valor){
+  if(!isFinite(valor))return"—";
+  valor=Math.round(valor*100)/100;
+  const inteiro=Math.floor(valor), centavos=Math.round((valor-inteiro)*100);
+  const u=["","um","dois","três","quatro","cinco","seis","sete","oito","nove","dez","onze","doze","treze","quatorze","quinze","dezesseis","dezessete","dezoito","dezenove"];
+  const d=["","","vinte","trinta","quarenta","cinquenta","sessenta","setenta","oitenta","noventa"];
+  const c=["","cento","duzentos","trezentos","quatrocentos","quinhentos","seiscentos","setecentos","oitocentos","novecentos"];
+  function ate999(x){if(x===0)return"";if(x===100)return"cem";let s="";const cen=Math.floor(x/100),r=x%100;if(cen>0)s+=c[cen];if(r>0){if(s)s+=" e ";if(r<20)s+=u[r];else{const dz=Math.floor(r/10),un=r%10;s+=d[dz];if(un>0)s+=" e "+u[un];}}return s;}
+  function intExt(n){if(n===0)return"zero";const esc=[1000000000,1000000,1000,1];const nm=[["bilhão","bilhões"],["milhão","milhões"],["mil","mil"],["",""]];let r=n,g=[];for(let i=0;i<esc.length;i++){const q=Math.floor(r/esc[i]);r=r%esc[i];if(q>0){let t=ate999(q);if(esc[i]===1000)t+=" mil";else if(esc[i]>1000)t+=" "+(q===1?nm[i][0]:nm[i][1]);g.push({q,t});}}let o="";for(let i=0;i<g.length;i++){if(i===0){o=g[i].t;continue;}o+=((g[i].q<100||g[i].q%100===0)?" e ":", ")+g[i].t;}return o.replace(/\s+/g," ").trim();}
+  let con=" reais";if(inteiro===1)con=" real";else if(inteiro>0&&inteiro%1000000===0)con=" de reais";
+  let r=intExt(inteiro)+con;
+  if(centavos>0)r+=" e "+intExt(centavos)+(centavos===1?" centavo":" centavos");
+  return r;
+}
+
+function buscarPVG(){
+  const p=parseInt(gv('padraorua'),10), info=document.getElementById('pvgInfo');
+  if(PVG.hasOwnProperty(p)){const v=PVG[p];document.getElementById('vut').value=fmtNum(v,2);vutManual=false;
+    info.textContent="Padrão de rua "+p+" → R$ "+fmtNum(v,2)+"/m² (Tabela I do PVG 2025). Valor preenchido automaticamente.";info.style.color="#1e7d4f";}
+  else if(gv('padraorua').trim()===""){info.textContent="Digite o padrão de rua (1 a 138) para buscar o valor na Tabela I do PVG.";info.style.color="#666";}
+  else{info.textContent="Padrão "+gv('padraorua')+" não consta na Tabela I (faixa válida: 1 a 138). Informe o valor manualmente.";info.style.color="#b5402a";}
+  calcular();
+}
+function marcarManual(){vutManual=true;const info=document.getElementById('pvgInfo');info.textContent="Valor unitário do terreno definido manualmente (sobrepõe a Tabela I do PVG).";info.style.color="#666";}
+
+function carregarLogo(ev){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById('logoImg');img.src=e.target.result;img.style.display='block';document.getElementById('logoPh').style.display='none';};r.readAsDataURL(f);}
+
+let fotoSeq=0;
+function addFoto(){fotoSeq++;const wrap=document.getElementById('fotos');const id='foto'+fotoSeq;const card=document.createElement('div');card.className='foto-card';
+  card.innerHTML='<div class="foto-drop" onclick="document.getElementById(\''+id+'_in\').click()"><span class="ph">Clique para inserir foto '+fotoSeq+'</span><img id="'+id+'_img" style="display:none;"></div>'+
+  '<input type="file" accept="image/*" id="'+id+'_in" class="no-print file-mini" style="margin-top:6px;" onchange="carregarFoto(event,\''+id+'\')">'+
+  '<input type="text" placeholder="Legenda da foto '+fotoSeq+'" value="Figura '+(fotoSeq+1)+' — ">';wrap.appendChild(card);}
+function carregarFoto(ev,id){const f=ev.target.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{const img=document.getElementById(id+'_img');img.src=e.target.result;img.style.display='block';img.previousElementSibling.style.display='none';};r.readAsDataURL(f);}
+
+function atualizaMapa(){
+  const end=gv('mapaEndereco').trim();const frame=document.getElementById('mapaFrame');
+  if(!end){frame.innerHTML='<div class="mapa-ph">Digite um endereço acima e clique em “Atualizar mapa”.</div>';return;}
+  const url="https://maps.google.com/maps?q="+encodeURIComponent(end)+"&z=16&output=embed";
+  frame.innerHTML='<iframe src="'+url+'" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>';
+}
+
+function atualizaRodape(){document.getElementById('rodapeView').textContent=gv('rodapeTxt');}
+
+function sync(){
+  // inscrição cadastral (introdução 3) a partir da capa
+  document.getElementById('inscricaoView').innerHTML=
+    '<b>Proprietário:</b> '+(gv('proprietario')||'—')+'<br>'+
+    '<b>CNPJ:</b> '+(gv('cnpj')||'—')+'<br>'+
+    '<b>Local:</b> '+(gv('local')||'—')+'<br>'+
+    '<b>Inscrição Estadual:</b> '+(gv('ie')||'—');
+}
+
+function calcDepreciacao(idade,vida,estado){
+  let pv=(idade/vida)*100,linha=null,dep=NaN,fd=NaN;
+  if(isFinite(pv)&&vida>0){linha=linhaMaisProxima(pv);const ci=COLS.indexOf(estado);dep=RH[linha][ci];fd=1-dep/100;}
+  return {pv,linha,dep,fd};
+}
+
+function calcular(){
+  const at=num(gv('at')),vut=num(gv('vut')),padrao=gv('padraorua');
+  const vt=at*vut;
+  document.getElementById('r_vt').textContent=fmt(vt);
+
+  const construcoes=[1,2].map(n=>{
+    const ac=num(gv('ac_'+n)),vuc=num(gv('vuc_'+n)),idade=num(gv('idade_'+n)),vida=num(gv('vida_'+n)),estado=gv('estado_'+n);
+    const vc=ac*vuc;
+    const {pv,linha,dep,fd}=calcDepreciacao(idade,vida,estado);
+    const vcdep=vc*fd;
+
+    document.getElementById('r_vc_'+n).textContent=fmt(vc);
+    if(isFinite(pv)&&linha){
+      document.getElementById('r_pv_'+n).textContent=fmtNum(pv,2)+"%";
+      document.getElementById('r_linha_'+n).textContent=linha+"% de vida";
+      document.getElementById('r_dep_'+n).textContent=fmtNum(dep,2)+"% (col. "+estado+")";
+      document.getElementById('r_fd_'+n).textContent=fmtNum(fd,4);
+    }else{
+      ['r_pv_'+n,'r_linha_'+n,'r_dep_'+n,'r_fd_'+n].forEach(i=>document.getElementById(i).textContent="—");
+    }
+    document.getElementById('r_vcdep_'+n).textContent=fmt(vcdep);
+
+    renderTabela(linha,estado,n);
+    renderEstadoResumo(estado,dep,n);
+
+    return {n,ac,vuc,idade,vida,estado,vc,pv,linha,dep,fd,vcdep};
+  });
+
+  const vc1dep=construcoes[0].vcdep, vc2dep=construcoes[1].vcdep;
+  const vtotal=vt+vc1dep+vc2dep, l05=vtotal*0.005, l10=vtotal*0.01;
+  document.getElementById('r_vtotal').textContent=fmt(vtotal);
+  document.getElementById('r_loc05').textContent=fmt(l05);
+  document.getElementById('r_loc10').textContent=fmt(l10);
+  const faixa=isFinite(l05)?fmt(l05)+"  a  "+fmt(l10):"—";
+  document.getElementById('r_faixa').textContent=faixa;
+
+  // resumo introdução
+  document.getElementById('rs_vtotal').textContent=fmt(vtotal);
+  document.getElementById('rs_faixa').textContent=faixa;
+  // determinação dos valores (IV)
+  document.getElementById('dv_vt').textContent=fmt(vt);
+  document.getElementById('dv_vc1').textContent=fmt(vc1dep);
+  document.getElementById('dv_vc2').textContent=fmt(vc2dep);
+  document.getElementById('dv_vtotal').textContent=fmt(vtotal);
+  // conclusão por extenso
+  if(isFinite(vtotal)){
+    document.getElementById('conclusaoTxt').innerHTML=
+      'Importa a presente avaliação em <b>'+fmt(vtotal)+' ('+extenso(vtotal)+')</b>.<br><br>'+
+      'Considerando o valor de mercado do imóvel avaliado em <b>'+fmt(vtotal)+'</b>, e adotando-se como referência a prática corrente do mercado imobiliário, na qual o valor de locação mensal situa-se, em média, entre 0,5% e 1,0% do valor do imóvel, obtém-se uma estimativa de valor locatício mensal compreendida entre <b>'+fmt(l05)+'</b> ('+extenso(l05)+') e <b>'+fmt(l10)+'</b> ('+extenso(l10)+').';
+  }else{document.getElementById('conclusaoTxt').textContent="—";}
+
+  renderMemoria({at,vut,padrao,vt,construcoes,vtotal,l05,l10});
+}
+
+function renderEstadoResumo(estado,depAplicada,n){
+  const e=ESTADOS[estado];const alvo=document.getElementById('estadoResumo_'+n);
+  if(!e){alvo.innerHTML='';return;}
+  let extra='';if(isFinite(depAplicada)){extra='<div class="er-desc" style="margin-top:6px;font-size:11px;color:#555;">Depreciação de referência do estado (idade zero): '+fmtNum(e.dep,2)+'%. No cálculo atual, combinada com a idade pela matriz Ross-Heidecke, aplica-se <b>'+fmtNum(depAplicada,2)+'%</b>.</div>';}
+  alvo.innerHTML='<div class="er-top"><span class="er-ref">'+estado+'</span><span class="er-nome">'+e.nome+'</span><span class="er-dep">Ref.: '+fmtNum(e.dep,2)+'%</span></div><div class="er-desc">'+e.desc+'</div>'+extra;
+}
+
+function renderTabela(linhaHit,estado,n){
+  const ci=COLS.indexOf(estado);let h='<table class="rh"><tr><th>% Vida</th>';COLS.forEach(c=>h+='<th>'+c+'</th>');h+='</tr>';
+  for(const k in RH){const hit=(k===linhaHit);h+='<tr class="'+(hit?'hit':'')+'"><td class="idx">'+k+'%</td>';RH[k].forEach((v,i)=>{h+='<td class="'+((hit&&i===ci)?'hitcell':'')+'">'+fmtNum(v,2)+'</td>';});h+='</tr>';}
+  h+='</table>';document.getElementById('rhWrap_'+n).innerHTML=h;
+}
+
+function renderMemoria(d){
+  const fontePVG=(PVG.hasOwnProperty(parseInt(d.padrao,10))&&!vutManual)?'Tabela I do PVG 2025 (padrão de rua '+d.padrao+')':'valor informado manualmente';
+  let m="<b>1. Valor do terreno (Vt)</b>\n   At = "+fmtNum(d.at,2)+" m²\n   Vut = R$ "+fmtNum(d.vut,2)+" /m²  —  fonte: "+fontePVG+"\n   Vt = At × Vut = "+fmtNum(d.at,2)+" × "+fmtNum(d.vut,2)+" = <b>"+fmt(d.vt)+"</b>  (sem depreciação)\n\n";
+  const nomes=["","Principal","Anexo"];
+  d.construcoes.forEach(c=>{
+    const nomeEstado=ESTADOS[c.estado]?ESTADOS[c.estado].nome:c.estado;
+    m+="<b>"+(1+c.n)+". Construção "+c.n+" — "+nomes[c.n]+" (Vc"+c.n+")</b>\n"+
+    "   Ac"+c.n+" = "+fmtNum(c.ac,2)+" m²\n   Vuc"+c.n+" = R$ "+fmtNum(c.vuc,2)+" /m²  —  fonte: Sinduscon-MT / NBR 12.721:2006\n"+
+    "   Vc"+c.n+" = Ac"+c.n+" × Vuc"+c.n+" = "+fmtNum(c.ac,2)+" × "+fmtNum(c.vuc,2)+" = "+fmt(c.vc)+"\n\n"+
+    "   Depreciação (Ross-Heidecke): idade = "+fmtNum(c.idade,0)+" anos | vida útil = "+fmtNum(c.vida,0)+" anos\n"+
+    "   % de vida = "+fmtNum(c.pv,2)+"%  →  linha "+c.linha+"% de vida\n"+
+    "   Estado = "+c.estado+" ("+nomeEstado+")\n   Depreciação = "+fmtNum(c.dep,2)+"%\n   FD"+c.n+" = 1 − "+fmtNum(c.dep,2)+"/100 = "+fmtNum(c.fd,4)+"\n\n"+
+    "   <b>Vc"+c.n+"_dep = Vc"+c.n+" × FD"+c.n+" = "+fmt(c.vc)+" × "+fmtNum(c.fd,4)+" = "+fmt(c.vcdep)+"</b>\n\n";
+  });
+  m+="<b>4. Valor total consolidado (Vtotal)</b>\n   Vtotal = Vt + Vc1_dep + Vc2_dep\n   Vtotal = "+fmt(d.vt)+" + "+fmt(d.construcoes[0].vcdep)+" + "+fmt(d.construcoes[1].vcdep)+" = <b>"+fmt(d.vtotal)+"</b>\n\n";
+  m+="<b>5. Valor de locação (0,5% a 1,0%)</b>\n   0,5% → "+fmt(d.vtotal)+" × 0,005 = <b>"+fmt(d.l05)+"</b>\n   1,0% → "+fmt(d.vtotal)+" × 0,010 = <b>"+fmt(d.l10)+"</b>\n\n   Faixa mensal estimada: <b>"+fmt(d.l05)+" a "+fmt(d.l10)+"</b>";
+  document.getElementById('memoria').innerHTML=m;
+}
+
+// ---- Exportar Word (.doc) — layout em tabelas ----
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function escMulti(s){return esc(s).replace(/\n/g,'<br>');}
+// Recorta a foto em quadrado (centro) e reamostra com alta qualidade para o Word
+function fotoParaWord(img,lado){
+  try{
+    const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
+    if(!w||!h) return img.getAttribute('src');
+    const s=Math.min(w,h), sx=(w-s)/2, sy=(h-s)/2;
+    const out=Math.min(s,lado);
+    const c=document.createElement('canvas');c.width=out;c.height=out;
+    const ctx=c.getContext('2d');
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,out,out);
+    ctx.drawImage(img,sx,sy,s,s,0,0,out,out);
+    return c.toDataURL('image/jpeg',0.92);
+  }catch(e){return img.getAttribute('src');}
+}
+
+function montarCorpoLaudo(){
+  const logoImg=document.getElementById('logoImg');
+  const logoSrc=(logoImg&&logoImg.getAttribute('src'))?logoImg.getAttribute('src'):'';
+  const logoCell=logoSrc?'<img src="'+logoSrc+'" style="max-width:140px;max-height:90px;">':'<span style="color:#9aa3ad;font-size:9pt;">[logo]</span>';
+
+  function h2(t){return '<p style="font-size:12pt;font-weight:bold;color:#1f4e79;background:#eef3f9;border-left:4px solid #1f4e79;padding:6px 10px;margin:20px 0 10px;">'+esc(t)+'</p>';}
+  function h3(t){return '<p style="font-size:11pt;font-weight:bold;color:#1f4e79;margin:14px 0 4px;">'+esc(t)+'</p>';}
+  function par(t){return '<p style="font-size:11pt;text-align:justify;margin:4px 0;">'+escMulti(t)+'</p>';}
+  function campo(r,v){return '<p style="margin:3px 0;font-size:11pt;"><b>'+esc(r)+':</b> '+esc(v)+'</p>';}
+  function lr(rot,val){return '<tr><td style="padding:5px 8px;border-bottom:1px solid #d3d9e0;font-size:11pt;">'+esc(rot)+'</td><td style="padding:5px 8px;border-bottom:1px solid #d3d9e0;font-size:11pt;font-weight:bold;color:#1f4e79;text-align:right;white-space:nowrap;">'+esc(val)+'</td></tr>';}
+
+  // capa (formal, centralizada, sem a palavra "CAPA")
+  const capa=
+   '<table style="width:100%;border-collapse:collapse;border-bottom:2px solid #1f4e79;margin-bottom:30px;"><tr>'+
+   '<td style="width:150px;vertical-align:middle;padding-bottom:10px;">'+logoCell+'</td>'+
+   '<td style="vertical-align:middle;padding-bottom:10px;padding-left:14px;">'+
+   '<div style="font-weight:bold;color:#1f4e79;font-size:13pt;">'+esc(gv('empNome'))+'</div>'+
+   '<div style="color:#555;font-size:10pt;">'+esc(gv('empSub'))+'</div></td></tr></table>'+
+   '<div style="text-align:center;margin-top:70px;">'+
+   '<p style="font-size:20pt;font-weight:bold;color:#1f4e79;margin:0 0 10px;">LAUDO DE AVALIAÇÃO DE IMÓVEL URBANO</p>'+
+   '<p style="font-size:13pt;color:#333;margin:0 0 60px;">'+esc(gv('objeto'))+'</p>'+
+   '<p style="font-size:13pt;margin:6px 0;"><b>Proprietário:</b> '+esc(gv('proprietario'))+'</p>'+
+   '<p style="font-size:13pt;margin:6px 0;"><b>CNPJ:</b> '+esc(gv('cnpj'))+'</p>'+
+   '<p style="font-size:14pt;font-weight:bold;color:#1f4e79;margin-top:80px;">'+esc(gv('mesano'))+'</p>'+
+   '</div>';
+
+  // I introdução
+  const intro='<br clear="all" style="page-break-before:always;">'+h2('I — INTRODUÇÃO')+
+   h3('1 — Autoria do trabalho')+par(gv('autoria'))+
+   h3('2 — Objeto')+par(gv('objeto'))+
+   h3('3 — Inscrição cadastral')+
+   campo('Proprietário',gv('proprietario'))+campo('CNPJ',gv('cnpj'))+campo('Local',gv('local'))+campo('Inscrição Estadual',gv('ie'))+
+   h3('4 — Objetivo da avaliação')+par(gv('objetivo'))+
+   h3('5 — Resumo dos valores')+
+   '<table style="width:100%;border-collapse:collapse;"><tr><th style="background:#1f4e79;color:#fff;padding:8px;text-align:left;font-size:11pt;">Especificação</th><th style="background:#1f4e79;color:#fff;padding:8px;text-align:right;font-size:11pt;">Valor (R$)</th></tr>'+
+   '<tr><td style="border:1px solid #cfd6de;padding:8px;font-size:11pt;">Vl = Terreno + Construção (com depreciação)</td><td style="border:1px solid #cfd6de;padding:8px;text-align:right;font-weight:bold;color:#1f4e79;">'+esc(gt('rs_vtotal'))+'</td></tr>'+
+   '<tr><td style="border:1px solid #cfd6de;padding:8px;font-size:11pt;">Valor Final (VL) — 0,5% a 1%</td><td style="border:1px solid #cfd6de;padding:8px;text-align:right;font-weight:bold;color:#1f4e79;">'+esc(gt('rs_faixa'))+'</td></tr></table>';
+
+  // II caracterização
+  const estado1Sel=document.getElementById('estado_1');const estado1Txt=estado1Sel.options[estado1Sel.selectedIndex].text;const e1=ESTADOS[estado1Sel.value];
+  const estado2Sel=document.getElementById('estado_2');const estado2Txt=estado2Sel.options[estado2Sel.selectedIndex].text;const e2=ESTADOS[estado2Sel.value];
+  function blocoEstado(estadoVal,e){return e?'<table style="width:100%;border-collapse:collapse;border:1px solid #cddff0;border-left:4px solid #2e75b6;background:#f5f9fd;margin-top:8px;"><tr><td style="padding:10px 14px;"><p style="margin:0 0 4px;font-size:11pt;"><b style="color:#1f4e79;">Estado de conservação '+estadoVal+' — '+esc(e.nome)+'</b> <span style="color:#1e7d4f;font-weight:bold;">(Ref.: '+fmtNum(e.dep,2)+'%)</span></p><p style="margin:0;font-size:10pt;color:#333;">'+esc(e.desc)+'</p></td></tr></table>':'';}
+  const carac=h2('II — CARACTERIZAÇÃO DA AVALIAÇÃO')+
+   h3('1 — Nível de precisão')+par(gv('precisaoTxt'))+
+   h3('2 — Metodologia')+
+   '<p style="font-size:11pt;margin:4px 0;"><b>2.1 — Método utilizado:</b> '+esc(gv('metodo'))+'</p>'+
+   '<p style="font-size:11pt;margin:4px 0;"><b>2.2 — Critérios utilizados:</b></p>'+par(gv('criterios'))+
+   '<p style="font-size:11pt;margin:4px 0;"><b>2.3 — Pesquisa de valores:</b></p>'+par(gv('pesquisa'))+
+   '<p style="font-size:11pt;margin:8px 0;"><b>2.4 — Determinação do valor.</b> V = Vt + Vc1_dep + Vc2_dep, onde V = valor final; Vt = valor do terreno (sem depreciação); Vc1_dep, Vc2_dep = valor depreciado de cada edificação; At = área do terreno; Ac = área construída; FD = fator de depreciação (Ross-Heidecke); Vl = valor da locação.</p>'+
+   '<p style="font-size:11pt;margin:8px 0 2px;"><b>2.4.1 — Valor do terreno (Vt) — único para o imóvel</b></p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Área do terreno (At) = '+esc(gv('at'))+' m²</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Padrão de rua (BCI) = '+esc(gv('padraorua'))+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Valor unitário (Vut) = R$ '+esc(gv('vut'))+'/m²</p>'+
+   '<p style="font-size:11pt;margin:1px 0;"><b>Vt = '+esc(gt('r_vt'))+'</b> (sem depreciação)</p>'+
+
+   '<p style="font-size:11pt;margin:12px 0 2px;"><b>2.4.2 — Construção 1 (Principal)</b></p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Área construída (Ac1) = '+esc(gv('ac_1'))+' m²</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Valor unitário CUB (Vuc1) = R$ '+esc(gv('vuc_1'))+'/m²</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Vc1 = '+esc(gt('r_vc_1'))+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Idade = '+esc(gv('idade_1'))+' anos | Vida útil = '+esc(gv('vida_1'))+' anos | Estado = '+esc(estado1Txt)+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">% de vida = '+esc(gt('r_pv_1'))+' | Depreciação = '+esc(gt('r_dep_1'))+' | FD1 = '+esc(gt('r_fd_1'))+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;"><b>Vc1_dep = '+esc(gt('r_vcdep_1'))+'</b></p>'+
+   blocoEstado(estado1Sel.value,e1)+
+
+   '<p style="font-size:11pt;margin:14px 0 2px;"><b>2.4.3 — Construção 2 (Anexo)</b></p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Área construída (Ac2) = '+esc(gv('ac_2'))+' m²</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Valor unitário CUB (Vuc2) = R$ '+esc(gv('vuc_2'))+'/m²</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Vc2 = '+esc(gt('r_vc_2'))+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">Idade = '+esc(gv('idade_2'))+' anos | Vida útil = '+esc(gv('vida_2'))+' anos | Estado = '+esc(estado2Txt)+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">% de vida = '+esc(gt('r_pv_2'))+' | Depreciação = '+esc(gt('r_dep_2'))+' | FD2 = '+esc(gt('r_fd_2'))+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;"><b>Vc2_dep = '+esc(gt('r_vcdep_2'))+'</b></p>'+
+   blocoEstado(estado2Sel.value,e2)+
+
+   '<p style="font-size:11pt;margin:14px 0 2px;"><b>2.4.4 — Valor total consolidado</b></p>'+
+   '<p style="font-size:11pt;margin:1px 0;"><b>Vtotal = Vt + Vc1_dep + Vc2_dep = '+esc(gt('r_vtotal'))+'</b></p>'+
+   '<p style="font-size:11pt;margin:8px 0 2px;"><b>2.4.5 — Valor de locação</b></p>'+
+   '<p style="font-size:11pt;margin:1px 0;">0,5% do Vtotal = '+esc(gt('r_loc05'))+'</p>'+
+   '<p style="font-size:11pt;margin:1px 0;">1,0% do Vtotal = '+esc(gt('r_loc10'))+'</p>';
+
+  // mapa
+  const mapaEnd=gv('mapaEndereco').trim();
+  const mapaHtml=mapaEnd?h3('Figura 1 — Mapa de localização')+
+    '<p style="font-size:10pt;color:#555;">'+esc(gv('mapaLegenda'))+'</p>'+
+    '<p style="font-size:10pt;color:#1f4e79;">Localização: '+esc(mapaEnd)+' — ver em: https://maps.google.com/maps?q='+encodeURIComponent(mapaEnd)+'</p>':'';
+
+  // III vistoria
+  const vistoria=h2('III — VISTORIA')+h3('1 — Caracterização do imóvel avaliado')+
+   '<p style="font-size:11pt;margin:4px 0;"><b>1.1 — Terreno:</b> '+esc(gv('vTerreno'))+'</p>'+
+   '<p style="font-size:11pt;margin:4px 0;"><b>1.2a — Construção 1 (Principal):</b></p>'+par(gv('vConstrucao1'))+
+   '<p style="font-size:11pt;margin:4px 0;"><b>1.2b — Construção 2 (Anexo):</b></p>'+par(gv('vConstrucao2'))+
+   '<p style="font-size:11pt;margin:4px 0;"><b>1.3 — Localização:</b> '+esc(gv('vLocalizacao'))+'</p>'+
+   '<p style="font-size:11pt;margin:4px 0;"><b>1.4 — Características da região:</b> '+esc(gv('vRegiao'))+'</p>'+
+   '<p style="font-size:11pt;margin:4px 0;"><b>1.5 — Melhoramentos públicos:</b> '+esc(gv('vMelhoramentos'))+'</p>'+
+   '<p style="font-size:11pt;margin:4px 0;"><b>1.6 — Destinação:</b> '+esc(gv('vDestinacao'))+'</p>';
+
+  // fotos
+  // fotos: tabela de largura fixa (dentro das margens A4 de 2 cm) em 2 colunas, fotos quadradas de tamanho fixo
+  const FOTO_PX=270;          // tamanho de exibição no Word (~7,1 cm)
+  const FOTO_RES=1100;        // resolução embutida (alta qualidade, sem ampliar além da foto original)
+  let cellsArr=[];
+  document.querySelectorAll('#fotos .foto-card').forEach(c=>{
+    const img=c.querySelector('img');const leg=c.querySelector('input[type=text]');
+    const src=(img&&img.getAttribute('src'))?img.getAttribute('src'):'';
+    if(src){
+      const dados=fotoParaWord(img,FOTO_RES);
+      cellsArr.push('<td width="300" valign="top" align="center" style="width:300px;vertical-align:top;padding:6px;border:1px solid #cfd6de;">'+
+        '<img src="'+dados+'" width="'+FOTO_PX+'" height="'+FOTO_PX+'" style="width:'+FOTO_PX+'px;height:'+FOTO_PX+'px;display:block;">'+
+        '<p style="margin:6px 0 0;font-size:10pt;color:#333;text-align:left;">'+esc(leg?leg.value:'')+'</p></td>');
+    }
+  });
+  let fotosHtml='';
+  if(cellsArr.length){
+    fotosHtml=h3('2 — Registro fotográfico')+'<table width="600" style="width:600px;border-collapse:collapse;table-layout:fixed;">';
+    for(let i=0;i<cellsArr.length;i+=2){
+      fotosHtml+='<tr style="page-break-inside:avoid;">'+cellsArr[i]+(cellsArr[i+1]||'<td width="300" style="width:300px;"></td>')+'</tr>';
+    }
+    fotosHtml+='</table>';
+  }
+
+  // IV determinação
+  const determina=h2('IV — DETERMINAÇÃO DOS VALORES')+h3('1 — Valor final da avaliação')+
+   '<table style="width:100%;border-collapse:collapse;"><tr><th style="background:#1f4e79;color:#fff;padding:8px;text-align:left;font-size:11pt;">Especificação</th><th style="background:#1f4e79;color:#fff;padding:8px;text-align:right;font-size:11pt;">Valor (R$)</th></tr>'+
+   '<tr><td style="border:1px solid #cfd6de;padding:8px;font-size:11pt;">Terreno (sem depreciação)</td><td style="border:1px solid #cfd6de;padding:8px;text-align:right;font-weight:bold;color:#1f4e79;">'+esc(gt('dv_vt'))+'</td></tr>'+
+   '<tr><td style="border:1px solid #cfd6de;padding:8px;font-size:11pt;">Construção 1 — Principal (valor depreciado)</td><td style="border:1px solid #cfd6de;padding:8px;text-align:right;font-weight:bold;color:#1f4e79;">'+esc(gt('dv_vc1'))+'</td></tr>'+
+   '<tr><td style="border:1px solid #cfd6de;padding:8px;font-size:11pt;">Construção 2 — Anexo (valor depreciado)</td><td style="border:1px solid #cfd6de;padding:8px;text-align:right;font-weight:bold;color:#1f4e79;">'+esc(gt('dv_vc2'))+'</td></tr>'+
+   '<tr><td style="border:1px solid #cfd6de;padding:8px;font-size:11pt;"><b>Valor Total Consolidado</b></td><td style="border:1px solid #cfd6de;padding:8px;text-align:right;font-weight:bold;color:#1f4e79;">'+esc(gt('dv_vtotal'))+'</td></tr></table>'+
+   '<div style="border:1px solid #bfe0cd;background:#eef6f0;padding:10px 14px;margin-top:10px;font-size:11pt;text-align:justify;">'+document.getElementById('conclusaoTxt').innerHTML+'</div>';
+
+  // encerramento
+  const encerra='<p style="font-size:11pt;margin-top:24px;">'+esc(gv('encCidade'))+', '+esc(gv('encData'))+'.</p>'+
+   '<p style="font-size:11pt;">Assina a presente avaliação:</p>'+
+   '<div style="text-align:center;margin-top:30px;font-size:11pt;"><div style="border-top:1px solid #555;width:280px;margin:30px auto 4px;"></div>'+
+   '<div style="font-weight:bold;">'+esc(gv('a_nome'))+'</div><div>'+esc(gv('a_emp'))+'</div><div>'+esc(gv('a_mat'))+'</div><div>'+esc(gv('a_crea'))+'</div></div>';
+
+  // apêndice
+  const apendice='<br clear="all" style="page-break-before:always;">'+h2('APÊNDICE — MEMÓRIA DE CÁLCULO')+
+   '<div style="border:1px solid #cfd6de;background:#fcfcfd;padding:14px 18px;font-family:Consolas,monospace;font-size:10pt;line-height:1.6;">'+document.getElementById('memoria').innerHTML.replace(/\n/g,'<br>')+'</div>';
+
+  const rodape='<div style="text-align:center;font-size:10pt;color:#555;border-top:1px solid #cfd6de;padding-top:8px;margin-top:24px;">'+esc(gv('rodapeTxt'))+'</div>'+
+   '<div style="text-align:center;font-size:10pt;color:#1f4e79;font-weight:bold;margin-top:6px;">Desenvolvido por Eng. Civil Diego Leal — CREA MT 37420</div>';
+
+  const corpo=capa+intro+carac+mapaHtml+vistoria+fotosHtml+determina+encerra+apendice+rodape;
+  return corpo;
+}
+
+// ---- Exportar Word (.doc) ----
+function exportarWord(){
+  const W='urn:schemas-microsoft-com:office:word',O='urn:schemas-microsoft-com:office:office';
+  const corpo=montarCorpoLaudo();
+  const html='<html xmlns:o="'+O+'" xmlns:w="'+W+'" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Laudo de Avaliação</title>'+
+   '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->'+
+   '<style>@page{size:A4;margin:2cm;} body{font-family:Arial,sans-serif;color:#1a1a1a;}</style></head><body>'+corpo+'</body></html>';
+  const blob=new Blob(['\ufeff'+html],{type:'application/msword'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Laudo_de_Avaliacao.doc';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
+// ---- Exportar PDF (html2pdf, sem cabeçalho/rodapé do navegador) ----
+function exportarPDF(){
+  if(typeof html2pdf==='undefined'){
+    alert('A geração de PDF requer conexão com a internet (para carregar a biblioteca) na primeira vez. Verifique sua conexão e tente novamente, ou use o botão Imprimir.');
+    return;
+  }
+  const paginas=[...document.querySelectorAll('.pagina')];
+  if(!paginas.length){alert('Nenhuma página encontrada.');return;}
+
+  // ativa visual de documento (sem bordas de campo, sem rótulos)
+  document.body.classList.add('exportando-pdf');
+  const detalhes=[...document.querySelectorAll('details')];
+  const estadoDet=detalhes.map(d=>d.open);
+  detalhes.forEach(d=>d.open=true);
+
+  // monta um container com clones das folhas, separadas por page-break
+  const cont=document.createElement('div');
+  cont.style.cssText='width:794px;background:#fff;margin:0;padding:0;';
+  paginas.forEach((p,i)=>{
+    const clone=p.cloneNode(true);
+    clone.style.boxShadow='none';
+    clone.style.margin='0';
+    clone.style.borderRadius='0';
+    clone.style.width='794px';
+    clone.style.minHeight='1122px'; // A4 em px @96dpi
+    clone.style.pageBreakAfter='always';
+    cont.appendChild(clone);
+    if(i<paginas.length-1){
+      const pb=document.createElement('div');
+      pb.className='html2pdf__page-break';
+      cont.appendChild(pb);
+    }
+  });
+
+  // posiciona fora da tela mas renderizável
+  cont.style.position='absolute';cont.style.left='-99999px';cont.style.top='0';
+  document.body.appendChild(cont);
+
+  const opt={
+    margin:0,
+    filename:'Laudo_de_Avaliacao.pdf',
+    image:{type:'jpeg',quality:0.95},
+    html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false,windowWidth:794},
+    jsPDF:{unit:'px',format:[794,1122],orientation:'portrait'},
+    pagebreak:{mode:['css','legacy']}
+  };
+
+  function limpar(){
+    if(cont.parentNode) document.body.removeChild(cont);
+    document.body.classList.remove('exportando-pdf');
+    detalhes.forEach((d,i)=>d.open=estadoDet[i]);
+  }
+
+  setTimeout(()=>{
+    html2pdf().set(opt).from(cont).save()
+      .then(limpar)
+      .catch(err=>{ limpar(); alert('Não foi possível gerar o PDF: '+err.message+'. Use o botão Imprimir como alternativa.'); });
+  },250);
+}
+
+const DEF={at:"28.860,00",padraorua:"52",vut:"580,89",
+  ac_1:"4.200,00",vuc_1:"1.653,82",idade_1:"30",vida_1:"60",estado_1:"E",
+  ac_2:"1.400,00",vuc_2:"1.653,82",idade_2:"15",vida_2:"60",estado_2:"E"};
+function resetar(){for(const k in DEF){document.getElementById(k).value=DEF[k];}vutManual=false;buscarPVG();}
+
+// init
+sync();atualizaRodape();addFoto();addFoto();atualizaMapa();buscarPVG();
+</script>
+<script>
+// integração com o Sistema de Engenharia (salvar/abrir este laudo)
+window.LAUDO_CFG = {
+  tipo: 'locacao', nome: 'Laudo de avaliação para locação',
+  titulo: () => [gv('proprietario'), gv('local')].filter(s => s && s.trim()).join(' — ') || gv('interessado') || 'Laudo de locação',
+  valor: () => { const t = (document.getElementById('r_vtotal') || {}).textContent || ''; const n = parseFloat(t.replace(/[^\d,.-]/g, '').replace(/\./g, '').replace(',', '.')); return isFinite(n) ? n : null; },
+  extra: () => ({ nFotos: document.querySelectorAll('#fotos .foto-card').length, vutManual }),
+  antes: d => { const n = (d.extra && d.extra.nFotos) || 0; document.getElementById('fotos').innerHTML = ''; fotoSeq = 0; for (let i = 0; i < n; i++) addFoto(); },
+  depois: d => {
+    vutManual = !!(d.extra && d.extra.vutManual);
+    if (vutManual) marcarManual();
+    sync(); atualizaRodape(); atualizaMapa(); calcular();
+    if (document.getElementById('logoImg').getAttribute('src')) document.getElementById('logoPh').style.display = 'none';
+  }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/laudo-nuvem.js"></script>
+</body>
+</html>
