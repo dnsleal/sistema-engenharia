@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notificações — Sistema de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  .kpi { cursor: pointer; }
+  .kpi.sel { outline: 2px solid var(--azul); }
+  .filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros input, .filtros select { width: auto; min-width: 190px; }
+  td.num { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; white-space: nowrap; }
+  td.assunto { min-width: 240px; }
+  .sub { color: var(--texto-2); font-size: .8rem; }
+  .dica { font-size: .82rem; color: var(--texto-2); margin: 4px 0 0; }
+  .bloco { border-top: 1px solid var(--linha); margin-top: 12px; padding-top: 6px; }
+  .bloco h4 { margin: 4px 0 2px; font-size: .9rem; color: var(--azul); }
+  dialog { width: min(820px, 96vw); }
+  textarea { resize: vertical; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav><a href="../index.html">Central</a><a href="../processos/index.html">Processos</a><a href="../laudos/index.html">Documentos</a></nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div><h2>Notificações à contratada</h2><p id="subt">Carregando…</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="botao sec" id="lObra" href="#">← Voltar à obra</a>
+      <button id="bNova">+ Nova notificação</button>
+    </div>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="painel">
+    <div class="filtros">
+      <input id="busca" type="search" placeholder="Buscar nº, assunto ou texto">
+      <select id="fSit">
+        <option value="pendentes">Pendentes (abertas e respondidas)</option>
+        <option value="">Todas</option>
+        <option value="rascunho">Rascunho</option><option value="aberta">Aberta</option><option value="respondida">Respondida (em análise)</option>
+        <option value="atendida">Atendida</option><option value="nao_atendida">Não atendida</option><option value="cancelada">Cancelada</option>
+      </select>
+    </div>
+    <div class="tabela-wrap">
+      <table>
+        <thead><tr><th>Nº</th><th>Assunto</th><th>Emissão</th><th>Ciência</th><th>Prazo</th><th>Situação do prazo</th><th>Status</th><th></th></tr></thead>
+        <tbody id="linhas"><tr><td colspan="8" class="vazio">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="dica">O prazo conta a partir da ciência da contratada (se não houver, da emissão), sem contar o dia inicial; vencimento em dia não útil passa para o próximo dia útil.</p>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<dialog id="dNot">
+  <form method="dialog" id="fNot">
+    <header id="dTitulo">Nova notificação</header>
+    <div class="corpo">
+      <div class="grade3">
+        <div><label for="n_numero">Nº da notificação</label><input id="n_numero" placeholder="01/2026"></div>
+        <div><label for="n_data">Data de emissão *</label><input id="n_data" type="date" required></div>
+        <div><label for="n_categoria">Categoria</label><input id="n_categoria" list="cats">
+          <datalist id="cats"><option>Atraso de cronograma</option><option>Qualidade / execução fora de especificação</option><option>Segurança do trabalho</option><option>Documentação (ART, diário, garantias)</option><option>Mobilização / efetivo</option><option>Medição</option><option>Meio ambiente / limpeza</option></datalist></div>
+      </div>
+      <label for="n_assunto">Assunto *</label><input id="n_assunto" required placeholder="Ex.: Fissuras no revestimento da fachada leste">
+
+      <div class="bloco"><h4>1. Constatação</h4>
+        <div class="grade2" style="grid-template-columns:180px 1fr">
+          <div><label for="n_dconst">Data da verificação</label><input id="n_dconst" type="date"></div>
+          <div><label for="n_destinatario">Destinatário (preposto / RT da contratada)</label><input id="n_destinatario"></div>
+        </div>
+        <label for="n_constatacao">O que foi verificado (fato objetivo, local, quantidade) *</label>
+        <textarea id="n_constatacao" rows="3" placeholder="Ex.: Em vistoria de 28/10/2026, verificou-se no Bloco B, eixos 3 a 5, a ausência de…"></textarea>
+        <label for="n_evidencia">Evidências</label>
+        <textarea id="n_evidencia" rows="2" placeholder="Ex.: Fotos 01 a 04 do relatório fotográfico do BM 05; registro no diário de obra de 28/10/2026"></textarea>
+      </div>
+      <div class="bloco"><h4>2. Fundamento</h4>
+        <label for="n_fundamento">Cláusula contratual, projeto, especificação ou norma descumprida</label>
+        <textarea id="n_fundamento" rows="2" placeholder="Ex.: Cláusula 7.2 do Contrato nº 012/2026; Caderno de Encargos, item 4.3; ABNT NBR 13749"></textarea>
+      </div>
+      <div class="bloco"><h4>3. Determinação e prazo</h4>
+        <label for="n_determinacao">O que a contratada deve fazer *</label>
+        <textarea id="n_determinacao" rows="3" placeholder="Ex.: Refazer o revestimento… e apresentar resposta formal com cronograma de correção"></textarea>
+        <div class="grade3">
+          <div><label for="n_ciencia">Ciência da contratada</label><input id="n_ciencia" type="date"></div>
+          <div><label for="n_prazo">Prazo (dias)</label><input id="n_prazo" type="number" min="0" placeholder="Ex.: 5"></div>
+          <div><label for="n_contagem">Contagem</label><select id="n_contagem"><option value="corridos">Dias corridos</option><option value="uteis">Dias úteis</option></select></div>
+        </div>
+        <p class="dica" id="infoPrazo"></p>
+      </div>
+      <div class="bloco"><h4>4. Acompanhamento</h4>
+        <div class="grade3">
+          <div><label for="n_situacao">Status</label>
+            <select id="n_situacao"><option value="rascunho">Rascunho</option><option value="aberta">Aberta (aguardando)</option><option value="respondida">Respondida (em análise)</option><option value="atendida">Atendida</option><option value="nao_atendida">Não atendida</option><option value="cancelada">Cancelada</option></select></div>
+          <div><label for="n_dresp">Data da resposta</label><input id="n_dresp" type="date"></div>
+          <div><label for="n_processo">Processo SIGED</label><select id="n_processo"><option value="">— nenhum —</option></select></div>
+        </div>
+        <label for="n_resposta">Resposta / providências da contratada</label>
+        <textarea id="n_resposta" rows="2"></textarea>
+      </div>
+      <div class="bloco"><h4>Assinatura</h4>
+        <div class="grade2">
+          <div><label for="n_signatario">Nome de quem assina</label><input id="n_signatario" placeholder="Diego Nascimento Soares Leal"></div>
+          <div><label for="n_cargo">Cargo / registro</label><input id="n_cargo" placeholder="Fiscal do contrato — Eng. Civil CREA-MT 37420"></div>
+        </div>
+      </div>
+      <div class="msg" id="nMsg"></div>
+    </div>
+    <footer>
+      <button type="button" class="sec" id="bExcluir" style="margin-right:auto;border-color:var(--critico);color:var(--critico);display:none">Excluir</button>
+      <button type="button" class="sec" id="bImprimir" style="display:none">Imprimir documento</button>
+      <button type="button" class="sec" id="bCancelar">Fechar</button>
+      <button type="submit" id="bSalvar">Salvar</button>
+    </footer>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script src="../comum/prazos.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const obraId = new URLSearchParams(location.search).get('obra');
+const SIT = { rascunho: 'Rascunho', aberta: 'Aberta', respondida: 'Respondida (em análise)', atendida: 'Atendida', nao_atendida: 'Não atendida', cancelada: 'Cancelada' };
+const ENCERRADAS = ['atendida', 'nao_atendida', 'cancelada'];
+let obra = null, lista = [], editando = null, filtroKpi = null;
+const CAMPOS = { n_numero: 'numero', n_data: 'data', n_categoria: 'categoria', n_assunto: 'assunto', n_dconst: 'data_constatacao', n_destinatario: 'destinatario',
+  n_constatacao: 'constatacao', n_evidencia: 'evidencia', n_fundamento: 'fundamento', n_determinacao: 'determinacao', n_ciencia: 'data_ciencia',
+  n_prazo: 'prazo_dias', n_contagem: 'contagem', n_situacao: 'situacao', n_dresp: 'data_resposta', n_processo: 'processo_id', n_resposta: 'resposta',
+  n_signatario: 'signatario', n_cargo: 'cargo' };
+
+(async function iniciar() {
+  const u = await SE.exigirLogin(); if (!u) return;
+  $('uEmail').textContent = u.email; $('bSair').onclick = SE.sair;
+  if (!obraId) { $('subt').textContent = 'Abra esta tela a partir de uma obra.'; return; }
+  $('lObra').href = 'obra.html?id=' + obraId;
+  const [o, pr] = await Promise.all([
+    sb.from('obras').select('*').eq('id', obraId).single(),
+    sb.from('processos').select('id, numero, assunto, obra_id').order('data_entrada', { ascending: false })
+  ]);
+  if (o.error) { $('subt').textContent = 'Obra não encontrada.'; return; }
+  obra = o.data;
+  $('subt').textContent = `${obra.nome}${obra.contratada ? ' · ' + obra.contratada : ''}${obra.num_contrato ? ' · Contrato ' + obra.num_contrato : ''}`;
+  const procs = (pr.data || []).sort((a, b) => (b.obra_id === obraId) - (a.obra_id === obraId));
+  $('n_processo').innerHTML += procs.map(p => `<option value="${p.id}">${F.esc(p.numero)} — ${F.esc(p.assunto.slice(0, 50))}${p.obra_id === obraId ? '' : ' (outra obra)'}</option>`).join('');
+  $('busca').oninput = desenhar;
+  $('fSit').onchange = () => { filtroKpi = null; desenhar(); };
+  $('bNova').onclick = () => abrir(null);
+  $('bCancelar').onclick = () => $('dNot').close();
+  $('fNot').onsubmit = salvar;
+  $('bExcluir').onclick = excluir;
+  $('bImprimir').onclick = () => window.open('notificacao.html?id=' + editando, '_blank');
+  for (const id of ['n_data', 'n_ciencia', 'n_prazo', 'n_contagem', 'n_situacao', 'n_dresp']) $(id).oninput = infoPrazo;
+  $('n_situacao').onchange = () => { if (['respondida', 'atendida'].includes($('n_situacao').value) && !$('n_dresp').value) $('n_dresp').value = Prazos.hoje(); infoPrazo(); };
+  await carregar();
+  const abrirId = new URLSearchParams(location.search).get('id');
+  if (abrirId) abrir(abrirId);
+})();
+
+async function carregar() {
+  const { data, error } = await sb.from('notificacoes').select('*').eq('obra_id', obraId).order('data', { ascending: false }).order('created_at', { ascending: false });
+  if (error) { $('linhas').innerHTML = `<tr><td colspan="8" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
+  lista = data; desenhar();
+}
+
+function limiteDe(ini, n, c) { return ini && n != null && n !== '' ? Prazos.limite(ini, parseInt(n, 10), c) : null; }
+
+// [texto, classe, ordem]
+function situacao(n) {
+  if (n.situacao === 'rascunho') return ['Não enviada', 'neutro', 5];
+  if (n.situacao === 'cancelada') return ['Cancelada', 'neutro', 7];
+  if (n.situacao === 'nao_atendida') return ['Não atendida', 'critico', 6];
+  if (n.situacao === 'respondida' || n.situacao === 'atendida') {
+    const r = n.data_resposta;
+    const txt = n.situacao === 'atendida' ? 'Atendida' : 'Respondida';
+    if (r && n.prazo) return r <= n.prazo ? [`${txt} no prazo`, 'ok', n.situacao === 'atendida' ? 6 : 4] : [`${txt} com ${Prazos.diasAte(r, n.prazo)} dia(s) de atraso`, 'alerta', n.situacao === 'atendida' ? 6 : 4];
+    return [txt, 'ok', 6];
+  }
+  if (!n.prazo) return ['Sem prazo', 'neutro', 3];
+  const d = Prazos.diasAte(n.prazo);
+  if (d < 0) return [`Vencida há ${-d} dia(s)`, 'critico', 0];
+  if (d === 0) return ['Vence hoje', 'critico', 1];
+  if (d <= 3) return [`Vence em ${d} dia(s)`, 'alerta', 2];
+  return [`${d} dias`, 'ok', 3];
+}
+
+const fK = {
+  abertas: n => n.situacao === 'aberta',
+  vencidas: n => n.situacao === 'aberta' && n.prazo && Prazos.diasAte(n.prazo) < 0,
+  analise: n => n.situacao === 'respondida',
+  fora: n => ['respondida', 'atendida'].includes(n.situacao) && n.data_resposta && n.prazo && n.data_resposta > n.prazo,
+  nao: n => n.situacao === 'nao_atendida'
+};
+function desenhar() {
+  const K = [['vencidas', 'Prazo vencido sem resposta', 'critico'], ['abertas', 'Aguardando resposta', 'alerta'], ['analise', 'Respondidas — analisar', ''],
+    ['fora', 'Respondidas fora do prazo', 'alerta'], ['nao', 'Não atendidas', 'critico']];
+  $('kpis').innerHTML = K.map(([k, rot, cls]) => { const n = lista.filter(fK[k]).length;
+    return `<div class="kpi ${n && cls ? cls : ''} ${filtroKpi === k ? 'sel' : ''}" data-k="${k}"><div class="rotulo">${rot}</div><div class="valor">${n}</div><div class="det">${filtroKpi === k ? 'filtro ativo — clique para limpar' : 'clique para filtrar'}</div></div>`; }).join('');
+  document.querySelectorAll('.kpi[data-k]').forEach(el => el.onclick = () => { filtroKpi = filtroKpi === el.dataset.k ? null : el.dataset.k; desenhar(); });
+
+  const q = $('busca').value.trim().toUpperCase(), st = $('fSit').value;
+  let l = lista.filter(n => (filtroKpi ? fK[filtroKpi](n) : (!st || (st === 'pendentes' ? ['aberta', 'respondida', 'rascunho'].includes(n.situacao) : n.situacao === st))) &&
+    (!q || [n.numero, n.assunto, n.categoria, n.constatacao, n.determinacao].some(x => (x || '').toUpperCase().includes(q))));
+  l = l.map(n => ({ n, s: situacao(n) })).sort((a, b) => a.s[2] - b.s[2] || (b.n.data || '').localeCompare(a.n.data || ''));
+  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="8" class="vazio">${lista.length ? 'Nenhuma notificação com estes filtros.' : 'Nenhuma notificação nesta obra. Clique em <b>+ Nova notificação</b>.'}</td></tr>`; return; }
+  $('linhas').innerHTML = l.map(({ n, s }) => `<tr data-id="${n.id}" style="cursor:pointer">
+    <td class="num">${F.esc(n.numero || '—')}</td>
+    <td class="assunto"><b>${F.esc(n.assunto)}</b><div class="sub">${F.esc(n.categoria || '')}</div></td>
+    <td>${F.data(n.data)}</td><td>${n.data_ciencia ? F.data(n.data_ciencia) : '<span class="sub">—</span>'}</td>
+    <td><b>${n.prazo ? F.data(n.prazo) : '—'}</b>${n.prazo_dias != null ? `<div class="sub">${n.prazo_dias} dias ${n.contagem === 'uteis' ? 'úteis' : 'corridos'}</div>` : ''}</td>
+    <td><span class="etiqueta ${s[1]}">${s[0]}</span></td><td>${SIT[n.situacao]}</td>
+    <td><a href="notificacao.html?id=${n.id}" target="_blank" onclick="event.stopPropagation()">imprimir</a></td></tr>`).join('');
+  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => abrir(tr.dataset.id));
+}
+
+function infoPrazo() {
+  const ini = $('n_ciencia').value || $('n_data').value;
+  const lim = limiteDe(ini, $('n_prazo').value, $('n_contagem').value);
+  if (!lim) { $('infoPrazo').textContent = $('n_prazo').value === '' ? 'Sem prazo definido.' : ''; return; }
+  const dd = Prazos.diasAte(lim);
+  $('infoPrazo').textContent = `Prazo final: ${F.data(lim)} (${new Date(lim + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long' })}), contado da ${$('n_ciencia').value ? 'ciência' : 'emissão — informe a data de ciência quando a contratada receber'}.` +
+    ($('n_situacao').value === 'aberta' ? (dd < 0 ? ` Vencido há ${-dd} dia(s).` : dd === 0 ? ' Vence hoje.' : ` Faltam ${dd} dia(s).`) : '');
+}
+
+function proximoNumero() {
+  const ano = new Date().getFullYear();
+  const nums = lista.map(n => (n.numero || '').match(/^(\d+)\/(\d{4})$/)).filter(m => m && +m[2] === ano).map(m => +m[1]);
+  return String((nums.length ? Math.max(...nums) : 0) + 1).padStart(2, '0') + '/' + ano;
+}
+
+function abrir(id) {
+  editando = id;
+  $('fNot').reset(); $('nMsg').textContent = '';
+  for (const b of ['bExcluir', 'bImprimir']) $(b).style.display = id ? '' : 'none';
+  if (id) {
+    const n = lista.find(x => x.id === id); if (!n) return;
+    for (const [campo, col] of Object.entries(CAMPOS)) $(campo).value = n[col] ?? '';
+    $('dTitulo').textContent = 'Notificação ' + (n.numero || '');
+  } else {
+    const ult = lista[0] || {};
+    $('dTitulo').textContent = 'Nova notificação';
+    $('n_numero').value = proximoNumero(); $('n_data').value = Prazos.hoje(); $('n_dconst').value = Prazos.hoje();
+    $('n_situacao').value = 'aberta';
+    // repete quem assina e o destinatário da última notificação
+    $('n_signatario').value = ult.signatario || ''; $('n_cargo').value = ult.cargo || ''; $('n_destinatario').value = ult.destinatario || '';
+    const procObra = [...$('n_processo').options].find(op => op.value && !op.text.endsWith('(outra obra)'));
+    if (procObra && obra.processo_siged && procObra.text.startsWith(obra.processo_siged)) $('n_processo').value = procObra.value;
+  }
+  infoPrazo();
+  $('dNot').showModal();
+}
+
+async function salvar(e) {
+  e.preventDefault();
+  const reg = { obra_id: obraId };
+  for (const [campo, col] of Object.entries(CAMPOS)) { const v = $(campo).value.trim(); reg[col] = v === '' ? null : v; }
+  reg.prazo_dias = reg.prazo_dias == null ? null : parseInt(reg.prazo_dias, 10);
+  reg.contagem = reg.contagem || 'corridos';
+  reg.prazo = limiteDe(reg.data_ciencia || reg.data, reg.prazo_dias, reg.contagem);
+  reg.respondida = ['respondida', 'atendida', 'nao_atendida'].includes(reg.situacao);
+  if (!reg.assunto || !reg.data) return erro('Preencha o assunto e a data de emissão.');
+  if (reg.situacao !== 'rascunho' && (!reg.constatacao || !reg.determinacao)) return erro('Para enviar, descreva a constatação e a determinação (ou salve como rascunho).');
+  $('bSalvar').disabled = true;
+  try {
+    const r = editando ? await sb.from('notificacoes').update(reg).eq('id', editando).select('id').single()
+                       : await sb.from('notificacoes').insert(reg).select('id').single();
+    if (r.error) throw r.error;
+    const novo = !editando;
+    await carregar();
+    if (novo) { abrir(r.data.id); $('nMsg').className = 'msg ok'; $('nMsg').textContent = 'Notificação salva. Use "Imprimir documento" para gerar o PDF.'; }
+    else $('dNot').close();
+  } catch (err) { erro('Erro ao salvar: ' + err.message); }
+  finally { $('bSalvar').disabled = false; }
+}
+function erro(t) { $('nMsg').className = 'msg erro'; $('nMsg').textContent = t; }
+
+async function excluir() {
+  if (!confirm('Excluir esta notificação? Não dá para desfazer.')) return;
+  const { error } = await sb.from('notificacoes').delete().eq('id', editando);
+  if (error) { alert('Erro: ' + error.message); return; }
+  $('dNot').close(); await carregar();
+}
+</script>
+</body>
+</html>

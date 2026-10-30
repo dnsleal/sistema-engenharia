@@ -40,6 +40,7 @@
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <a class="botao sec" id="lEditar" href="#">Editar dados</a>
+      <a class="botao sec" id="lNotif" href="#">Notificações</a>
       <a class="botao sec" id="lProcessos" href="#">Processos SIGED</a>
       <a class="botao" id="lImportar" href="#">Importar planilha</a>
     </div>
@@ -156,6 +157,7 @@ async function novoBM() {
   $('lEditar').href = '../index.html?editar=' + obraId;
   $('lImportar').href = 'importar.html?obra=' + obraId;
   $('lProcessos').href = '../processos/index.html?obra=' + obraId;
+  $('lNotif').href = 'notificacoes.html?obra=' + obraId;
   $('lAditivo').href = 'importar.html?obra=' + obraId + '&tipo=aditivo';
   document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
     document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('ativa', x === b));
