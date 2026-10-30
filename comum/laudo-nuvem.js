@@ -30,7 +30,7 @@
   document.head.appendChild(css);
   const barra = document.createElement('div');
   barra.className = 'se-barra no-print';
-  barra.innerHTML = `<a href="../laudos/index.html">← Laudos</a><b>${C.nome || 'Laudo'}</b>
+  barra.innerHTML = `<a href="../laudos/index.html">← Documentos</a><b>${C.nome || "Documento"}</b>
     <span class="st" id="seStatus">ainda não salvo no sistema</span><span class="sp"></span>
     <button id="seNovo">Novo</button><button id="seDuplicar">Duplicar</button><button class="pri" id="seSalvar">Salvar no sistema</button>`;
   document.body.prepend(barra);
@@ -62,7 +62,37 @@
     });
   }
 
+  // ---- modo "html": guarda o miolo editável da página (textos contenteditable,
+  //      linhas criadas na hora). O timbre fixo da página não é copiado para o banco.
+  const imgsFixas = [];
+  if (C.modo === 'html') document.querySelectorAll(C.container + ' img').forEach(im => {
+    const s = im.getAttribute('src') || ''; if (s.startsWith('data:') && !imgsFixas.includes(s)) imgsFixas.push(s);
+  });
+  function serializarHtml() {
+    const raiz = document.querySelector(C.container);
+    // valores digitados viram atributos, para sobreviver ao innerHTML
+    raiz.querySelectorAll('input').forEach(el => {
+      if (el.type === 'checkbox' || el.type === 'radio') { if (el.checked) el.setAttribute('checked', ''); else el.removeAttribute('checked'); }
+      else el.setAttribute('value', el.value);
+    });
+    raiz.querySelectorAll('textarea').forEach(el => { el.textContent = el.value; });
+    raiz.querySelectorAll('select').forEach(el => [...el.options].forEach(o => { if (o.selected) o.setAttribute('selected', ''); else o.removeAttribute('selected'); }));
+    let html = raiz.innerHTML;
+    imgsFixas.forEach((s, i) => { html = html.split(s).join(`[[TIMBRE:${i}]]`); });
+    return { versao: 1, modo: 'html', html, extra: C.extra ? C.extra() : null };
+  }
+  function restaurarHtml(d) {
+    let html = d.html || '';
+    imgsFixas.forEach((s, i) => { html = html.split(`[[TIMBRE:${i}]]`).join(s); });
+    document.querySelector(C.container).innerHTML = html;
+  }
+
+  // ---- modo "local": a página guarda o próprio estado no navegador (localStorage).
+  function lerLocal() { try { return JSON.parse(localStorage.getItem(C.chave) || 'null'); } catch (_) { return null; } }
+
   async function serializar() {
+    if (C.modo === 'html') return serializarHtml();
+    if (C.modo === 'local') return { versao: 1, modo: 'local', estado: lerLocal() };
     const valores = {};
     for (const [k, el] of chaves()) valores[k] = (el.type === 'checkbox' || el.type === 'radio') ? !!el.checked : el.value;
     const imagens = {};
@@ -77,6 +107,7 @@
     carregando = true;
     try {
       if (C.antes) C.antes(d);
+      if (d.modo === 'html') { restaurarHtml(d); if (C.depois) C.depois(d); return; }
       for (const [k, el] of chaves()) {
         if (!(k in d.valores)) continue;
         if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!d.valores[k];
@@ -121,10 +152,31 @@
     if (document.readyState === 'loading') await new Promise(ok => document.addEventListener('DOMContentLoaded', ok, { once: true }));
     await new Promise(ok => setTimeout(ok, 0));
     const u = await SE.exigirLogin(); if (!u) return;
+
+    // modo "local": "novo" limpa o estado guardado no navegador; abrir um documento grava o estado e recarrega uma vez
+    if (C.modo === 'local') {
+      if (P.get('novo')) { localStorage.removeItem(C.chave); location.replace(location.pathname); return; }
+      if (laudoId) {
+        const flag = 'se_rest_' + laudoId;
+        if (sessionStorage.getItem(flag)) { sessionStorage.removeItem(flag); }
+        else {
+          status('abrindo…');
+          const { data, error } = await sb.from('laudos').select('dados').eq('id', laudoId).single();
+          if (error || !data) { status('documento não encontrado'); laudoId = null; return; }
+          if (data.dados.estado) localStorage.setItem(C.chave, JSON.stringify(data.dados.estado)); else localStorage.removeItem(C.chave);
+          sessionStorage.setItem(flag, '1');
+          location.reload(); return;
+        }
+      }
+    }
+
     document.getElementById('seSalvar').onclick = () => salvar(false);
-    document.getElementById('seNovo').onclick = () => { location.href = location.pathname; };
+    document.getElementById('seNovo').onclick = () => {
+      if (C.modo === 'local') localStorage.removeItem(C.chave);
+      location.href = location.pathname;
+    };
     document.getElementById('seDuplicar').onclick = async () => {
-      if (!laudoId) { alert('Salve este laudo antes de duplicar.'); return; }
+      if (!laudoId) { alert('Salve este documento antes de duplicar.'); return; }
       const dados = await semAgendar(serializar);
       const { data, error } = await sb.from('laudos').insert({ tipo: C.tipo, titulo: 'Cópia de ' + ((C.titulo && C.titulo()) || 'laudo'), valor: C.valor ? C.valor() : null, dados }).select('id').single();
       if (error) { alert('Erro: ' + error.message); return; }
@@ -135,13 +187,20 @@
     // fotos/logo trocados também contam como alteração
     new MutationObserver(ms => { if (ms.some(m => m.attributeName === 'src')) agendar(); })
       .observe(document.body, { subtree: true, attributes: true, attributeFilter: ['src'] });
+    // linhas/fotos/cartões criados ou removidos (botões da própria página) também contam
+    if (C.modo === 'html' || C.modo === 'local') {
+      const alvo = C.modo === 'html' ? document.querySelector(C.container) : document.body;
+      new MutationObserver(ms => {
+        if (ms.some(m => m.type === 'childList' && !(m.target.closest && m.target.closest('.se-barra, #toast, #report-print-container')))) setTimeout(agendar, 700);
+      }).observe(alvo, { subtree: true, childList: true });
+    }
     window.addEventListener('beforeunload', e => { if (/não salvas/.test(document.getElementById('seStatus').textContent)) { e.preventDefault(); e.returnValue = ''; } });
 
     if (laudoId) {
       status('abrindo…');
       const { data, error } = await sb.from('laudos').select('*').eq('id', laudoId).single();
-      if (error) { status('laudo não encontrado'); laudoId = null; return; }
-      await semAgendar(() => restaurar(data.dados));
+      if (error) { status('documento não encontrado'); laudoId = null; return; }
+      if (C.modo !== 'local') await semAgendar(() => restaurar(data.dados));
       document.title = data.titulo + ' — ' + (C.nome || 'Laudo');
       status('salvo no sistema');
     }

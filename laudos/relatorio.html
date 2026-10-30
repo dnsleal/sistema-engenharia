@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>Relatório de Obra</title>
+<style>
+  :root{
+    --color-bg:#EEF1F4;
+    --color-surface:#FFFFFF;
+    --color-primary:#0F2A43;
+    --color-primary-light:#1F4868;
+    --color-accent:#2C6E8E;
+    --color-text:#1C2B36;
+    --color-text-muted:#5B6B7A;
+    --color-border:#D7DEE3;
+    --color-success:#3F7D58;
+    --color-success-bg:#E8F0EA;
+    --color-warning:#9C6B16;
+    --color-warning-bg:#F6EEDD;
+    --color-danger:#A23B3B;
+    --color-danger-bg:#F7E9E9;
+    --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--color-bg);
+    color:var(--color-text);
+    font-family:var(--font-sans);
+    font-size:16px;
+    line-height:1.45;
+    -webkit-text-size-adjust:100%;
+    padding-bottom:48px;
+  }
+
+  .app-shell{max-width:880px;margin:0 auto;padding:16px;}
+
+  .app-topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 4px 18px;
+    flex-wrap:wrap;
+  }
+  .app-topbar h1{
+    font-size:20px;
+    margin:0;
+    color:var(--color-primary);
+    letter-spacing:0.01em;
+  }
+  .app-topbar .subtitle{
+    display:block;
+    font-size:12px;
+    color:var(--color-text-muted);
+    font-weight:400;
+    margin-top:2px;
+  }
+
+  .card{
+    background:var(--color-surface);
+    border:1px solid var(--color-border);
+    border-left:4px solid var(--color-primary);
+    border-radius:8px;
+    padding:18px;
+    margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(15,42,67,0.06);
+  }
+
+  .card-eyebrow{
+    font-size:11px;
+    font-weight:700;
+    letter-spacing:0.09em;
+    color:var(--color-accent);
+    text-transform:uppercase;
+    margin:0 0 14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .card-eyebrow .num{
+    font-family:var(--font-mono);
+    color:#fff;
+    background:var(--color-primary);
+    border-radius:4px;
+    padding:1px 6px;
+    font-size:11px;
+    letter-spacing:0;
+  }
+  .card-eyebrow .divider{
+    flex:1;
+    height:1px;
+    background:var(--color-border);
+  }
+
+  label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    color:var(--color-text-muted);
+    margin-bottom:14px;
+  }
+  label > span.label-text{display:block;margin-bottom:6px;}
+
+  input[type="text"],
+  input[type="date"],
+  input[type="number"],
+  textarea,
+  select{
+    width:100%;
+    min-height:44px;
+    font-size:16px;
+    font-family:var(--font-sans);
+    color:var(--color-text);
+    background:#fff;
+    border:1px solid var(--color-border);
+    border-radius:6px;
+    padding:9px 12px;
+    -webkit-appearance:none;
+    appearance:none;
+  }
+  textarea{resize:vertical;min-height:64px;}
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  button:focus-visible{
+    outline:2px solid var(--color-accent);
+    outline-offset:1px;
+  }
+  ::placeholder{color:#9AAAB6;}
+
+  .form-grid-2{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:0 16px;
+  }
+  @media (min-width:640px){
+    .form-grid-2{grid-template-columns:1fr 1fr;}
+  }
+
+  .header-empresa-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:14px;
+    margin-bottom:14px;
+    align-items:start;
+  }
+  @media (min-width:640px){
+    .header-empresa-grid{grid-template-columns:120px 1fr;}
+  }
+
+  .logo-dropzone{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    width:100%;
+    min-height:96px;
+    border:1.5px dashed var(--color-border);
+    border-radius:8px;
+    background:#FAFBFC;
+    cursor:pointer;
+    text-align:center;
+    padding:8px;
+    color:var(--color-text-muted);
+    font-size:12px;
+    font-weight:600;
+  }
+  .logo-preview-img{
+    max-width:100%;
+    max-height:90px;
+    display:block;
+    object-fit:contain;
+  }
+  .logo-upload .btn-text{margin-top:6px;}
+
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    min-height:44px;
+    padding:0 18px;
+    font-size:15px;
+    font-weight:600;
+    border-radius:6px;
+    border:1.5px solid transparent;
+    cursor:pointer;
+    font-family:var(--font-sans);
+    white-space:nowrap;
+  }
+  .btn-primary{background:var(--color-primary);color:#fff;}
+  .btn-primary:active{background:var(--color-primary-light);}
+  .btn-secondary{background:#fff;color:var(--color-primary);border-color:var(--color-primary);}
+  .btn-secondary:active{background:#F0F4F7;}
+  .btn-danger-outline{background:#fff;color:var(--color-danger);border-color:var(--color-danger);}
+  .btn-text{background:none;border:none;color:var(--color-accent);font-size:13px;font-weight:600;padding:6px 4px;min-height:32px;}
+  .btn-text-danger{background:none;border:none;color:var(--color-danger);font-size:14px;font-weight:600;padding:6px 8px;min-height:40px;}
+  .btn-block{width:100%;margin-bottom:10px;}
+  .btn[disabled]{opacity:0.55;cursor:default;}
+
+  .servico-card,.foto-card{
+    border:1px solid var(--color-border);
+    border-radius:8px;
+    padding:14px;
+    margin-bottom:12px;
+    background:#FCFDFD;
+    position:relative;
+  }
+  .servico-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:10px;
+  }
+  .servico-numero{
+    font-family:var(--font-mono);
+    font-size:13px;
+    font-weight:700;
+    color:var(--color-primary);
+  }
+
+  .status-row{display:grid;grid-template-columns:1fr 110px;gap:0 12px;align-items:start;}
+  .status-chip{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.03em;
+    padding:3px 8px;
+    border-radius:4px;
+    margin-top:6px;
+  }
+  .status-chip.st-a-executar{background:#EAEDF0;color:var(--color-text-muted);}
+  .status-chip.st-em-andamento{background:var(--color-warning-bg);color:var(--color-warning);}
+  .status-chip.st-concluido{background:var(--color-success-bg);color:var(--color-success);}
+
+  .empty-hint{
+    font-size:13px;
+    color:var(--color-text-muted);
+    padding:10px 2px 14px;
+  }
+
+  .fotos-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:14px;
+    margin-bottom:14px;
+  }
+  .foto-card{padding:10px;}
+  .foto-thumb{
+    width:100%;
+    height:120px;
+    object-fit:cover;
+    border-radius:6px;
+    display:block;
+    margin-bottom:8px;
+    background:#E3E8EC;
+  }
+  .foto-card label{margin-bottom:8px;font-size:12px;}
+  .foto-card input[type="text"], .foto-card select{min-height:40px;font-size:14px;padding:6px 10px;}
+
+  .btn-icon-remove{
+    background:#fff;
+    border:1px solid var(--color-danger);
+    color:var(--color-danger);
+    font-size:12px;
+    font-weight:700;
+    border-radius:5px;
+    padding:5px 10px;
+    min-height:32px;
+    cursor:pointer;
+  }
+
+  .export-hint{
+    font-size:12px;
+    color:var(--color-text-muted);
+    margin-top:6px;
+    line-height:1.5;
+  }
+
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:22px;
+    transform:translateX(-50%) translateY(16px);
+    background:var(--color-primary);
+    color:#fff;
+    padding:11px 18px;
+    border-radius:7px;
+    font-size:14px;
+    max-width:90%;
+    text-align:center;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+    z-index:1000;
+    box-shadow:0 4px 14px rgba(0,0,0,0.2);
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  #report-print-container{position:fixed;left:-9999px;top:0;background:#fff;}
+
+  @media (prefers-reduced-motion:reduce){
+    .toast{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <header class="app-topbar">
+    <h1>Relatório de Obra
+      <span class="subtitle">Preenchimento em campo · exportação em PDF ou Word</span>
+    </h1>
+    <button type="button" id="btn-limpar" class="btn-text-danger">Limpar / Nova obra</button>
+  </header>
+
+  <main>
+
+    <!-- CABEÇALHO -->
+    <section class="card" id="card-cabecalho">
+      <p class="card-eyebrow"><span class="divider"></span>Cabeçalho<span class="divider"></span></p>
+
+      <div class="header-empresa-grid">
+        <div class="logo-upload">
+          <label for="input-logo" class="logo-dropzone" id="logo-dropzone">
+            <img id="logo-preview-img" class="logo-preview-img" style="display:none;" alt="Pré-visualização do logotipo">
+            <span id="logo-placeholder-text">Toque para<br>adicionar logotipo</span>
+          </label>
+          <input type="file" id="input-logo" accept="image/*" style="display:none;">
+          <button type="button" id="btn-remove-logo" class="btn-text" style="display:none;">Remover logotipo</button>
+        </div>
+        <label for="input-empresa-nome" style="margin-bottom:0;">
+          <span class="label-text">Nome da empresa</span>
+          <input type="text" id="input-empresa-nome" placeholder="Ex.: Construtora Exemplo Ltda.">
+        </label>
+      </div>
+
+      <div class="form-grid-2">
+        <label for="input-cab-data">
+          <span class="label-text">Data</span>
+          <input type="date" id="input-cab-data">
+        </label>
+        <label for="input-cab-local">
+          <span class="label-text">Local</span>
+          <input type="text" id="input-cab-local" placeholder="Cidade/UF ou endereço resumido">
+        </label>
+      </div>
+
+      <label for="input-cab-motivo">
+        <span class="label-text">Motivo</span>
+        <input type="text" id="input-cab-motivo" placeholder="Ex.: vistoria de rotina, medição mensal, fiscalização de contrato">
+      </label>
+
+      <label for="input-cab-observacao" style="margin-bottom:0;">
+        <span class="label-text">Observação</span>
+        <textarea id="input-cab-observacao" rows="2" placeholder="Nota geral exibida no topo do relatório"></textarea>
+      </label>
+    </section>
+
+    <!-- IDENTIFICAÇÃO DA OBRA -->
+    <section class="card" id="card-identificacao">
+      <p class="card-eyebrow"><span class="num">01</span>Identificação da obra<span class="divider"></span></p>
+
+      <label for="input-obra-nome">
+        <span class="label-text">Nome da obra *</span>
+        <input type="text" id="input-obra-nome" placeholder="Ex.: Reforma da Escola Municipal X">
+      </label>
+
+      <label for="input-obra-endereco">
+        <span class="label-text">Endereço / Localização</span>
+        <input type="text" id="input-obra-endereco" placeholder="Endereço completo ou ponto de referência">
+      </label>
+
+      <div class="form-grid-2">
+        <label for="input-obra-responsavel">
+          <span class="label-text">Responsável técnico *</span>
+          <input type="text" id="input-obra-responsavel" placeholder="Nome do responsável técnico">
+        </label>
+        <label for="input-obra-art">
+          <span class="label-text">Número de contrato / ART</span>
+          <input type="text" id="input-obra-art" placeholder="Nº do contrato ou ART/RRT">
+        </label>
+      </div>
+
+      <label for="input-obra-data" style="margin-bottom:0;">
+        <span class="label-text">Data do relatório *</span>
+        <input type="date" id="input-obra-data">
+      </label>
+    </section>
+
+    <!-- SERVIÇOS A EXECUTAR -->
+    <section class="card" id="card-servicos">
+      <p class="card-eyebrow"><span class="num">02</span>Serviços a executar<span class="divider"></span></p>
+
+      <div id="servicos-lista"></div>
+      <p class="empty-hint" id="servicos-empty-hint">Nenhum serviço adicionado ainda. Toque em "Adicionar serviço" para começar.</p>
+
+      <button type="button" id="btn-add-servico" class="btn btn-secondary">+ Adicionar serviço</button>
+    </section>
+
+    <!-- REGISTRO FOTOGRÁFICO -->
+    <section class="card" id="card-fotos">
+      <p class="card-eyebrow"><span class="num">03</span>Registro fotográfico<span class="divider"></span></p>
+
+      <input type="file" id="input-fotos" accept="image/*" multiple capture="environment" style="display:none;">
+      <button type="button" id="btn-add-fotos" class="btn btn-secondary">Adicionar fotos</button>
+
+      <div class="fotos-grid" id="fotos-grid"></div>
+      <p class="empty-hint" id="fotos-empty-hint">Nenhuma foto anexada ainda.</p>
+    </section>
+
+    <!-- OBSERVAÇÕES GERAIS -->
+    <section class="card" id="card-observacoes">
+      <p class="card-eyebrow"><span class="num">04</span>Observações gerais<span class="divider"></span></p>
+      <label for="input-observacoes-gerais" style="margin-bottom:0;">
+        <span class="label-text">Anotações gerais sobre a obra</span>
+        <textarea id="input-observacoes-gerais" rows="4" placeholder="Registre aqui qualquer informação adicional relevante"></textarea>
+      </label>
+    </section>
+
+    <!-- EXPORTAÇÃO -->
+    <section class="card" id="card-export">
+      <p class="card-eyebrow"><span class="divider"></span>Exportar relatório<span class="divider"></span></p>
+      <button type="button" id="btn-exportar-pdf" class="btn btn-primary btn-block">Exportar PDF</button>
+      <button type="button" id="btn-exportar-word" class="btn btn-primary btn-block">Exportar Word (.docx)</button>
+      <p class="export-hint">Campos obrigatórios: nome da obra, responsável técnico e data do relatório. No iPhone/iPad, o arquivo pode abrir em uma nova aba — toque no ícone de compartilhar do Safari para salvar em Arquivos.</p>
+    </section>
+
+  </main>
+</div>
+
+<div id="toast" role="status" aria-live="polite" class="toast"></div>
+<div id="report-print-container" aria-hidden="true"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "relatorioObrasApp_v1";
+
+  function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+  function defaultState(){
+    var today = todayISO();
+    return {
+      empresaNome:"",
+      logoBase64:"",
+      cabecalho:{ data: today, local:"", motivo:"", observacao:"" },
+      obra:{ nome:"", endereco:"", responsavel:"", contratoArt:"", dataRelatorio: today },
+      servicos:[],
+      fotos:[],
+      observacoesGerais:""
+    };
+  }
+
+  var state = defaultState();
+
+  function generateId(){
+    return "id" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  function escapeHtml(str){
+    if(str === undefined || str === null) return "";
+    return String(str).replace(/[&<>"']/g, function(ch){
+      return ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[ch];
+    });
+  }
+
+  function formatDateBR(iso){
+    if(!iso) return "";
+    var parts = iso.split("-");
+    if(parts.length !== 3) return iso;
+    return parts[2] + "/" + parts[1] + "/" + parts[0];
+  }
+
+  function slugify(str){
+    var base = (str || "obra").toString();
+    base = base.normalize ? base.normalize("NFD").replace(/[\u0300-\u036f]/g,"") : base;
+    base = base.replace(/[^a-zA-Z0-9]+/g,"-").replace(/(^-+|-+$)/g,"").toLowerCase();
+    return base || "obra";
+  }
+
+  function buildFilename(ext){
+    var slug = slugify(state.obra.nome);
+    var date = state.obra.dataRelatorio || todayISO();
+    return "relatorio-" + slug + "-" + date + "." + ext;
+  }
+
+  function chunk(arr, size){
+    var out = [];
+    for(var i=0;i<arr.length;i+=size){ out.push(arr.slice(i,i+size)); }
+    return out;
+  }
+
+  // ---------- TOAST ----------
+  var toastTimer = null;
+  function toast(message){
+    var el = document.getElementById("toast");
+    el.textContent = message;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 3800);
+  }
+
+  // ---------- PERSISTÊNCIA ----------
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        var def = defaultState();
+        state = {
+          empresaNome: typeof parsed.empresaNome === "string" ? parsed.empresaNome : "",
+          logoBase64: typeof parsed.logoBase64 === "string" ? parsed.logoBase64 : "",
+          cabecalho: Object.assign(def.cabecalho, parsed.cabecalho || {}),
+          obra: Object.assign(def.obra, parsed.obra || {}),
+          servicos: Array.isArray(parsed.servicos) ? parsed.servicos : [],
+          fotos: Array.isArray(parsed.fotos) ? parsed.fotos : [],
+          observacoesGerais: typeof parsed.observacoesGerais === "string" ? parsed.observacoesGerais : ""
+        };
+      }
+    }catch(err){
+      console.warn("Não foi possível carregar dados salvos:", err);
+      state = defaultState();
+    }
+  }
+
+  var saveTimer = null;
+  function saveStateDebounced(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveStateNow, 400);
+  }
+  function saveStateNow(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }catch(err){
+      console.warn("Falha ao salvar:", err);
+      toast("Armazenamento local cheio. Exporte o relatório e remova fotos antigas para continuar salvando automaticamente.");
+    }
+  }
+
+  // ---------- POPULAR FORMULÁRIO ----------
+  function populateFormFromState(){
+    document.getElementById("input-empresa-nome").value = state.empresaNome;
+    document.getElementById("input-cab-data").value = state.cabecalho.data;
+    document.getElementById("input-cab-local").value = state.cabecalho.local;
+    document.getElementById("input-cab-motivo").value = state.cabecalho.motivo;
+    document.getElementById("input-cab-observacao").value = state.cabecalho.observacao;
+
+    document.getElementById("input-obra-nome").value = state.obra.nome;
+    document.getElementById("input-obra-endereco").value = state.obra.endereco;
+    document.getElementById("input-obra-responsavel").value = state.obra.responsavel;
+    document.getElementById("input-obra-art").value = state.obra.contratoArt;
+    document.getElementById("input-obra-data").value = state.obra.dataRelatorio;
+
+    document.getElementById("input-observacoes-gerais").value = state.observacoesGerais;
+
+    showLogoPreview();
+    renderServicos();
+    renderFotos();
+  }
+
+  // ---------- LOGOTIPO ----------
+  function showLogoPreview(){
+    var img = document.getElementById("logo-preview-img");
+    var placeholder = document.getElementById("logo-placeholder-text");
+    var removeBtn = document.getElementById("btn-remove-logo");
+    if(state.logoBase64){
+      img.src = state.logoBase64;
+      img.style.display = "block";
+      placeholder.style.display = "none";
+      removeBtn.style.display = "inline-flex";
+    }else{
+      img.style.display = "none";
+      img.src = "";
+      placeholder.style.display = "block";
+      removeBtn.style.display = "none";
+    }
+  }
+
+  // ---------- COMPRESSÃO DE IMAGEM ----------
+  function compressImage(file, maxDim, quality){
+    return new Promise(function(resolve, reject){
+      var reader = new FileReader();
+      reader.onerror = function(){ reject(reader.error || new Error("Erro de leitura")); };
+      reader.onload = function(){
+        var img = new Image();
+        img.onerror = function(){ reject(new Error("Falha ao carregar imagem")); };
+        img.onload = function(){
+          var width = img.naturalWidth, height = img.naturalHeight;
+          if(width > maxDim || height > maxDim){
+            if(width > height){
+              height = Math.round(height * (maxDim / width));
+              width = maxDim;
+            }else{
+              width = Math.round(width * (maxDim / height));
+              height = maxDim;
+            }
+          }
+          var canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          var ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          var outType = (file.type === "image/png") ? "image/png" : "image/jpeg";
+          try{
+            resolve(canvas.toDataURL(outType, quality));
+          }catch(e){
+            reject(e);
+          }
+        };
+        img.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Redimensiona um dataUrl (já base64) para caber em maxW × maxH,
+  // sem distorção. Usado para garantir que o Word exiba a imagem
+  // no tamanho certo, independente de respeitar ou não as regras CSS.
+  function resizeForWord(dataUrl, maxW, maxH){
+    return new Promise(function(resolve){
+      var img = new Image();
+      img.onerror = function(){ resolve(dataUrl); };
+      img.onload = function(){
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var ratio = Math.min(maxW / w, maxH / h);
+        if(ratio >= 1){ resolve(dataUrl); return; } // já pequeno o bastante
+        var nw = Math.round(w * ratio), nh = Math.round(h * ratio);
+        var canvas = document.createElement("canvas");
+        canvas.width = nw; canvas.height = nh;
+        canvas.getContext("2d").drawImage(img, 0, 0, nw, nh);
+        try{ resolve(canvas.toDataURL("image/jpeg", 0.82)); }
+        catch(e){ resolve(dataUrl); }
+      };
+      img.src = dataUrl;
+    });
+  }
+
+  // ---------- SERVIÇOS ----------
+  function statusClass(status){
+    if(status === "Em andamento") return "st-em-andamento";
+    if(status === "Concluído") return "st-concluido";
+    return "st-a-executar";
+  }
+
+  function labelForServico(servico, index){
+    var desc = (servico.descricao || "").trim();
+    var base = "Serviço " + (index + 1);
+    if(desc){
+      base += ": " + (desc.length > 30 ? desc.slice(0,30) + "…" : desc);
+    }
+    return base;
+  }
+
+  function renderServicos(){
+    var container = document.getElementById("servicos-lista");
+    var emptyHint = document.getElementById("servicos-empty-hint");
+
+    if(state.servicos.length === 0){
+      container.innerHTML = "";
+      emptyHint.style.display = "block";
+      return;
+    }
+    emptyHint.style.display = "none";
+
+    container.innerHTML = state.servicos.map(function(s, i){
+      return (
+        '<div class="servico-card" data-servico-id="' + s.id + '">' +
+          '<div class="servico-card-header">' +
+            '<span class="servico-numero">Serviço ' + (i+1) + '</span>' +
+            '<button type="button" class="btn-icon-remove" data-action="remove-servico" data-id="' + s.id + '" aria-label="Remover serviço">Remover</button>' +
+          '</div>' +
+          '<label>' +
+            '<span class="label-text">Descrição do serviço</span>' +
+            '<textarea data-field="descricao" data-id="' + s.id + '" rows="2" placeholder="Descreva o serviço a ser executado">' + escapeHtml(s.descricao) + '</textarea>' +
+          '</label>' +
+          '<div class="status-row">' +
+            '<label>' +
+              '<span class="label-text">Status</span>' +
+              '<select data-field="status" data-id="' + s.id + '">' +
+                '<option value="A executar"' + (s.status === "A executar" ? " selected" : "") + '>A executar</option>' +
+                '<option value="Em andamento"' + (s.status === "Em andamento" ? " selected" : "") + '>Em andamento</option>' +
+                '<option value="Concluído"' + (s.status === "Concluído" ? " selected" : "") + '>Concluído</option>' +
+              '</select>' +
+              '<span class="status-chip ' + statusClass(s.status) + '">' + escapeHtml(s.status) + '</span>' +
+            '</label>' +
+            '<label>' +
+              '<span class="label-text">% concluído</span>' +
+              '<input type="number" min="0" max="100" data-field="percentual" data-id="' + s.id + '" value="' + (Number(s.percentual) || 0) + '">' +
+            '</label>' +
+          '</div>' +
+          '<label style="margin-bottom:0;">' +
+            '<span class="label-text">Observações</span>' +
+            '<textarea data-field="observacoes" data-id="' + s.id + '" rows="2" placeholder="Observações sobre este serviço">' + escapeHtml(s.observacoes) + '</textarea>' +
+          '</label>' +
+        '</div>'
+      );
+    }).join("");
+  }
+
+  function addServico(){
+    state.servicos.push({ id: generateId(), descricao:"", status:"A executar", percentual:0, observacoes:"" });
+    renderServicos();
+    renderFotos();
+    saveStateDebounced();
+  }
+
+  function removeServico(id){
+    state.servicos = state.servicos.filter(function(s){ return s.id !== id; });
+    state.fotos.forEach(function(f){ if(f.servicoId === id) f.servicoId = ""; });
+    renderServicos();
+    renderFotos();
+    saveStateDebounced();
+  }
+
+  function updateServicoField(id, field, value){
+    var servico = state.servicos.find(function(s){ return s.id === id; });
+    if(!servico) return;
+    if(field === "percentual"){
+      var n = parseInt(value, 10);
+      if(isNaN(n)) n = 0;
+      n = Math.max(0, Math.min(100, n));
+      servico.percentual = n;
+    }else{
+      servico[field] = value;
+    }
+    saveStateDebounced();
+  }
+
+  function refreshStatusChip(id, status){
+    var card = document.querySelector('.servico-card[data-servico-id="' + id + '"]');
+    if(!card) return;
+    var chip = card.querySelector(".status-chip");
+    if(chip){
+      chip.textContent = status;
+      chip.className = "status-chip " + statusClass(status);
+    }
+  }
+
+  function refreshFotoServicoLabels(){
+    var selects = document.querySelectorAll(".foto-servico-select");
+    selects.forEach(function(sel){
+      Array.prototype.forEach.call(sel.options, function(opt){
+        if(opt.value){
+          var idx = state.servicos.findIndex(function(s){ return s.id === opt.value; });
+          if(idx > -1){
+            opt.textContent = labelForServico(state.servicos[idx], idx);
+          }
+        }
+      });
+    });
+  }
+
+  // ---------- FOTOS ----------
+  function renderFotos(){
+    var container = document.getElementById("fotos-grid");
+    var emptyHint = document.getElementById("fotos-empty-hint");
+
+    if(state.fotos.length === 0){
+      container.innerHTML = "";
+      emptyHint.style.display = "block";
+      return;
+    }
+    emptyHint.style.display = "none";
+
+    var servicoOptions = state.servicos.map(function(s, i){
+      return { id: s.id, label: labelForServico(s, i) };
+    });
+
+    container.innerHTML = state.fotos.map(function(f){
+      var optionsHtml = '<option value="">Nenhum</option>' + servicoOptions.map(function(opt){
+        return '<option value="' + opt.id + '"' + (opt.id === f.servicoId ? " selected" : "") + '>' + escapeHtml(opt.label) + '</option>';
+      }).join("");
+
+      return (
+        '<div class="foto-card" data-foto-id="' + f.id + '">' +
+          '<img class="foto-thumb" src="' + f.dataUrl + '" alt="' + (escapeHtml(f.legenda) || "Foto da obra") + '">' +
+          '<button type="button" class="btn-icon-remove" data-action="remove-foto" data-id="' + f.id + '" aria-label="Remover foto" style="margin-bottom:8px;">Remover</button>' +
+          '<label>' +
+            '<span class="label-text">Legenda</span>' +
+            '<input type="text" data-field="legenda" data-id="' + f.id + '" value="' + escapeHtml(f.legenda) + '" placeholder="Descreva a foto">' +
+          '</label>' +
+          '<label style="margin-bottom:0;">' +
+            '<span class="label-text">Vincular a serviço</span>' +
+            '<select class="foto-servico-select" data-field="servicoId" data-id="' + f.id + '">' + optionsHtml + '</select>' +
+          '</label>' +
+        '</div>'
+      );
+    }).join("");
+  }
+
+  function handleFotosInput(fileList){
+    var files = Array.prototype.slice.call(fileList || []);
+    if(files.length === 0) return;
+    toast("Processando " + files.length + " foto(s)...");
+    Promise.all(files.map(function(f){ return compressImage(f, 1280, 0.72); }))
+      .then(function(dataUrls){
+        dataUrls.forEach(function(durl){
+          state.fotos.push({ id: generateId(), dataUrl: durl, legenda:"", servicoId:"" });
+        });
+        renderFotos();
+        saveStateDebounced();
+        if(state.fotos.length > 10){
+          toast("Você anexou mais de 10 fotos. Para manter o desempenho do aplicativo, remova fotos que não sejam essenciais.");
+        }else{
+          toast("Foto(s) adicionada(s).");
+        }
+      })
+      .catch(function(err){
+        console.error(err);
+        toast("Não foi possível processar uma ou mais fotos.");
+      });
+  }
+
+  function removeFoto(id){
+    state.fotos = state.fotos.filter(function(f){ return f.id !== id; });
+    renderFotos();
+    saveStateDebounced();
+  }
+
+  function updateFotoField(id, field, value){
+    var foto = state.fotos.find(function(f){ return f.id === id; });
+    if(!foto) return;
+    foto[field] = value;
+    saveStateDebounced();
+  }
+
+  // ---------- LIMPAR TUDO ----------
+  function limparTudo(){
+    var ok = confirm("Tem certeza que deseja limpar todos os dados e iniciar uma nova obra? Esta ação não pode ser desfeita.");
+    if(!ok) return;
+    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    state = defaultState();
+    populateFormFromState();
+    toast("Formulário limpo. Pronto para uma nova obra.");
+  }
+
+  // ---------- VALIDAÇÃO ----------
+  function validarCampos(){
+    var missing = [];
+    if(!state.obra.nome.trim()) missing.push("Nome da obra");
+    if(!state.obra.responsavel.trim()) missing.push("Responsável técnico");
+    if(!state.obra.dataRelatorio) missing.push("Data do relatório");
+    return { valid: missing.length === 0, missing: missing };
+  }
+
+  // ---------- MONTAGEM DO RELATÓRIO (HTML) ----------
+  function labelForServicoById(id){
+    var idx = state.servicos.findIndex(function(s){ return s.id === id; });
+    if(idx === -1) return "";
+    return labelForServico(state.servicos[idx], idx);
+  }
+
+  function buildReportHTML(mode, customState){
+    var s = customState || state;
+    var isWord = (mode === "word");
+
+    var headerLogo = "";
+    if(s.logoBase64){
+      headerLogo = isWord
+        ? '<img src="' + s.logoBase64 + '" width="80" style="width:80px;display:block;">'
+        : '<img src="' + s.logoBase64 + '" style="max-width:90px;max-height:90px;display:block;">';
+    }
+
+    var headerTable =
+      '<table style="width:100%;border-bottom:3px solid #0F2A43;padding-bottom:10px;margin-bottom:14px;">' +
+        '<tr>' +
+          '<td style="width:100px;vertical-align:middle;">' + headerLogo + '</td>' +
+          '<td style="vertical-align:middle;">' +
+            '<div style="font-size:18px;font-weight:bold;color:#0F2A43;">' + (escapeHtml(s.empresaNome) || "&nbsp;") + '</div>' +
+            '<div style="font-size:12px;color:#5B6B7A;">Relatório de Obra</div>' +
+          '</td>' +
+          '<td style="text-align:right;vertical-align:middle;font-size:12px;color:#5B6B7A;">' +
+            'Data: ' + (formatDateBR(s.cabecalho.data) || "&nbsp;") + '<br>' +
+            'Local: ' + (escapeHtml(s.cabecalho.local) || "&nbsp;") +
+          '</td>' +
+        '</tr>' +
+      '</table>';
+
+    var motivoLine = s.cabecalho.motivo
+      ? '<div style="margin-bottom:6px;font-size:13px;"><strong>Motivo:</strong> ' + escapeHtml(s.cabecalho.motivo) + '</div>'
+      : "";
+    var obsCabLine = s.cabecalho.observacao
+      ? '<div style="margin-bottom:16px;font-size:13px;"><strong>Observação:</strong> ' + escapeHtml(s.cabecalho.observacao) + '</div>'
+      : "";
+
+    var identificacaoTable =
+      '<h2 style="font-size:15px;color:#0F2A43;border-bottom:1px solid #D7DEE3;padding-bottom:4px;margin-top:18px;">1. Identificação da obra</h2>' +
+      '<table style="width:100%;font-size:13px;margin-bottom:16px;border-collapse:collapse;">' +
+        '<tr><td style="padding:4px 0;width:170px;color:#5B6B7A;">Nome da obra</td><td style="padding:4px 0;font-weight:bold;">' + (escapeHtml(s.obra.nome) || "&nbsp;") + '</td></tr>' +
+        '<tr><td style="padding:4px 0;color:#5B6B7A;">Endereço/Localização</td><td style="padding:4px 0;">' + (escapeHtml(s.obra.endereco) || "&nbsp;") + '</td></tr>' +
+        '<tr><td style="padding:4px 0;color:#5B6B7A;">Responsável técnico</td><td style="padding:4px 0;">' + (escapeHtml(s.obra.responsavel) || "&nbsp;") + '</td></tr>' +
+        '<tr><td style="padding:4px 0;color:#5B6B7A;">Contrato/ART</td><td style="padding:4px 0;">' + (escapeHtml(s.obra.contratoArt) || "&nbsp;") + '</td></tr>' +
+        '<tr><td style="padding:4px 0;color:#5B6B7A;">Data do relatório</td><td style="padding:4px 0;">' + (formatDateBR(s.obra.dataRelatorio) || "&nbsp;") + '</td></tr>' +
+      '</table>';
+
+    var servicosRows = s.servicos.length
+      ? s.servicos.map(function(sv, i){
+          return '<tr>' +
+            '<td style="border:1px solid #D7DEE3;padding:6px;text-align:center;">' + (i+1) + '</td>' +
+            '<td style="border:1px solid #D7DEE3;padding:6px;">' + (escapeHtml(sv.descricao) || "&nbsp;") + '</td>' +
+            '<td style="border:1px solid #D7DEE3;padding:6px;">' + escapeHtml(sv.status) + '</td>' +
+            '<td style="border:1px solid #D7DEE3;padding:6px;text-align:center;">' + (Number(sv.percentual)||0) + '%</td>' +
+            '<td style="border:1px solid #D7DEE3;padding:6px;">' + (escapeHtml(sv.observacoes) || "&nbsp;") + '</td>' +
+          '</tr>';
+        }).join("")
+      : '<tr><td colspan="5" style="border:1px solid #D7DEE3;padding:8px;color:#5B6B7A;">Nenhum serviço informado.</td></tr>';
+
+    var servicosTable =
+      '<h2 style="font-size:15px;color:#0F2A43;border-bottom:1px solid #D7DEE3;padding-bottom:4px;margin-top:18px;">2. Serviços a executar</h2>' +
+      '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px;">' +
+        '<thead><tr style="background:#EEF1F4;">' +
+          '<th style="border:1px solid #D7DEE3;padding:6px;text-align:left;">#</th>' +
+          '<th style="border:1px solid #D7DEE3;padding:6px;text-align:left;">Descrição</th>' +
+          '<th style="border:1px solid #D7DEE3;padding:6px;text-align:left;">Status</th>' +
+          '<th style="border:1px solid #D7DEE3;padding:6px;text-align:left;">%</th>' +
+          '<th style="border:1px solid #D7DEE3;padding:6px;text-align:left;">Observações</th>' +
+        '</tr></thead>' +
+        '<tbody>' + servicosRows + '</tbody>' +
+      '</table>';
+
+    var fotosBlock;
+    if(s.fotos.length === 0){
+      fotosBlock = '<p style="font-size:12px;color:#5B6B7A;">Nenhuma foto anexada.</p>';
+    }else if(isWord){
+      // As imagens chegam aqui já redimensionadas para 270×200px (máx) pela função
+      // resizeForWord — não há como o Word exibi-las em tamanho diferente.
+      // Layout: grade 2×2 (4 por página), quebra de página entre grupos de 4.
+      var IMG_W = 270;
+      var TABLE_W = IMG_W * 2 + 16; // 556px
+      var gruposWord = chunk(s.fotos, 4);
+      fotosBlock = gruposWord.map(function(grupo, gi){
+        var linhas = chunk(grupo, 2);
+        var tbl = '<table width="' + TABLE_W + '" style="width:' + TABLE_W + 'px;border-collapse:collapse;">' +
+          linhas.map(function(par){
+            var cells = par.map(function(f){
+              var vinculo = f.servicoId ? '<div style="font-size:10px;color:#5B6B7A;">Serviço vinculado: ' + escapeHtml(labelForServicoById(f.servicoId)) + '</div>' : "";
+              return '<td width="' + IMG_W + '" style="width:' + IMG_W + 'px;padding:4px;vertical-align:top;border:1px solid #D7DEE3;">' +
+                '<img src="' + f.dataUrl + '" width="' + IMG_W + '" style="width:' + IMG_W + 'px;display:block;margin-bottom:4px;">' +
+                '<div style="font-size:11px;color:#1c2b36;"><strong>' + (escapeHtml(f.legenda) || "Sem legenda") + '</strong></div>' +
+                vinculo +
+              '</td>';
+            }).join("");
+            if(par.length < 2) cells += '<td width="' + IMG_W + '" style="width:' + IMG_W + 'px;border:none;"></td>';
+            return '<tr>' + cells + '</tr>';
+          }).join("") +
+        '</table>';
+        // Quebra de página entre grupos de 4, exceto o último
+        var pb = (gi < gruposWord.length - 1)
+          ? '<p style="page-break-after:always;margin:0;padding:0;font-size:1px;">&nbsp;</p>'
+          : "";
+        return tbl + pb;
+      }).join("");
+    }else{
+      // PDF: grade 2×2, altura uniforme, object-fit:cover para alinhamento visual
+      var gruposPdf = chunk(s.fotos, 4);
+      fotosBlock = gruposPdf.map(function(grupo){
+        var linhas = chunk(grupo, 2);
+        return '<table style="width:100%;border-collapse:collapse;margin-bottom:10px;">' +
+          linhas.map(function(par){
+            var cells = par.map(function(f){
+              var vinculo = f.servicoId ? '<div style="font-size:10px;color:#5B6B7A;">Serviço vinculado: ' + escapeHtml(labelForServicoById(f.servicoId)) + '</div>' : "";
+              return '<td style="width:50%;padding:6px;vertical-align:top;border:1px solid #D7DEE3;">' +
+                '<img src="' + f.dataUrl + '" style="width:100%;height:185px;object-fit:cover;display:block;margin-bottom:4px;">' +
+                '<div style="font-size:11px;color:#1c2b36;"><strong>' + (escapeHtml(f.legenda) || "Sem legenda") + '</strong></div>' +
+                vinculo +
+              '</td>';
+            }).join("");
+            if(par.length < 2) cells += '<td style="width:50%;border:none;"></td>';
+            return '<tr>' + cells + '</tr>';
+          }).join("") +
+        '</table>';
+      }).join("");
+    }
+    var fotosSection = '<h2 style="font-size:15px;color:#0F2A43;border-bottom:1px solid #D7DEE3;padding-bottom:4px;margin-top:18px;">3. Registro fotográfico</h2>' + fotosBlock;
+
+    var obsGeraisSection =
+      '<h2 style="font-size:15px;color:#0F2A43;border-bottom:1px solid #D7DEE3;padding-bottom:4px;margin-top:18px;">4. Observações gerais</h2>' +
+      '<p style="font-size:13px;white-space:pre-wrap;">' + (escapeHtml(s.observacoesGerais) || "Nenhuma observação registrada.") + '</p>';
+
+    var assinaturaTable =
+      '<table style="width:100%;margin-top:36px;">' +
+        '<tr>' +
+          '<td style="width:50%;font-size:12px;color:#5B6B7A;">Data: ' + (formatDateBR(s.obra.dataRelatorio || s.cabecalho.data) || "&nbsp;") + '</td>' +
+          '<td style="width:50%;font-size:12px;color:#5B6B7A;border-top:1px solid #1c2b36;text-align:center;padding-top:4px;">Assinatura do responsável técnico</td>' +
+        '</tr>' +
+      '</table>';
+
+    return (
+      '<div style="font-family:Arial,Helvetica,sans-serif;color:#1c2b36;width:760px;padding:24px;background:#ffffff;">' +
+        headerTable + motivoLine + obsCabLine +
+        identificacaoTable + servicosTable + fotosSection + obsGeraisSection + assinaturaTable +
+      '</div>'
+    );
+  }
+
+  // ---------- DOWNLOAD ----------
+  function downloadBlob(blob, filename){
+    try{
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function(){
+        if(a.parentNode) a.parentNode.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1200);
+    }catch(err){
+      console.error(err);
+      toast("Não foi possível iniciar o download. Tente novamente ou use outro navegador.");
+    }
+  }
+
+  // ---------- EXPORTAR PDF ----------
+  function exportarPDF(){
+    var v = validarCampos();
+    if(!v.valid){
+      toast("Preencha os campos obrigatórios: " + v.missing.join(", "));
+      return;
+    }
+    var btn = document.getElementById("btn-exportar-pdf");
+    btn.disabled = true;
+    toast("Gerando PDF...");
+
+    var container = document.getElementById("report-print-container");
+    container.innerHTML = buildReportHTML("pdf");
+
+    setTimeout(function(){
+      window.html2canvas(container, { scale:2, useCORS:true, backgroundColor:"#ffffff" }).then(function(canvas){
+        var jsPDFLib = window.jspdf && window.jspdf.jsPDF;
+        if(!jsPDFLib){ throw new Error("jsPDF não disponível"); }
+        var pdf = new jsPDFLib("p","mm","a4");
+        var pageWidth = 210, pageHeight = 297, margin = 10;
+        var usableWidth = pageWidth - margin*2;
+        var ratio = usableWidth / canvas.width;
+        var usableHeightPx = (pageHeight - margin*2) / ratio;
+
+        var renderedY = 0;
+        var firstPage = true;
+        while(renderedY < canvas.height){
+          var sliceHeight = Math.min(usableHeightPx, canvas.height - renderedY);
+          var pageCanvas = document.createElement("canvas");
+          pageCanvas.width = canvas.width;
+          pageCanvas.height = sliceHeight;
+          var ctx = pageCanvas.getContext("2d");
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0,0,pageCanvas.width,pageCanvas.height);
+          ctx.drawImage(canvas, 0, renderedY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+          var imgData = pageCanvas.toDataURL("image/jpeg", 0.85);
+          if(!firstPage) pdf.addPage();
+          pdf.addImage(imgData, "JPEG", margin, margin, usableWidth, sliceHeight*ratio);
+          renderedY += sliceHeight;
+          firstPage = false;
+        }
+
+        var blob = pdf.output("blob");
+        downloadBlob(blob, buildFilename("pdf"));
+        toast("PDF gerado com sucesso.");
+      }).catch(function(err){
+        console.error(err);
+        toast("Erro ao gerar PDF. Tente novamente.");
+      }).finally(function(){
+        container.innerHTML = "";
+        btn.disabled = false;
+      });
+    }, 50);
+  }
+
+  // ---------- EXPORTAR WORD ----------
+  function exportarWord(){
+    var v = validarCampos();
+    if(!v.valid){
+      toast("Preencha os campos obrigatórios: " + v.missing.join(", "));
+      return;
+    }
+    var btn = document.getElementById("btn-exportar-word");
+    btn.disabled = true;
+    toast("Preparando fotos para o Word...");
+
+    // Redimensiona todas as fotos para 270×200px (máximo) antes de montar o HTML.
+    // Isso garante que o Word exiba as imagens no tamanho correto, pois o tamanho
+    // real do arquivo de imagem é o que prevalece quando o Word ignora as regras CSS.
+    var photoPromises = state.fotos.length
+      ? state.fotos.map(function(f){ return resizeForWord(f.dataUrl, 270, 200); })
+      : [Promise.resolve()];
+
+    Promise.all(photoPromises).then(function(resizedUrls){
+      var wordState = Object.assign({}, state, {
+        fotos: state.fotos.map(function(f, i){
+          return Object.assign({}, f, { dataUrl: resizedUrls[i] || f.dataUrl });
+        })
+      });
+
+      toast("Gerando documento Word...");
+      var reportHtml = buildReportHTML("word", wordState);
+      var fullHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório de Obra</title></head><body>' + reportHtml + '</body></html>';
+
+      try{
+        if(window.htmlDocx && typeof window.htmlDocx.asBlob === "function"){
+          var blob = window.htmlDocx.asBlob(fullHtml);
+          downloadBlob(blob, buildFilename("docx"));
+          toast("Documento Word gerado com sucesso.");
+        }else{
+          throw new Error("htmlDocx indisponível");
+        }
+      }catch(err){
+        console.warn("Usando exportação alternativa (.doc):", err);
+        var wordHtml = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Relatório de Obra</title></head><body>" + reportHtml + "</body></html>";
+        var docBlob = new Blob(["\ufeff", wordHtml], { type:"application/msword" });
+        downloadBlob(docBlob, buildFilename("doc"));
+        toast("Documento gerado em formato alternativo (.doc), compatível com o Word.");
+      }
+      btn.disabled = false;
+    }).catch(function(err){
+      console.error(err);
+      toast("Erro ao preparar fotos para exportação.");
+      btn.disabled = false;
+    });
+  }
+
+  // ---------- EVENTOS ----------
+  function attachEvents(){
+    document.getElementById("input-empresa-nome").addEventListener("input", function(e){ state.empresaNome = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-cab-data").addEventListener("input", function(e){ state.cabecalho.data = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-cab-local").addEventListener("input", function(e){ state.cabecalho.local = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-cab-motivo").addEventListener("input", function(e){ state.cabecalho.motivo = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-cab-observacao").addEventListener("input", function(e){ state.cabecalho.observacao = e.target.value; saveStateDebounced(); });
+
+    document.getElementById("input-obra-nome").addEventListener("input", function(e){ state.obra.nome = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-obra-endereco").addEventListener("input", function(e){ state.obra.endereco = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-obra-responsavel").addEventListener("input", function(e){ state.obra.responsavel = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-obra-art").addEventListener("input", function(e){ state.obra.contratoArt = e.target.value; saveStateDebounced(); });
+    document.getElementById("input-obra-data").addEventListener("input", function(e){ state.obra.dataRelatorio = e.target.value; saveStateDebounced(); });
+
+    document.getElementById("input-observacoes-gerais").addEventListener("input", function(e){ state.observacoesGerais = e.target.value; saveStateDebounced(); });
+
+    document.getElementById("input-logo").addEventListener("change", function(e){
+      var file = e.target.files[0];
+      if(!file) return;
+      compressImage(file, 400, 0.92).then(function(durl){
+        state.logoBase64 = durl;
+        showLogoPreview();
+        saveStateDebounced();
+      }).catch(function(){
+        toast("Não foi possível carregar o logotipo.");
+      });
+      e.target.value = "";
+    });
+    document.getElementById("btn-remove-logo").addEventListener("click", function(){
+      state.logoBase64 = "";
+      showLogoPreview();
+      saveStateDebounced();
+    });
+
+    document.getElementById("btn-add-servico").addEventListener("click", addServico);
+
+    document.getElementById("servicos-lista").addEventListener("input", function(e){
+      var t = e.target;
+      if(t.dataset && t.dataset.field){
+        updateServicoField(t.dataset.id, t.dataset.field, t.value);
+        if(t.dataset.field === "descricao") refreshFotoServicoLabels();
+      }
+    });
+    document.getElementById("servicos-lista").addEventListener("change", function(e){
+      var t = e.target;
+      if(t.dataset && t.dataset.field === "status"){
+        updateServicoField(t.dataset.id, "status", t.value);
+        refreshStatusChip(t.dataset.id, t.value);
+      }
+    });
+    document.getElementById("servicos-lista").addEventListener("click", function(e){
+      var btn = e.target.closest('[data-action="remove-servico"]');
+      if(btn) removeServico(btn.dataset.id);
+    });
+
+    document.getElementById("btn-add-fotos").addEventListener("click", function(){
+      document.getElementById("input-fotos").click();
+    });
+    document.getElementById("input-fotos").addEventListener("change", function(e){
+      handleFotosInput(e.target.files);
+      e.target.value = "";
+    });
+    document.getElementById("fotos-grid").addEventListener("input", function(e){
+      var t = e.target;
+      if(t.dataset && t.dataset.field === "legenda"){
+        updateFotoField(t.dataset.id, "legenda", t.value);
+        var card = t.closest(".foto-card");
+        if(card){
+          var img = card.querySelector(".foto-thumb");
+          if(img) img.alt = t.value || "Foto da obra";
+        }
+      }
+    });
+    document.getElementById("fotos-grid").addEventListener("change", function(e){
+      var t = e.target;
+      if(t.dataset && t.dataset.field === "servicoId"){
+        updateFotoField(t.dataset.id, "servicoId", t.value);
+      }
+    });
+    document.getElementById("fotos-grid").addEventListener("click", function(e){
+      var btn = e.target.closest('[data-action="remove-foto"]');
+      if(btn) removeFoto(btn.dataset.id);
+    });
+
+    document.getElementById("btn-limpar").addEventListener("click", limparTudo);
+    document.getElementById("btn-exportar-pdf").addEventListener("click", exportarPDF);
+    document.getElementById("btn-exportar-word").addEventListener("click", exportarWord);
+  }
+
+  // ---------- INICIALIZAÇÃO ----------
+  document.addEventListener("DOMContentLoaded", function(){
+    loadState();
+    populateFormFromState();
+    attachEvents();
+  });
+
+})();
+</script>
+
+<style>#btn-limpar{display:none!important}</style>
+<script>
+// integração com o Sistema de Engenharia: o estado da página fica no navegador (localStorage)
+// e é copiado para o sistema ao salvar; "Novo" no topo substitui o "Limpar / Nova obra".
+window.LAUDO_CFG = {
+  tipo: 'relatorio', nome: 'Relatório de vistoria', modo: 'local', chave: 'relatorioObrasApp_v1',
+  titulo: () => {
+    let s = null; try { s = JSON.parse(localStorage.getItem('relatorioObrasApp_v1') || 'null'); } catch (_) {}
+    if (!s) return 'Relatório sem nome';
+    const d = (s.obra && s.obra.dataRelatorio) ? s.obra.dataRelatorio.split('-').reverse().join('/') : '';
+    return [(s.obra && s.obra.nome) || 'Relatório sem nome', s.empresaNome, d].filter(Boolean).join(' — ');
+  },
+  valor: () => null
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/laudo-nuvem.js"></script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Laudos — Sistema de Engenharia</title>
+<title>Documentos — Sistema de Engenharia</title>
 <link rel="stylesheet" href="../comum/estilo.css">
 <style>
   .novos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 16px; }
@@ -24,26 +24,28 @@
   <nav>
     <a href="../index.html">Central</a>
     <a href="../orcamento/index.html">Orçamento</a>
-    <a href="index.html" class="ativo">Laudos</a>
+    <a href="index.html" class="ativo">Documentos</a>
   </nav>
   <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
 </header>
 <main>
   <div class="cabecalho">
-    <div><h2>Laudos de avaliação</h2><p>Laudos salvos no sistema, com campos, fotos e cálculos.</p></div>
+    <div><h2>Documentos</h2><p>Laudos, propostas e relatórios salvos no sistema, com campos, fotos e cálculos.</p></div>
   </div>
   <section class="novos">
     <a class="novo" href="locacao.html"><b>+ Laudo de locação</b><span>Método do valor do imóvel: PVG Cuiabá, CUB, Ross-Heidecke e valor por extenso (modelo SMECEL).</span></a>
     <a class="novo" href="terreno.html"><b>+ Laudo de terreno</b><span>Método comparativo direto: amostra, homogeneização por fatores e tratamento estatístico (NBR 14653-2).</span></a>
+    <a class="novo" href="proposta.html"><b>+ Proposta Geoflora</b><span>Proposta técnica com o timbre da Geoflora, linhas de custo e imposto de 15,5% por dentro.</span></a>
+    <a class="novo" href="relatorio.html?novo=1"><b>+ Relatório de vistoria</b><span>Relatório de campo para clientes: logo e empresa editáveis, serviços, fotos, PDF e Word.</span></a>
   </section>
   <section class="painel">
     <div class="filtros">
       <input id="busca" type="search" placeholder="Buscar pelo título">
-      <select id="tipo"><option value="">Todos os tipos</option><option value="locacao">Locação</option><option value="terreno">Terreno</option></select>
+      <select id="tipo"><option value="">Todos os tipos</option><option value="locacao">Laudo de locação</option><option value="terreno">Laudo de terreno</option><option value="proposta">Proposta</option><option value="relatorio">Relatório de vistoria</option></select>
     </div>
     <div class="tabela-wrap">
       <table>
-        <thead><tr><th>Laudo</th><th>Tipo</th><th class="n">Valor apurado</th><th>Atualizado</th><th></th></tr></thead>
+        <thead><tr><th>Documento</th><th>Tipo</th><th class="n">Valor</th><th>Atualizado</th><th></th></tr></thead>
         <tbody id="linhas"><tr><td colspan="5" class="vazio">Carregando…</td></tr></tbody>
       </table>
     </div>
@@ -57,8 +59,8 @@
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
-const PAG = { locacao: 'locacao.html', terreno: 'terreno.html' };
-const NOME = { locacao: 'Locação', terreno: 'Terreno' };
+const PAG = { locacao: 'locacao.html', terreno: 'terreno.html', proposta: 'proposta.html', relatorio: 'relatorio.html' };
+const NOME = { locacao: 'Laudo de locação', terreno: 'Laudo de terreno', proposta: 'Proposta', relatorio: 'Relatório de vistoria' };
 let lista = [];
 
 (async function iniciar() {
@@ -77,16 +79,16 @@ async function carregar() {
 function desenhar() {
   const q = $('busca').value.trim().toUpperCase(), t = $('tipo').value;
   const l = lista.filter(x => (!t || x.tipo === t) && (!q || x.titulo.toUpperCase().includes(q)));
-  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="5" class="vazio">${lista.length ? 'Nada encontrado.' : 'Nenhum laudo salvo ainda. Comece por um dos modelos acima.'}</td></tr>`; return; }
+  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="5" class="vazio">${lista.length ? 'Nada encontrado.' : 'Nenhum documento salvo ainda. Comece por um dos modelos acima.'}</td></tr>`; return; }
   $('linhas').innerHTML = l.map(x => `<tr>
     <td><a href="${PAG[x.tipo]}?id=${x.id}"><b>${F.esc(x.titulo)}</b></a></td>
     <td><span class="etiqueta neutro">${NOME[x.tipo] || x.tipo}</span></td>
-    <td class="n">${F.rs(x.valor)}</td>
+    <td class="n">${x.valor == null ? '—' : F.rs(x.valor)}</td>
     <td>${new Date(x.updated_at).toLocaleString('pt-BR')}</td>
     <td class="acoes"><a class="botao sec" style="padding:5px 10px;font-size:.8rem" href="${PAG[x.tipo]}?id=${x.id}">Abrir</a>
       <button class="excluir" data-id="${x.id}">Excluir</button></td></tr>`).join('');
   document.querySelectorAll('button[data-id]').forEach(b => b.onclick = async () => {
-    if (!confirm('Excluir este laudo do sistema? Não dá para desfazer.')) return;
+    if (!confirm('Excluir este documento do sistema? Não dá para desfazer.')) return;
     const { error } = await sb.from('laudos').delete().eq('id', b.dataset.id);
     if (error) { alert('Erro: ' + error.message); return; }
     await carregar();

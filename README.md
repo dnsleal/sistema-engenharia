@@ -14,7 +14,8 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 | 3 | Relatório fotográfico por BM (4 fotos por página, PDF) | pronto |
 | 4 | Orçamento SINAPI-MT (base pronta 09/2026, analítico, salvo no sistema, vira planilha da obra) | pronto |
 | 5 | Laudos de avaliação (locação SMECEL e terreno) salvos no sistema | pronto |
-| 6 | Propostas e ferramentas de cálculo | a fazer |
+| 6 | Proposta Geoflora e relatório de vistoria (clientes) salvos no sistema | pronto |
+| 7 | Simulador de armaduras; acompanhamento de processos SIGED | a fazer |
 
 ## Estrutura
 
@@ -27,9 +28,11 @@ obras/boletim.html    Boletim de medição para imprimir ou salvar em PDF
 obras/fotos.html      Fotos do BM: enviar (câmera ou arquivos), legenda, item, ordem
 obras/relatorio-fotos.html  Relatório fotográfico do BM para imprimir ou salvar em PDF
 login.html            Entrar, criar conta, recuperar senha
-laudos/index.html     Lista de laudos salvos; novo laudo de locação ou de terreno
+laudos/index.html     Documentos salvos (laudos, propostas, relatórios) e modelos para começar um novo
 laudos/locacao.html   Laudo de locação (PVG, CUB, Ross-Heidecke) — formulário original + salvar no sistema
 laudos/terreno.html   Laudo de terreno (comparativo direto, homogeneização) — idem
+laudos/proposta.html  Proposta técnica Geoflora (timbre, imposto por dentro) — idem
+laudos/relatorio.html Relatório de vistoria para clientes (logo editável, fotos, PDF/Word) — idem
 orcamento/index.html  App de orçamento (Orçamento Offline) ligado ao sistema
 orcamento/nuvem.js    Login, orçamentos no banco, base pronta, analítico, virar planilha da obra
 orcamento/bases/      Bases SINAPI prontas (só MT) em JSON; index.json lista as disponíveis
@@ -40,7 +43,7 @@ comum/
   estilo.css          Visual único do sistema
   importar.js         Leitura da planilha orçamentária e do cronograma
   medicao.js          Cálculo do BM por item e por etapa (desconto e reajuste)
-  laudo-nuvem.js      Salva/reabre qualquer formulário de laudo (campos, fotos e logo reduzidos)
+  laudo-nuvem.js      Salva/reabre documentos: formulário (campos/fotos), página editável (html) ou estado do navegador (local)
 supabase/migrations/  SQL que cria o banco, em ordem (0001, 0002…)
 ```
 
