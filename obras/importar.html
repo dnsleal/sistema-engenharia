@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importar planilha — Sistema de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  .passos { display: grid; gap: 16px; }
+  .linha-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0 14px; }
+  .confere { padding: 12px 14px; border-radius: 8px; margin-top: 12px; font-size: .92rem; }
+  .confere.ok { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+  .confere.erro { background: color-mix(in srgb, var(--critico) 12%, transparent); }
+  .avisos { margin: 10px 0 0; padding-left: 18px; color: var(--alerta); font-size: .88rem; }
+  tr.etapa td { font-weight: 600; background: var(--azul-claro); }
+  tr.titulo td { font-weight: 600; color: var(--texto-2); text-transform: uppercase; font-size: .8rem; }
+  .oculto { display: none; }
+  .check { display: flex; align-items: center; gap: 8px; font-weight: 500; color: var(--texto); }
+  .check input { width: auto; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav><a href="../index.html">Central</a></nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div>
+      <h2>Importar planilha orçamentária</h2>
+      <p id="subtitulo">Carregando obra…</p>
+    </div>
+    <a class="botao sec" id="lVoltar" href="#">← Voltar para a obra</a>
+  </div>
+
+  <div class="passos">
+    <section class="painel">
+      <div class="linha-form">
+        <div>
+          <label for="tipo">Esta planilha é</label>
+          <select id="tipo">
+            <option value="original">Planilha original do contrato</option>
+            <option value="aditivo">Aditivo</option>
+          </select>
+        </div>
+        <div id="cxNumero" class="oculto">
+          <label for="numero">Número do aditivo</label>
+          <input id="numero" type="number" min="1" value="1">
+        </div>
+        <div>
+          <label for="arquivo">Arquivo (.xlsx ou .xls)</label>
+          <input id="arquivo" type="file" accept=".xlsx,.xls,.xlsm">
+        </div>
+      </div>
+      <div class="linha-form oculto" id="cxAbas">
+        <div>
+          <label for="abaOrc">Aba do orçamento</label>
+          <select id="abaOrc"></select>
+        </div>
+        <div>
+          <label for="abaCrono">Aba do cronograma</label>
+          <select id="abaCrono"></select>
+        </div>
+      </div>
+      <div class="msg" id="msgArq"></div>
+    </section>
+
+    <section class="painel oculto" id="cxPrevia">
+      <h3 style="margin:0 0 4px">Conferência</h3>
+      <div id="resumo"></div>
+      <div id="cxDados" class="oculto" style="margin-top:12px">
+        <label class="check"><input type="checkbox" id="atualizarObra" checked> Preencher na obra os dados encontrados no cabeçalho da planilha</label>
+        <div id="dadosEncontrados" style="font-size:.85rem;color:var(--texto-2);margin:4px 0 0 26px"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+        <button id="bImportar">Importar</button>
+      </div>
+      <div class="msg" id="msgImp"></div>
+    </section>
+
+    <section class="painel oculto" id="cxTabela">
+      <h3 style="margin:0 0 8px">Prévia dos itens</h3>
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Banco</th><th>Código</th><th>Descrição</th><th>Und</th><th class="n">Quant.</th><th class="n">PU c/ BDI</th><th class="n">Total</th></tr></thead>
+          <tbody id="previa"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script src="../comum/importar.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const obraId = new URLSearchParams(location.search).get('obra');
+let obra = null, wb = null, leitura = null, crono = null;
+
+(async function iniciar() {
+  const user = await SE.exigirLogin(); if (!user) return;
+  $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
+  if (!obraId) { $('subtitulo').textContent = 'Obra não informada.'; return; }
+  $('lVoltar').href = 'obra.html?id=' + obraId;
+  const { data, error } = await sb.from('obras').select('*').eq('id', obraId).single();
+  if (error) { $('subtitulo').textContent = 'Obra não encontrada.'; return; }
+  obra = data;
+  $('subtitulo').textContent = obra.nome;
+
+  const tipoInicial = new URLSearchParams(location.search).get('tipo');
+  if (tipoInicial === 'aditivo') { $('tipo').value = 'aditivo'; await proximoAditivo(); }
+  mostrarNumero();
+  $('tipo').onchange = async () => { if ($('tipo').value === 'aditivo') await proximoAditivo(); mostrarNumero(); };
+  $('arquivo').onchange = abrirArquivo;
+  $('abaOrc').onchange = ler;
+  $('abaCrono').onchange = ler;
+  $('bImportar').onclick = importar;
+})();
+
+function mostrarNumero() { $('cxNumero').classList.toggle('oculto', $('tipo').value !== 'aditivo'); }
+async function proximoAditivo() {
+  const { data } = await sb.from('planilhas').select('numero').eq('obra_id', obraId).eq('tipo', 'aditivo');
+  $('numero').value = (data || []).reduce((m, p) => Math.max(m, p.numero), 0) + 1;
+}
+
+function linhas(nome, raw) {
+  const ws = wb.Sheets[nome];
+  return XLSX.utils.sheet_to_json(ws, { header: 1, raw, defval: null, blankrows: true });
+}
+
+async function abrirArquivo() {
+  const f = $('arquivo').files[0]; if (!f) return;
+  $('msgArq').className = 'msg'; $('msgArq').textContent = 'Lendo o arquivo…';
+  try {
+    wb = XLSX.read(await f.arrayBuffer(), { type: 'array' });
+  } catch (e) { $('msgArq').className = 'msg erro'; $('msgArq').textContent = 'Não consegui abrir o arquivo: ' + e.message; return; }
+
+  // escolhe sozinho: a aba onde o orçamento é reconhecido e a aba chamada "cronograma"
+  let orc = null;
+  for (const n of wb.SheetNames) { try { Importar.lerOrcamento(linhas(n, true), linhas(n, false)); orc = n; break; } catch (_) {} }
+  const cr = wb.SheetNames.find(n => Importar.norm(n).includes('CRONO')) || '';
+  $('abaOrc').innerHTML = wb.SheetNames.map(n => `<option ${n === orc ? 'selected' : ''}>${F.esc(n)}</option>`).join('');
+  $('abaCrono').innerHTML = '<option value="">(não importar cronograma)</option>' +
+    wb.SheetNames.map(n => `<option ${n === cr ? 'selected' : ''}>${F.esc(n)}</option>`).join('');
+  $('cxAbas').classList.remove('oculto');
+  $('msgArq').textContent = orc ? '' : 'Não reconheci o orçamento sozinho: escolha a aba certa abaixo.';
+  ler();
+}
+
+function ler() {
+  leitura = null; crono = null;
+  $('cxPrevia').classList.add('oculto'); $('cxTabela').classList.add('oculto');
+  try {
+    leitura = Importar.lerOrcamento(linhas($('abaOrc').value, true), linhas($('abaOrc').value, false));
+  } catch (e) { $('msgArq').className = 'msg erro'; $('msgArq').textContent = e.message; return; }
+  $('msgArq').textContent = '';
+
+  const etapas = leitura.itens.filter(i => i.tipo === 'etapa' && i.nivel === 1);
+  let erroCrono = null;
+  if ($('abaCrono').value && $('tipo').value === 'original') {
+    try { crono = Importar.lerCronograma(linhas($('abaCrono').value, true), etapas); }
+    catch (e) { erroCrono = e.message; }
+  }
+
+  const L = leitura, desc = L.desconto ?? obra.desconto_pct;
+  const comDesc = desc != null ? Math.round(L.totalCalculado * (1 - desc / 100) * 100) / 100 : null;
+  let h = `<div class="kpis" style="margin:8px 0 0">
+    <div class="kpi"><div class="rotulo">Etapas</div><div class="valor">${L.resumo.etapas}</div></div>
+    <div class="kpi"><div class="rotulo">Serviços</div><div class="valor">${L.resumo.servicos}</div><div class="det">${L.resumo.semQuantidade} com quantidade zero</div></div>
+    <div class="kpi"><div class="rotulo">Total (sem desconto)</div><div class="valor">${F.rs(L.totalCalculado)}</div></div>
+    <div class="kpi"><div class="rotulo">Com desconto ${desc != null ? F.pct(desc) : ''}</div><div class="valor">${F.rs(comDesc)}</div></div>
+  </div>`;
+  if (L.confere === true) h += `<div class="confere ok">✓ O total recalculado (quantidade × preço com BDI, item a item) confere com o total do arquivo: ${F.rs(L.totalArquivo)}.</div>`;
+  else if (L.confere === false) h += `<div class="confere erro">⚠ O total recalculado (${F.rs(L.totalCalculado)}) difere do total do arquivo (${F.rs(L.totalArquivo)}) em ${F.rs(Math.abs(L.totalArquivo - L.totalCalculado))}. Confira a planilha antes de importar.</div>`;
+  else h += `<div class="confere erro">Não encontrei a linha "TOTAL GERAL" para conferir.</div>`;
+  if (L.totalComDesconto != null && comDesc != null && Math.abs(L.totalComDesconto - comDesc) > 0.05)
+    h += `<div class="confere erro">⚠ Com o desconto, o arquivo traz ${F.rs(L.totalComDesconto)} e o sistema calcula ${F.rs(comDesc)}.</div>`;
+
+  if ($('tipo').value === 'original') {
+    if (crono) {
+      h += `<div class="confere ${crono.semPar.length ? 'erro' : 'ok'}">Cronograma: ${crono.etapasLigadas} de ${etapas.length} etapas ligadas, em ${crono.periodos.length} períodos (${crono.periodos.join(', ')} dias).`;
+      if (crono.semPar.length) h += ` Sem correspondência no orçamento: ${crono.semPar.map(F.esc).join('; ')}.`;
+      const semCrono = etapas.length - crono.etapasLigadas;
+      if (semCrono) h += ` ${semCrono} etapa(s) do orçamento ficam sem cronograma (normalmente as de valor zero).`;
+      h += `</div>`;
+    } else if (erroCrono) h += `<div class="confere erro">Cronograma não lido: ${F.esc(erroCrono)}</div>`;
+  }
+  if (L.avisos.length) h += `<ul class="avisos">${L.avisos.map(a => `<li>${F.esc(a)}</li>`).join('')}</ul>`;
+  $('resumo').innerHTML = h;
+
+  // dados do cabeçalho que podem completar a obra
+  const novos = {};
+  if (L.desconto != null && obra.desconto_pct == null || (L.desconto != null && Number(obra.desconto_pct) === 0)) novos.desconto_pct = L.desconto;
+  if (L.meta.endereco && !obra.endereco) novos.endereco = L.meta.endereco;
+  if (L.meta.data_base && !obra.data_base) novos.data_base = L.meta.data_base;
+  if (L.meta.fonte_precos && !obra.fonte_precos) novos.fonte_precos = L.meta.fonte_precos;
+  if (L.meta.obra && !obra.objeto) novos.objeto = L.meta.obra;
+  if (L.meta.contratante.length && !obra.contratante) novos.contratante = L.meta.contratante[1] || L.meta.contratante[0];
+  leitura.novos = novos;
+  const rot = { desconto_pct: 'Desconto', endereco: 'Endereço', data_base: 'Data-base', fonte_precos: 'Bases de preço', objeto: 'Objeto', contratante: 'Contratante' };
+  $('cxDados').classList.toggle('oculto', !Object.keys(novos).length || $('tipo').value !== 'original');
+  $('dadosEncontrados').innerHTML = Object.entries(novos).map(([k, v]) => `${rot[k]}: <b>${F.esc(k === 'desconto_pct' ? F.pct(v) : v)}</b>`).join(' · ');
+
+  $('bImportar').textContent = $('tipo').value === 'original' ? 'Importar planilha original' : `Importar aditivo ${$('numero').value}`;
+  $('cxPrevia').classList.remove('oculto');
+
+  // prévia
+  $('previa').innerHTML = L.itens.slice(0, 120).map(i => {
+    if (i.tipo !== 'servico') return `<tr class="${i.tipo}"><td>${F.esc(i.item || '')}</td><td colspan="7">${F.esc(i.descricao)}</td></tr>`;
+    return `<tr><td>${F.esc(i.item)}</td><td>${F.esc(i.banco || '')}</td><td>${F.esc(i.codigo || '')}</td><td>${F.esc(i.descricao)}</td><td>${F.esc(i.unidade || '')}</td>
+      <td class="n">${F.num(i.quantidade, 2)}</td><td class="n">${F.rs(i.pu_com_bdi)}</td><td class="n">${F.rs((i.quantidade || 0) * (i.pu_com_bdi || 0))}</td></tr>`;
+  }).join('') + (L.itens.length > 120 ? `<tr><td colspan="8" class="vazio">… e mais ${L.itens.length - 120} linhas</td></tr>` : '');
+  $('cxTabela').classList.remove('oculto');
+}
+
+async function importar() {
+  if (!leitura) return;
+  const tipo = $('tipo').value, numero = tipo === 'original' ? 0 : parseInt($('numero').value, 10);
+  if (tipo === 'aditivo' && !(numero > 0)) { $('msgImp').className = 'msg erro'; $('msgImp').textContent = 'Informe o número do aditivo.'; return; }
+  if (leitura.confere === false && !confirm('O total não confere com o arquivo. Importar mesmo assim?')) return;
+
+  // já existe? substituir só se ainda não houver medição
+  const { data: ja } = await sb.from('planilhas').select('id').eq('obra_id', obraId).eq('tipo', tipo).eq('numero', numero).maybeSingle();
+  if (ja) {
+    const { count } = await sb.from('itens').select('id', { count: 'exact', head: true }).eq('planilha_id', ja.id);
+    if (count && !confirm(`Esta obra já tem ${tipo === 'original' ? 'a planilha original' : 'o aditivo ' + numero} com ${count} linhas. Substituir pelo arquivo novo?`)) return;
+  }
+
+  $('bImportar').disabled = true; $('msgImp').className = 'msg'; $('msgImp').textContent = 'Gravando…';
+  try {
+    const itens = leitura.itens.map(({ ordem, nivel, item, tipo, codigo, banco, descricao, unidade, quantidade, pu_sem_bdi, pu_com_bdi, etapa_ordem }) =>
+      ({ ordem, nivel, item, tipo, codigo, banco, descricao, unidade, quantidade, pu_sem_bdi, pu_com_bdi, etapa_ordem }));
+    const { data, error } = await sb.rpc('importar_planilha', {
+      p_obra_id: obraId, p_tipo: tipo, p_numero: numero, p_itens: itens,
+      p_cronograma: (tipo === 'original' && crono) ? crono.cronograma : [],
+      p_descricao: tipo === 'aditivo' ? `Aditivo ${numero}` : 'Planilha original', p_data: null
+    });
+    if (error) throw error;
+    if (tipo === 'original' && $('atualizarObra').checked && Object.keys(leitura.novos).length) {
+      const { error: e2 } = await sb.from('obras').update(leitura.novos).eq('id', obraId);
+      if (e2) throw e2;
+    }
+    $('msgImp').className = 'msg ok';
+    $('msgImp').textContent = `Importado: ${data.itens} linhas${data.cronograma ? ` e ${data.cronograma} lançamentos de cronograma` : ''}. Abrindo a obra…`;
+    setTimeout(() => location.href = 'obra.html?id=' + obraId, 900);
+  } catch (e) {
+    $('msgImp').className = 'msg erro'; $('msgImp').textContent = 'Erro ao importar: ' + e.message;
+    $('bImportar').disabled = false;
+  }
+}
+</script>
+</body>
+</html>

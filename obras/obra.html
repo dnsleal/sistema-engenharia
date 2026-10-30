@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Obra — Sistema de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 18px; font-size: .88rem; margin-top: 8px; }
+  .ficha div span { color: var(--texto-2); }
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--linha); margin: 20px 0 0; flex-wrap: wrap; }
+  .abas button { background: none; border: none; border-bottom: 2px solid transparent; color: var(--texto-2); border-radius: 0; padding: 10px 14px; }
+  .abas button.ativa { color: var(--azul); border-bottom-color: var(--azul); }
+  .aba { display: none; padding-top: 16px; }
+  .aba.ativa { display: block; }
+  tr.etapa td { font-weight: 600; background: var(--azul-claro); }
+  tr.titulo td { font-weight: 600; color: var(--texto-2); text-transform: uppercase; font-size: .78rem; }
+  tr.nivel2.etapa td { background: transparent; }
+  td.desc { min-width: 280px; max-width: 520px; }
+  .filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros input, .filtros select { width: auto; min-width: 200px; }
+  .nota { font-size: .82rem; color: var(--texto-2); margin: 8px 0 0; }
+  .comparativo { display: flex; align-items: center; gap: 8px; min-width: 160px; }
+  .comparativo .barra { position: relative; flex: 1; }
+  .comparativo .marca { position: absolute; top: -3px; width: 2px; height: 12px; background: var(--critico); }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav><a href="../index.html">Central</a></nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div>
+      <h2 id="nome">Carregando…</h2>
+      <p id="sub"></p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="botao sec" id="lEditar" href="#">Editar dados</a>
+      <a class="botao" id="lImportar" href="#">Importar planilha</a>
+    </div>
+  </div>
+
+  <section class="painel" id="cxFicha"></section>
+  <section class="kpis" id="kpis" style="margin-top:16px"></section>
+
+  <nav class="abas">
+    <button class="ativa" data-aba="etapas">Etapas × cronograma</button>
+    <button data-aba="itens">Planilhas</button>
+  </nav>
+
+  <section class="aba ativa" id="aba-etapas">
+    <div class="painel">
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>Etapa</th><th class="n">Valor contratado</th><th class="n">Executado</th><th>Executado × previsto hoje</th><th class="n">Previsto hoje</th><th>Situação</th></tr></thead>
+          <tbody id="etapas"><tr><td colspan="6" class="vazio">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="nota" id="notaEtapas"></p>
+    </div>
+  </section>
+
+  <section class="aba" id="aba-itens">
+    <div class="painel">
+      <div class="filtros">
+        <select id="selPlanilha"></select>
+        <input id="busca" type="search" placeholder="Buscar descrição ou código">
+        <label class="check" style="display:flex;align-items:center;gap:6px;margin:0;font-weight:500;color:var(--texto)">
+          <input type="checkbox" id="soComQuant" style="width:auto" checked> só itens com quantidade
+        </label>
+        <a class="botao sec" id="lAditivo" href="#" style="margin-left:auto">+ Importar aditivo</a>
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Código</th><th>Descrição</th><th>Und</th><th class="n">Quant.</th><th class="n">PU c/ BDI</th><th class="n">Total</th><th class="n">Executado</th><th class="n">Saldo (qtd)</th></tr></thead>
+          <tbody id="itens"><tr><td colspan="9" class="vazio">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="nota">Valores dos itens como na planilha, sem o desconto do contrato. O desconto é aplicado sobre o total, como no boletim.</p>
+    </div>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const obraId = new URLSearchParams(location.search).get('id');
+let planilhas = [], itens = [];
+
+(async function iniciar() {
+  const user = await SE.exigirLogin(); if (!user) return;
+  $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
+  if (!obraId) { $('nome').textContent = 'Obra não informada'; return; }
+  $('lEditar').href = '../index.html?editar=' + obraId;
+  $('lImportar').href = 'importar.html?obra=' + obraId;
+  $('lAditivo').href = 'importar.html?obra=' + obraId + '&tipo=aditivo';
+  document.querySelectorAll('.abas button').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('ativa', x === b));
+    document.querySelectorAll('.aba').forEach(a => a.classList.toggle('ativa', a.id === 'aba-' + b.dataset.aba));
+  });
+  $('selPlanilha').onchange = desenharItens;
+  $('busca').oninput = desenharItens;
+  $('soComQuant').onchange = desenharItens;
+
+  const [o, r, e, p] = await Promise.all([
+    sb.from('obras').select('*').eq('id', obraId).single(),
+    sb.from('v_obras_resumo').select('*').eq('obra_id', obraId).single(),
+    sb.from('v_etapas').select('*').eq('obra_id', obraId).order('planilha_numero').order('ordem'),
+    sb.from('planilhas').select('*').eq('obra_id', obraId).order('tipo', { ascending: false }).order('numero')
+  ]);
+  if (o.error) { $('nome').textContent = 'Obra não encontrada'; return; }
+  desenharFicha(o.data, r.data);
+  desenharEtapas(e.data || [], o.data);
+  planilhas = p.data || [];
+  $('selPlanilha').innerHTML = planilhas.map(x => `<option value="${x.id}">${x.tipo === 'original' ? 'Planilha original' : 'Aditivo ' + x.numero}</option>`).join('');
+  await carregarItens();
+})();
+
+function desenharFicha(o, r) {
+  document.title = o.nome + ' — Sistema de Engenharia';
+  $('nome').textContent = o.nome;
+  $('sub').textContent = [o.contratada, o.num_contrato && 'Contrato ' + o.num_contrato, o.processo_siged && 'SIGED ' + o.processo_siged].filter(Boolean).join(' · ') || 'Complete os dados em "Editar dados".';
+  const campo = (rot, v) => `<div><span>${rot}:</span> ${F.esc(v || '—')}</div>`;
+  $('cxFicha').innerHTML = `<div class="ficha">
+    ${campo('Objeto', o.objeto)}${campo('Contratante', o.contratante)}${campo('Endereço', o.endereco)}
+    ${campo('Início', F.data(o.data_inicio))}${campo('Término vigente', F.data(o.termino_vigente))}${campo('Data-base', o.data_base)}
+    ${campo('Bases de preço', o.fonte_precos)}${campo('Desconto', o.desconto_pct != null ? F.pct(o.desconto_pct) : '')}${campo('BDI', o.bdi_pct != null ? F.pct(o.bdi_pct) : '')}
+  </div>`;
+  if (!r) return;
+  const acima = r.pct_aditivo != null && Number(r.pct_aditivo) > Number(r.limite_aditivo_pct);
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="rotulo">Valor do contrato</div><div class="valor">${F.rs(r.valor_total)}</div><div class="det">${F.rs(r.valor_total_bruto)} sem desconto</div></div>
+    <div class="kpi"><div class="rotulo">Executado</div><div class="valor">${F.rs(r.valor_executado)}</div><div class="det">${F.pct(r.pct_executado)} · ${r.n_bms} BM</div></div>
+    <div class="kpi"><div class="rotulo">Saldo</div><div class="valor">${F.rs(r.valor_saldo)}</div></div>
+    <div class="kpi ${acima ? 'critico' : ''}"><div class="rotulo">Aditivos</div><div class="valor">${F.pct(r.pct_aditivo ?? 0)}</div><div class="det">${F.rs(r.valor_aditivos)} · limite ${r.limite_aditivo_pct}%</div></div>
+    <div class="kpi ${r.prazo_vencido ? 'critico' : ''}"><div class="rotulo">Prazo</div><div class="valor">${r.dias_restantes == null ? '—' : r.prazo_vencido ? 'Vencido' : r.dias_restantes + ' dias'}</div><div class="det">término ${F.data(r.termino_vigente)}</div></div>`;
+}
+
+function desenharEtapas(lista, o) {
+  if (!lista.length) {
+    $('etapas').innerHTML = `<tr><td colspan="6" class="vazio">Nenhuma planilha importada. Clique em <b>Importar planilha</b>.</td></tr>`;
+    return;
+  }
+  const temCrono = lista.some(e => e.pct_cronograma != null);
+  $('notaEtapas').textContent = !o.data_inicio
+    ? 'Informe a data de início da obra (em "Editar dados") para o sistema calcular o previsto e os atrasos.'
+    : temCrono ? `Previsto hoje = soma dos períodos do cronograma já vencidos desde o início (${F.data(o.data_inicio)}). Sem tolerância: executado abaixo do previsto = atrasada. Valores sem o desconto do contrato.`
+               : 'Esta obra ainda não tem cronograma importado.';
+  $('etapas').innerHTML = lista.map(e => {
+    const exe = Number(e.pct_executado || 0), prev = Number(e.pct_previsto_hoje || 0);
+    let sit;
+    if (e.pct_cronograma == null) sit = '<span class="etiqueta neutro">Sem cronograma</span>';
+    else if (e.atrasada) sit = `<span class="etiqueta critico">Atrasada ${F.num(prev - exe, 1)} p.p.</span>`;
+    else if (exe >= 100) sit = '<span class="etiqueta ok">Concluída</span>';
+    else if (prev > 0) sit = '<span class="etiqueta ok">Em dia</span>';
+    else sit = '<span class="etiqueta neutro">Não iniciada</span>';
+    const rot = (e.planilha_tipo === 'aditivo' ? `A${e.planilha_numero} · ` : '') + (e.item || '') + ' ' + e.descricao;
+    return `<tr><td>${F.esc(rot)}</td><td class="n">${F.rs(e.valor_contratado)}</td><td class="n">${F.pct(e.pct_executado ?? 0)}</td>
+      <td><div class="comparativo"><div class="barra"><span style="width:${Math.min(exe, 100)}%"></span>${e.pct_cronograma != null && prev > 0 ? `<i class="marca" style="left:${Math.min(prev, 100)}%" title="previsto hoje"></i>` : ''}</div></div></td>
+      <td class="n">${e.pct_cronograma != null ? F.pct(prev) : '—'}</td><td>${sit}</td></tr>`;
+  }).join('');
+}
+
+async function carregarItens() {
+  if (!planilhas.length) { $('itens').innerHTML = '<tr><td colspan="9" class="vazio">Nenhuma planilha importada.</td></tr>'; return; }
+  const { data, error } = await sb.from('v_itens_saldo').select('*').eq('obra_id', obraId).order('planilha_numero').order('ordem').limit(5000);
+  if (error) { $('itens').innerHTML = `<tr><td colspan="9" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
+  itens = data;
+  desenharItens();
+}
+
+function desenharItens() {
+  const pl = $('selPlanilha').value, q = $('busca').value.trim().toUpperCase(), so = $('soComQuant').checked;
+  const lista = itens.filter(i => i.planilha_id === pl).filter(i => {
+    if (i.tipo !== 'servico') return !q;
+    if (so && !Number(i.qtd_contratada)) return false;
+    return !q || (i.descricao || '').toUpperCase().includes(q) || String(i.codigo || '').toUpperCase().includes(q);
+  });
+  if (!lista.length) { $('itens').innerHTML = '<tr><td colspan="9" class="vazio">Nada encontrado.</td></tr>'; return; }
+  const tot = lista.filter(i => i.tipo === 'servico').reduce((s, i) => s + Number(i.valor_contratado), 0);
+  $('itens').innerHTML = lista.map(i => {
+    if (i.tipo !== 'servico') return `<tr class="${i.tipo} nivel${i.nivel}"><td>${F.esc(i.item || '')}</td><td colspan="8">${F.esc(i.descricao)}</td></tr>`;
+    return `<tr><td>${F.esc(i.item)}</td><td>${F.esc(i.codigo || '')}</td><td class="desc">${F.esc(i.descricao)}</td><td>${F.esc(i.unidade || '')}</td>
+      <td class="n">${F.num(i.qtd_contratada, 2)}</td><td class="n">${F.rs(i.pu_com_bdi)}</td><td class="n">${F.rs(i.valor_contratado)}</td>
+      <td class="n">${F.pct(i.pct_executado ?? 0)}</td><td class="n">${F.num(i.qtd_saldo, 2)}</td></tr>`;
+  }).join('') + `<tr><td colspan="6"><b>Total ${q ? 'filtrado' : 'da planilha'} (sem desconto)</b></td><td class="n"><b>${F.rs(tot)}</b></td><td colspan="2"></td></tr>`;
+}
+</script>
+</body>
+</html>

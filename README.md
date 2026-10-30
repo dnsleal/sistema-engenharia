@@ -9,7 +9,7 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 | Fase | Módulo | Situação |
 | --- | --- | --- |
 | 0 | Login, Central de Monitoramento, cadastro de obras | pronto |
-| 1 | Importar planilha orçamentária, aditivos, cronograma | a fazer |
+| 1 | Importar planilha orçamentária, aditivos, cronograma; página da obra | pronto |
 | 2 | Medições (BM): lançamento, fechamento, saldo, atraso | a fazer |
 | 3 | Relatório fotográfico | a fazer |
 | 4 | Orçamento SINAPI-MT | a fazer |
@@ -20,12 +20,15 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 
 ```
 index.html            Central de Monitoramento (exige login)
+obras/obra.html       Página da obra: etapas × cronograma, planilhas com saldo
+obras/importar.html   Importa planilha original/aditivo e cronograma do Excel
 login.html            Entrar, criar conta, recuperar senha
 comum/
   config.js           Endereço e chave pública do Supabase
   supabase.js         Conexão e controle de login
   formatos.js         R$, %, datas e números no padrão brasileiro
   estilo.css          Visual único do sistema
+  importar.js         Leitura da planilha orçamentária e do cronograma
 supabase/migrations/  SQL que cria o banco, em ordem (0001, 0002…)
 ```
 

@@ -112,9 +112,12 @@ const SITUACAO = {
   $('uEmail').textContent = user.email;
   $('bSair').onclick = SE.sair;
   $('bNova').onclick = () => abrir(null);
-  $('bCancelar').onclick = () => $('dObra').close();
+  $('bCancelar').onclick = () => { $('dObra').close(); if (voltarParaObra) location.href = 'obras/obra.html?id=' + editando; };
   $('fObra').onsubmit = salvar;
   await carregar();
+  // vindo da página da obra: "Editar dados"
+  const ed = new URLSearchParams(location.search).get('editar');
+  if (ed) { history.replaceState(null, '', 'index.html'); abrir(ed, true); }
 })();
 
 async function carregar() {
@@ -153,7 +156,7 @@ function desenharTabela() {
     if (o.prazo_vencido) sit += ` <span class="etiqueta critico">Prazo vencido</span>`;
     else if (o.dias_restantes != null && o.dias_restantes <= 30 && !['concluida','encerrada'].includes(o.status))
       sit += ` <span class="etiqueta alerta">${o.dias_restantes} dias</span>`;
-    return `<tr data-id="${o.obra_id}" style="cursor:pointer" title="Clique para editar os dados da obra">
+    return `<tr data-id="${o.obra_id}" style="cursor:pointer" title="Abrir a obra">
       <td><b>${F.esc(o.nome)}</b></td>
       <td>${F.esc(o.contratada || '—')}</td>
       <td>${F.esc(o.num_contrato || '—')}</td>
@@ -165,7 +168,7 @@ function desenharTabela() {
       <td>${F.data(o.termino_vigente)}</td>
       <td>${sit}</td></tr>`;
   }).join('');
-  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => abrir(tr.dataset.id));
+  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => location.href = 'obras/obra.html?id=' + tr.dataset.id);
 }
 
 const CAMPOS = {
@@ -176,8 +179,9 @@ const CAMPOS = {
 };
 const NUMEROS = { o_valor: 'valor_contrato', o_desc: 'desconto_pct', o_bdi: 'bdi_pct', o_reaj: 'reajuste_pct' };
 
-async function abrir(id) {
-  editando = id;
+let voltarParaObra = false;
+async function abrir(id, daObra = false) {
+  editando = id; voltarParaObra = daObra;
   $('fObra').reset(); $('oMsg').textContent = '';
   $('dTitulo').textContent = id ? 'Editar obra' : 'Nova obra';
   if (id) {
@@ -205,12 +209,13 @@ async function salvar(e) {
     if (editando) {
       const { error } = await sb.from('obras').update(reg).eq('id', editando);
       if (error) throw error;
+      if (voltarParaObra) { location.href = 'obras/obra.html?id=' + editando; return; }
     } else {
       const { data, error } = await sb.from('obras').insert(reg).select('id').single();
       if (error) throw error;
-      // toda obra nasce com a sua planilha original (vazia, preenchida na fase 1)
-      const { error: e2 } = await sb.from('planilhas').insert({ obra_id: data.id, tipo: 'original', numero: 0, data: reg.data_inicio });
-      if (e2) throw e2;
+      // obra nova: segue direto para importar a planilha orçamentária
+      location.href = 'obras/importar.html?obra=' + data.id;
+      return;
     }
     $('dObra').close();
     await carregar();
