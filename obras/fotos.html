@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fotos do BM — Sistema de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  .envio { border: 2px dashed var(--linha); border-radius: 10px; padding: 22px; text-align: center; background: var(--painel); }
+  .envio.sobre { border-color: var(--azul); background: var(--azul-claro); }
+  .envio p { margin: 6px 0 0; color: var(--texto-2); font-size: .88rem; }
+  .envio input { display: none; }
+  .botoes-envio { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin-top: 16px; }
+  .cartao { background: var(--painel); border: 1px solid var(--linha); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
+  .cartao .img { aspect-ratio: 4 / 3; background: var(--azul-claro); display: grid; place-items: center; overflow: hidden; }
+  .cartao .img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cartao .corpo { padding: 10px 12px 12px; display: grid; gap: 6px; }
+  .cartao .num { font-weight: 700; color: var(--azul); font-size: .85rem; }
+  .cartao label { margin: 2px 0 0; }
+  .cartao textarea { min-height: 54px; resize: vertical; font-size: .88rem; }
+  .cartao select, .cartao input { font-size: .85rem; padding: 6px 8px; }
+  .acoes-c { display: flex; gap: 6px; }
+  .acoes-c button { padding: 5px 9px; font-size: .78rem; }
+  .acoes-c .excluir { margin-left: auto; border-color: var(--critico); color: var(--critico); background: transparent; }
+  .progresso { margin-top: 10px; font-size: .88rem; }
+  .salvo { color: var(--ok); font-size: .78rem; min-height: 1em; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav><a href="../index.html">Central</a><a id="lObra" href="#">Obra</a><a id="lBM" href="#">BM</a></nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div>
+      <h2 id="titulo">Fotos do BM</h2>
+      <p id="sub">Carregando…</p>
+    </div>
+    <a class="botao" id="lRelatorio" href="#" target="_blank">Relatório fotográfico / PDF</a>
+  </div>
+
+  <section class="envio" id="envio">
+    <div class="botoes-envio">
+      <button id="bCamera">Tirar foto</button>
+      <button class="sec" id="bArquivos">Escolher fotos</button>
+    </div>
+    <p>Ou arraste as fotos para cá. Elas são reduzidas antes do envio (cerca de 200 a 400 KB cada).</p>
+    <input type="file" id="iCamera" accept="image/*" capture="environment">
+    <input type="file" id="iArquivos" accept="image/*" multiple>
+    <div class="progresso" id="progresso"></div>
+  </section>
+
+  <div class="grade" id="grade"></div>
+  <p class="vazio" id="vazio" style="display:none">Nenhuma foto neste BM ainda.</p>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const P = new URLSearchParams(location.search);
+const obraId = P.get('obra'), bmId = P.get('bm');
+const BUCKET = 'fotos', LADO_MAX = 1600, QUALIDADE = 0.78;
+let userId = null, fotos = [], itens = [], urls = {};
+
+(async function iniciar() {
+  const user = await SE.exigirLogin(); if (!user) return;
+  userId = user.id;
+  $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
+  $('lObra').href = 'obra.html?id=' + obraId + '#medicoes';
+  $('lBM').href = `medicao.html?obra=${obraId}&bm=${bmId}`;
+  $('lRelatorio').href = `relatorio-fotos.html?obra=${obraId}&bm=${bmId}`;
+  $('bCamera').onclick = () => $('iCamera').click();
+  $('bArquivos').onclick = () => $('iArquivos').click();
+  $('iCamera').onchange = e => enviar([...e.target.files]);
+  $('iArquivos').onchange = e => enviar([...e.target.files]);
+  const z = $('envio');
+  z.ondragover = e => { e.preventDefault(); z.classList.add('sobre'); };
+  z.ondragleave = () => z.classList.remove('sobre');
+  z.ondrop = e => { e.preventDefault(); z.classList.remove('sobre'); enviar([...e.dataTransfer.files].filter(f => f.type.startsWith('image/'))); };
+
+  const [o, m, it] = await Promise.all([
+    sb.from('obras').select('nome').eq('id', obraId).single(),
+    sb.from('medicoes').select('numero, periodo_inicio, periodo_fim').eq('id', bmId).single(),
+    sb.from('v_itens_saldo').select('item_id, item, descricao, tipo, planilha_tipo, planilha_numero, ordem').eq('obra_id', obraId)
+      .eq('tipo', 'servico').order('planilha_numero').order('ordem').limit(10000)
+  ]);
+  if (o.error || m.error) { $('sub').textContent = 'BM não encontrado.'; return; }
+  const n = String(m.data.numero).padStart(2, '0');
+  $('titulo').textContent = `Fotos do BM ${n}`;
+  $('sub').textContent = o.data.nome + (m.data.periodo_inicio ? ` · ${F.data(m.data.periodo_inicio)} a ${F.data(m.data.periodo_fim)}` : '');
+  document.title = `Fotos BM ${n} — ${o.data.nome}`;
+  itens = it.data || [];
+  // itens medidos neste BM aparecem primeiro na lista
+  const { data: med } = await sb.from('medicao_itens').select('item_id').eq('medicao_id', bmId);
+  const medidos = new Set((med || []).map(x => x.item_id));
+  itens.sort((a, b) => (medidos.has(b.item_id) - medidos.has(a.item_id)));
+  itens.medidos = medidos;
+  await carregar();
+})();
+
+async function carregar() {
+  const { data, error } = await sb.from('fotos').select('*').eq('medicao_id', bmId).order('ordem').order('created_at');
+  if (error) { $('progresso').textContent = 'Erro: ' + error.message; return; }
+  fotos = data;
+  const faltam = fotos.map(f => f.caminho).filter(c => !urls[c]);
+  if (faltam.length) {
+    const { data: ass } = await sb.storage.from(BUCKET).createSignedUrls(faltam, 3600);
+    for (const a of ass || []) if (a.signedUrl) urls[a.path] = a.signedUrl;
+  }
+  desenhar();
+}
+
+function opcoesItens(sel) {
+  let h = '<option value="">— sem item vinculado —</option>';
+  let mudouGrupo = false;
+  for (const i of itens) {
+    if (!mudouGrupo && !itens.medidos.has(i.item_id) && itens.medidos.size) { h += '<option disabled>──── demais itens ────</option>'; mudouGrupo = true; }
+    const pref = i.planilha_tipo === 'aditivo' ? `A${i.planilha_numero} ` : '';
+    h += `<option value="${i.item_id}" ${i.item_id === sel ? 'selected' : ''}>${F.esc(pref + i.item + ' — ' + i.descricao.slice(0, 70))}</option>`;
+  }
+  return h;
+}
+
+function desenhar() {
+  $('vazio').style.display = fotos.length ? 'none' : '';
+  $('grade').innerHTML = fotos.map((f, k) => `
+    <div class="cartao" data-id="${f.id}">
+      <div class="img">${urls[f.caminho] ? `<img src="${urls[f.caminho]}" alt="Foto ${k + 1}" loading="lazy">` : 'carregando…'}</div>
+      <div class="corpo">
+        <div class="num">Foto ${String(k + 1).padStart(2, '0')}</div>
+        <textarea data-campo="legenda" placeholder="Legenda: o que a foto mostra e onde (ambiente, eixo, pavimento)">${F.esc(f.legenda || '')}</textarea>
+        <select data-campo="item_id">${opcoesItens(f.item_id)}</select>
+        <input data-campo="data" type="date" value="${f.data || ''}">
+        <div class="acoes-c">
+          <button class="sec" data-mover="-1" ${k === 0 ? 'disabled' : ''} title="Mover para antes">↑</button>
+          <button class="sec" data-mover="1" ${k === fotos.length - 1 ? 'disabled' : ''} title="Mover para depois">↓</button>
+          <span class="salvo"></span>
+          <button class="excluir" data-excluir>Excluir</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  document.querySelectorAll('.cartao').forEach(c => {
+    const id = c.dataset.id;
+    c.querySelectorAll('[data-campo]').forEach(el => el.onchange = async () => {
+      const v = el.value.trim() === '' ? null : el.value.trim();
+      const { error } = await sb.from('fotos').update({ [el.dataset.campo]: v }).eq('id', id);
+      const s = c.querySelector('.salvo');
+      s.textContent = error ? 'erro ao salvar' : 'salvo'; s.style.color = error ? 'var(--critico)' : '';
+      if (!error) { const f = fotos.find(x => x.id === id); f[el.dataset.campo] = v; setTimeout(() => s.textContent = '', 1500); }
+    });
+    c.querySelectorAll('[data-mover]').forEach(b => b.onclick = () => mover(id, Number(b.dataset.mover)));
+    c.querySelector('[data-excluir]').onclick = () => excluir(id);
+  });
+}
+
+async function mover(id, passo) {
+  const i = fotos.findIndex(f => f.id === id), j = i + passo;
+  if (j < 0 || j >= fotos.length) return;
+  [fotos[i], fotos[j]] = [fotos[j], fotos[i]];
+  desenhar();
+  // regrava a ordem de todas (poucas fotos por BM)
+  await Promise.all(fotos.map((f, k) => f.ordem === k ? null : sb.from('fotos').update({ ordem: k }).eq('id', f.id).then(() => { f.ordem = k; })));
+}
+
+async function excluir(id) {
+  const f = fotos.find(x => x.id === id);
+  if (!confirm('Excluir esta foto? Ela será apagada do sistema.')) return;
+  const { error } = await sb.from('fotos').delete().eq('id', id);
+  if (error) { alert('Erro ao excluir: ' + error.message); return; }
+  await sb.storage.from(BUCKET).remove([f.caminho]);
+  fotos = fotos.filter(x => x.id !== id);
+  desenhar();
+}
+
+// Reduz a foto: lado maior até 1600 px, JPEG ~78%, respeitando a orientação da câmera
+async function comprimir(arquivo) {
+  let bmp;
+  try { bmp = await createImageBitmap(arquivo, { imageOrientation: 'from-image' }); }
+  catch (_) {
+    bmp = await new Promise((ok, erro) => { const im = new Image(); im.onload = () => ok(im); im.onerror = erro; im.src = URL.createObjectURL(arquivo); });
+  }
+  const w = bmp.width, h = bmp.height, k = Math.min(1, LADO_MAX / Math.max(w, h));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(w * k); cv.height = Math.round(h * k);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  return new Promise(ok => cv.toBlob(ok, 'image/jpeg', QUALIDADE));
+}
+
+async function enviar(arquivos) {
+  if (!arquivos.length) return;
+  let feitos = 0, erros = 0, ordem = fotos.length;
+  const msg = () => $('progresso').textContent = `Enviando ${feitos + erros + 1} de ${arquivos.length}…`;
+  for (const arq of arquivos) {
+    msg();
+    try {
+      const blob = await comprimir(arq);
+      const caminho = `${userId}/${obraId}/${bmId}/${crypto.randomUUID()}.jpg`;
+      const { error: e1 } = await sb.storage.from(BUCKET).upload(caminho, blob, { contentType: 'image/jpeg' });
+      if (e1) throw e1;
+      const data = arq.lastModified ? new Date(arq.lastModified - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : null;
+      const { error: e2 } = await sb.from('fotos').insert({ obra_id: obraId, medicao_id: bmId, caminho, data, ordem: ordem++ });
+      if (e2) { await sb.storage.from(BUCKET).remove([caminho]); throw e2; }
+      feitos++;
+    } catch (e) { erros++; console.error(e); }
+  }
+  $('progresso').textContent = `${feitos} foto(s) enviada(s)` + (erros ? `, ${erros} com erro (tente de novo)` : '') + '.';
+  $('iCamera').value = ''; $('iArquivos').value = '';
+  await carregar();
+}
+</script>
+</body>
+</html>

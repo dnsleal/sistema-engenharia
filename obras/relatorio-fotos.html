@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatório Fotográfico</title>
+<style>
+  @page { size: A4 portrait; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9edf2; color: #111; font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; }
+  .ferramentas { position: sticky; top: 0; z-index: 2; background: #1f3864; color: #fff; padding: 10px 16px;
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; font-family: "Segoe UI", Arial, sans-serif; }
+  .ferramentas button { font: inherit; font-weight: 600; padding: 7px 14px; border-radius: 6px; border: 1px solid #fff; background: #fff; color: #1f3864; cursor: pointer; }
+  .ferramentas a { color: #dbe4f5; margin-left: auto; }
+  .pagina { width: 210mm; height: 297mm; background: #fff; margin: 16px auto; padding: 12mm 12mm 10mm;
+    box-shadow: 0 2px 10px rgba(0,0,0,.15); display: flex; flex-direction: column; overflow: hidden; }
+  .cab { display: flex; justify-content: space-between; gap: 12px; border-bottom: 2px solid #1f3864; padding-bottom: 5px; }
+  .cab .org { font-weight: 700; font-size: 10.5px; line-height: 1.35; }
+  .cab .tit { text-align: right; white-space: nowrap; }
+  .cab .tit b { display: block; font-size: 14px; color: #1f3864; }
+  .ident { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; margin: 6px 0 4px; font-size: 9.5px; }
+  .ident span { color: #555; }
+  .fotos { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 6mm 5mm; margin-top: 5mm; min-height: 0; }
+  .foto { display: flex; flex-direction: column; min-height: 0; border: 1px solid #c5ccd8; }
+  .foto .img { flex: 1; min-height: 0; background: #f2f4f8; display: flex; align-items: center; justify-content: center; }
+  .foto img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+  .foto .leg { padding: 4px 6px 5px; border-top: 1px solid #c5ccd8; min-height: 15mm; }
+  .foto .leg b { color: #1f3864; }
+  .foto .meta { color: #555; font-size: 9px; margin-top: 2px; }
+  .vaga { border: none; }
+  .assin { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 10mm; text-align: center; }
+  .assin .linha { border-top: 1px solid #333; padding-top: 4px; }
+  .rod { display: flex; justify-content: space-between; color: #666; font-size: 8.5px; margin-top: 4mm; }
+  [contenteditable]:hover, [contenteditable]:focus { outline: 1px dashed #8aa4d6; }
+  .msg { padding: 40px; text-align: center; font-size: 14px; }
+  @media print {
+    body { background: #fff; }
+    .ferramentas { display: none; }
+    .pagina { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+    .pagina:last-child { page-break-after: auto; break-after: auto; }
+    [contenteditable] { outline: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="ferramentas">
+  <button id="bImprimir" disabled>Carregando fotos…</button>
+  <span style="opacity:.85">4 fotos por página. Os nomes nas assinaturas podem ser editados clicando sobre eles.</span>
+  <a id="lVoltar" href="#">← Voltar às fotos</a>
+</div>
+<div id="paginas"><div class="msg">Carregando…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const P = new URLSearchParams(location.search);
+const obraId = P.get('obra'), bmId = P.get('bm');
+
+(async function iniciar() {
+  const user = await SE.exigirLogin(); if (!user) return;
+  $('lVoltar').href = `fotos.html?obra=${obraId}&bm=${bmId}`;
+  $('bImprimir').onclick = () => window.print();
+  const [o, m, f, it] = await Promise.all([
+    sb.from('obras').select('*').eq('id', obraId).single(),
+    sb.from('medicoes').select('*').eq('id', bmId).single(),
+    sb.from('fotos').select('*').eq('medicao_id', bmId).order('ordem').order('created_at'),
+    sb.from('v_itens_saldo').select('item_id, item, descricao, planilha_tipo, planilha_numero').eq('obra_id', obraId).eq('tipo', 'servico').limit(10000)
+  ]);
+  if (o.error || m.error || f.error) { $('paginas').innerHTML = '<div class="msg">Não foi possível carregar o relatório.</div>'; return; }
+  const fotos = f.data;
+  if (!fotos.length) { $('paginas').innerHTML = '<div class="msg">Este BM ainda não tem fotos.</div>'; $('bImprimir').textContent = 'Sem fotos'; return; }
+  const { data: ass } = await sb.storage.from('fotos').createSignedUrls(fotos.map(x => x.caminho), 3600);
+  const url = Object.fromEntries((ass || []).map(a => [a.path, a.signedUrl]));
+  const itens = new Map((it.data || []).map(i => [i.item_id, i]));
+  desenhar(o.data, m.data, fotos, url, itens);
+
+  // só libera a impressão quando todas as imagens tiverem carregado
+  const imgs = [...document.querySelectorAll('.foto img')];
+  await Promise.all(imgs.map(im => im.complete ? 0 : new Promise(ok => { im.onload = im.onerror = ok; })));
+  $('bImprimir').disabled = false; $('bImprimir').textContent = 'Imprimir / salvar em PDF';
+})();
+
+function desenhar(o, m, fotos, url, itens) {
+  const n = String(m.numero).padStart(2, '0');
+  document.title = `Relatório fotográfico BM ${n} - ${o.nome}`;
+  const periodo = m.periodo_inicio ? `${F.data(m.periodo_inicio)} a ${F.data(m.periodo_fim)}` : '';
+  const porPag = 4, total = Math.ceil(fotos.length / porPag);
+  let h = '';
+  for (let p = 0; p < total; p++) {
+    const grupo = fotos.slice(p * porPag, p * porPag + porPag);
+    h += `<section class="pagina">
+      <div class="cab">
+        <div class="org">${F.esc(o.contratante || '')}<br>${F.esc(o.objeto || o.nome)}</div>
+        <div class="tit"><b>RELATÓRIO FOTOGRÁFICO</b>BM nº ${n}${periodo ? ' · ' + periodo : ''}</div>
+      </div>
+      ${p === 0 ? `<div class="ident">
+        <div><span>Obra:</span> ${F.esc(o.nome)}</div><div><span>Contrato:</span> ${F.esc(o.num_contrato || '—')}</div>
+        <div><span>Contratada:</span> ${F.esc(o.contratada || '—')}</div><div><span>Processo:</span> ${F.esc(o.processo_siged || '—')}</div>
+        <div><span>Local:</span> ${F.esc(o.endereco || '—')}</div><div><span>Total de fotos:</span> ${fotos.length}</div>
+      </div>` : ''}
+      <div class="fotos">`;
+    grupo.forEach((f, k) => {
+      const num = String(p * porPag + k + 1).padStart(2, '0');
+      const i = f.item_id && itens.get(f.item_id);
+      const itemTxt = i ? `Item ${(i.planilha_tipo === 'aditivo' ? 'A' + i.planilha_numero + ' · ' : '') + i.item} — ${i.descricao.length > 80 ? i.descricao.slice(0, 80) + '…' : i.descricao}` : '';
+      h += `<figure class="foto" style="margin:0">
+        <div class="img"><img src="${url[f.caminho] || ''}" alt="Foto ${num}"></div>
+        <figcaption class="leg"><b>Foto ${num}</b> — ${F.esc(f.legenda || '(sem legenda)')}
+          <div class="meta">${[f.data && 'Data: ' + F.data(f.data), F.esc(itemTxt)].filter(Boolean).join(' · ')}</div></figcaption>
+      </figure>`;
+    });
+    for (let v = grupo.length; v < porPag; v++) h += `<div class="foto vaga"></div>`;
+    h += `</div>`;
+    if (p === total - 1) h += `<div class="assin">
+        <div><div class="linha" contenteditable="true">Fiscal do contrato</div><div contenteditable="true" style="color:#555">Nome · Registro profissional</div></div>
+        <div><div class="linha" contenteditable="true">${F.esc(o.contratada || 'Contratada')}</div><div contenteditable="true" style="color:#555">Responsável técnico · Registro profissional</div></div>
+      </div>`;
+    h += `<div class="rod"><span>Página ${p + 1} de ${total}</span><span>Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</span></div></section>`;
+  }
+  $('paginas').innerHTML = h;
+}
+</script>
+</body>
+</html>

@@ -39,6 +39,7 @@
       <p id="sub">Carregando…</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="botao sec" id="lFotos" href="#">Fotos do BM</a>
       <a class="botao sec" id="lBoletim" href="#" target="_blank">Ver boletim / PDF</a>
     </div>
   </div>
@@ -104,6 +105,7 @@ let sujo = false;
   $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
   $('lObraTopo').href = 'obra.html?id=' + obraId + '#medicoes';
   $('lBoletim').href = `boletim.html?obra=${obraId}&bm=${bmId}`;
+  $('lFotos').href = `fotos.html?obra=${obraId}&bm=${bmId}`;
   for (const id of ['selPl', 'fComQtd', 'fLancados']) $(id).onchange = desenhar;
   $('busca').oninput = desenhar;
   for (const id of ['ini', 'fim', 'reaj', 'obs']) $(id).oninput = () => { sujo = true; resumo(); };

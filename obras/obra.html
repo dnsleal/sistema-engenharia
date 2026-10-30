@@ -128,7 +128,8 @@ async function carregarBMs() {
       <td class="n">${F.rs(b.valor_bruto)}</td><td class="n">${F.rs(b.valor_medido)}</td>
       <td class="n">${F.rs(b.valor_reajuste)}</td><td class="n"><b>${F.rs(b.valor_total)}</b></td>
       <td>${b.fechada ? '<span class="etiqueta neutro">Fechado</span>' : '<span class="etiqueta ok">Aberto</span>'}</td>
-      <td><a href="boletim.html?obra=${obraId}&bm=${b.medicao_id}" target="_blank" onclick="event.stopPropagation()">boletim</a></td></tr>`).join('') +
+      <td style="white-space:nowrap"><a href="boletim.html?obra=${obraId}&bm=${b.medicao_id}" target="_blank" onclick="event.stopPropagation()">boletim</a> ·
+        <a href="fotos.html?obra=${obraId}&bm=${b.medicao_id}" onclick="event.stopPropagation()">fotos</a></td></tr>`).join('') +
     `<tr><td colspan="2"><b>Total medido</b></td><td class="n"><b>${F.rs(soma('valor_bruto'))}</b></td><td class="n"><b>${F.rs(soma('valor_medido'))}</b></td>
       <td class="n"><b>${F.rs(soma('valor_reajuste'))}</b></td><td class="n"><b>${F.rs(soma('valor_total'))}</b></td><td colspan="2"></td></tr>`;
 }

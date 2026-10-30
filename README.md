@@ -11,7 +11,7 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 | 0 | Login, Central de Monitoramento, cadastro de obras | pronto |
 | 1 | Importar planilha orçamentária, aditivos, cronograma; página da obra | pronto |
 | 2 | Medições (BM): lançamento, fechamento, boletim em PDF | pronto |
-| 3 | Relatório fotográfico | a fazer |
+| 3 | Relatório fotográfico por BM (4 fotos por página, PDF) | pronto |
 | 4 | Orçamento SINAPI-MT | a fazer |
 | 5 | Laudos de avaliação (locação e terreno) | a fazer |
 | 6 | Propostas e ferramentas de cálculo | a fazer |
@@ -24,6 +24,8 @@ obras/obra.html       Página da obra: etapas × cronograma, planilhas com saldo
 obras/importar.html   Importa planilha original/aditivo e cronograma do Excel
 obras/medicao.html    Lançamento do BM: anterior, este BM, acumulado, saldo; fechar/reabrir
 obras/boletim.html    Boletim de medição para imprimir ou salvar em PDF
+obras/fotos.html      Fotos do BM: enviar (câmera ou arquivos), legenda, item, ordem
+obras/relatorio-fotos.html  Relatório fotográfico do BM para imprimir ou salvar em PDF
 login.html            Entrar, criar conta, recuperar senha
 comum/
   config.js           Endereço e chave pública do Supabase
