@@ -49,8 +49,24 @@
 
   <nav class="abas">
     <button class="ativa" data-aba="etapas">Etapas × cronograma</button>
+    <button data-aba="medicoes">Medições</button>
     <button data-aba="itens">Planilhas</button>
   </nav>
+
+  <section class="aba" id="aba-medicoes">
+    <div class="painel">
+      <div class="filtros">
+        <span class="nota" id="notaBM" style="margin:0"></span>
+        <button id="bNovoBM" style="margin-left:auto">+ Novo BM</button>
+      </div>
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>BM</th><th>Período</th><th class="n">Sem desconto</th><th class="n">Com desconto</th><th class="n">Reajuste</th><th class="n">Total do BM</th><th>Situação</th><th></th></tr></thead>
+          <tbody id="bms"><tr><td colspan="8" class="vazio">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
   <section class="aba ativa" id="aba-etapas">
     <div class="painel">
@@ -94,7 +110,42 @@
 const { sb } = SE;
 const $ = id => document.getElementById(id);
 const obraId = new URLSearchParams(location.search).get('id');
-let planilhas = [], itens = [];
+let planilhas = [], itens = [], bms = [], obraDados = null;
+
+async function carregarBMs() {
+  const { data, error } = await sb.from('v_medicoes_resumo').select('*').eq('obra_id', obraId).order('numero');
+  if (error) { $('bms').innerHTML = `<tr><td colspan="8" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
+  bms = data;
+  const aberto = bms.find(b => !b.fechada);
+  $('bNovoBM').disabled = !!aberto || !planilhas.length;
+  $('notaBM').textContent = !planilhas.length ? 'Importe a planilha orçamentária antes de abrir o primeiro BM.'
+    : aberto ? `O BM ${aberto.numero} está aberto: feche-o antes de abrir o próximo.` : '';
+  if (!bms.length) { $('bms').innerHTML = '<tr><td colspan="8" class="vazio">Nenhum boletim de medição ainda.</td></tr>'; return; }
+  const soma = k => bms.reduce((s, b) => s + Number(b[k] || 0), 0);
+  $('bms').innerHTML = bms.map(b => `<tr style="cursor:pointer" onclick="location.href='medicao.html?obra=${obraId}&bm=${b.medicao_id}'">
+      <td><b>BM ${String(b.numero).padStart(2, '0')}</b></td>
+      <td>${b.periodo_inicio || b.periodo_fim ? F.data(b.periodo_inicio) + ' a ' + F.data(b.periodo_fim) : '—'}</td>
+      <td class="n">${F.rs(b.valor_bruto)}</td><td class="n">${F.rs(b.valor_medido)}</td>
+      <td class="n">${F.rs(b.valor_reajuste)}</td><td class="n"><b>${F.rs(b.valor_total)}</b></td>
+      <td>${b.fechada ? '<span class="etiqueta neutro">Fechado</span>' : '<span class="etiqueta ok">Aberto</span>'}</td>
+      <td><a href="boletim.html?obra=${obraId}&bm=${b.medicao_id}" target="_blank" onclick="event.stopPropagation()">boletim</a></td></tr>`).join('') +
+    `<tr><td colspan="2"><b>Total medido</b></td><td class="n"><b>${F.rs(soma('valor_bruto'))}</b></td><td class="n"><b>${F.rs(soma('valor_medido'))}</b></td>
+      <td class="n"><b>${F.rs(soma('valor_reajuste'))}</b></td><td class="n"><b>${F.rs(soma('valor_total'))}</b></td><td colspan="2"></td></tr>`;
+}
+
+async function novoBM() {
+  const ult = bms.at(-1);
+  const numero = (ult ? ult.numero : 0) + 1;
+  let ini = obraDados.data_inicio || null;
+  if (ult && ult.periodo_fim) { const d = new Date(ult.periodo_fim + 'T12:00:00'); d.setDate(d.getDate() + 1); ini = d.toISOString().slice(0, 10); }
+  if (!confirm(`Abrir o BM ${String(numero).padStart(2, '0')}?`)) return;
+  $('bNovoBM').disabled = true;
+  const { data, error } = await sb.from('medicoes').insert({
+    obra_id: obraId, numero, periodo_inicio: ini, reajuste_pct: obraDados.reajuste_pct || 0
+  }).select('id').single();
+  if (error) { alert('Erro ao abrir o BM: ' + error.message); $('bNovoBM').disabled = false; return; }
+  location.href = `medicao.html?obra=${obraId}&bm=${data.id}`;
+}
 
 (async function iniciar() {
   const user = await SE.exigirLogin(); if (!user) return;
@@ -121,6 +172,10 @@ let planilhas = [], itens = [];
   desenharFicha(o.data, r.data);
   desenharEtapas(e.data || [], o.data);
   planilhas = p.data || [];
+  obraDados = o.data;
+  $('bNovoBM').onclick = novoBM;
+  if (location.hash === '#medicoes') document.querySelector('.abas button[data-aba=medicoes]').click();
+  carregarBMs();
   $('selPlanilha').innerHTML = planilhas.map(x => `<option value="${x.id}">${x.tipo === 'original' ? 'Planilha original' : 'Aditivo ' + x.numero}</option>`).join('');
   await carregarItens();
 })();

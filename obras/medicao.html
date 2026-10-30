@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boletim de Medição — Sistema de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  .dados-bm { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0 14px; }
+  .filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros input[type=search], .filtros select { width: auto; min-width: 200px; }
+  .filtros label { display: flex; align-items: center; gap: 6px; margin: 0; font-weight: 500; color: var(--texto); }
+  .filtros label input { width: auto; }
+  tr.etapa td { font-weight: 600; background: var(--azul-claro); }
+  tr.titulo td { font-weight: 600; color: var(--texto-2); font-size: .78rem; text-transform: uppercase; }
+  tr.excede td { background: color-mix(in srgb, var(--critico) 10%, transparent); }
+  tr.lancado td.qb input { border-color: var(--azul); background: var(--azul-claro); }
+  td.desc { min-width: 260px; max-width: 460px; font-size: .86rem; }
+  td.qb { white-space: nowrap; }
+  td.qb input { width: 110px; text-align: right; padding: 6px 8px; font-variant-numeric: tabular-nums; }
+  td.qb button { padding: 4px 7px; font-size: .75rem; margin-left: 4px; }
+  .barra-acoes { position: sticky; bottom: 0; background: var(--painel); border-top: 1px solid var(--linha);
+    padding: 12px 16px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin: 16px -16px -16px; }
+  .barra-acoes .info { margin-right: auto; font-size: .88rem; color: var(--texto-2); }
+  .nota { font-size: .82rem; color: var(--texto-2); }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav><a href="../index.html">Central</a><a id="lObraTopo" href="#">Obra</a></nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div>
+      <h2 id="titulo">Boletim de Medição</h2>
+      <p id="sub">Carregando…</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <a class="botao sec" id="lBoletim" href="#" target="_blank">Ver boletim / PDF</a>
+    </div>
+  </div>
+
+  <section class="painel">
+    <div class="dados-bm">
+      <div><label for="ini">Período — início</label><input id="ini" type="date"></div>
+      <div><label for="fim">Período — fim</label><input id="fim" type="date"></div>
+      <div><label for="reaj">Reajuste deste BM (%)</label><input id="reaj" inputmode="decimal"></div>
+      <div><label>Situação</label><div id="situacao" style="padding-top:8px"></div></div>
+    </div>
+    <label for="obs">Observações do BM</label>
+    <textarea id="obs" rows="2"></textarea>
+  </section>
+
+  <section class="kpis" id="kpis" style="margin-top:16px"></section>
+
+  <section class="painel">
+    <div class="filtros">
+      <select id="selPl"></select>
+      <input id="busca" type="search" placeholder="Buscar item, descrição ou código">
+      <label><input type="checkbox" id="fComQtd" checked> só itens com quantidade</label>
+      <label><input type="checkbox" id="fLancados"> só lançados neste BM</label>
+    </div>
+    <div class="tabela-wrap">
+      <table>
+        <thead><tr>
+          <th>Item</th><th>Descrição</th><th>Und</th>
+          <th class="n">Contratado</th><th class="n">Anterior</th><th class="n">Este BM</th>
+          <th class="n">Acumulado</th><th class="n">Saldo</th><th class="n">Valor este BM</th>
+        </tr></thead>
+        <tbody id="corpo"><tr><td colspan="9" class="vazio">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="nota">Lance a quantidade executada <b>neste período</b>. O botão <b>saldo</b> preenche o que falta para completar o item.
+      Linhas em vermelho passaram do contratado. Valores dos itens sem o desconto do contrato, que é aplicado sobre o total.</p>
+    <div class="barra-acoes">
+      <span class="info" id="info"></span>
+      <button class="sec" id="bReabrir" style="display:none">Reabrir BM</button>
+      <button class="sec" id="bFechar">Fechar BM</button>
+      <button id="bSalvar">Salvar</button>
+    </div>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script src="../comum/medicao.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const P = new URLSearchParams(location.search);
+const obraId = P.get('obra'), bmId = P.get('bm');
+let M = null;            // dados montados
+let editado = {};        // item_id -> quantidade digitada neste BM
+let sujo = false;
+
+(async function iniciar() {
+  const user = await SE.exigirLogin(); if (!user) return;
+  $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
+  $('lObraTopo').href = 'obra.html?id=' + obraId + '#medicoes';
+  $('lBoletim').href = `boletim.html?obra=${obraId}&bm=${bmId}`;
+  for (const id of ['selPl', 'fComQtd', 'fLancados']) $(id).onchange = desenhar;
+  $('busca').oninput = desenhar;
+  for (const id of ['ini', 'fim', 'reaj', 'obs']) $(id).oninput = () => { sujo = true; resumo(); };
+  $('bSalvar').onclick = () => salvar();
+  $('bFechar').onclick = fechar;
+  $('bReabrir').onclick = reabrir;
+  window.onbeforeunload = e => { if (sujo) { e.preventDefault(); e.returnValue = ''; } };
+  await carregar();
+})();
+
+async function carregar() {
+  try { M = await Medicao.carregar(sb, obraId, bmId); }
+  catch (e) { $('sub').textContent = 'Erro: ' + e.message; return; }
+  editado = {}; sujo = false;
+  const b = M.bm;
+  document.title = `BM ${b.numero} — ${M.obra.nome}`;
+  $('titulo').textContent = `Boletim de Medição nº ${String(b.numero).padStart(2, '0')}`;
+  $('sub').textContent = M.obra.nome;
+  $('ini').value = b.periodo_inicio || ''; $('fim').value = b.periodo_fim || '';
+  $('reaj').value = F.num(b.reajuste_pct, 2); $('obs').value = b.observacoes || '';
+  $('selPl').innerHTML = '<option value="">Todas as planilhas</option>' +
+    M.planilhas.map(p => `<option value="${p.id}">${M.nomePl(p)}</option>`).join('');
+  travar(b.fechada);
+  desenhar(); resumo();
+}
+
+function travar(fechada) {
+  $('situacao').innerHTML = fechada
+    ? `<span class="etiqueta neutro">Fechado em ${F.data(M.bm.fechada_em)}</span>`
+    : '<span class="etiqueta ok">Aberto para lançamento</span>';
+  for (const id of ['ini', 'fim', 'reaj', 'obs']) $(id).disabled = fechada;
+  $('bSalvar').style.display = fechada ? 'none' : '';
+  $('bFechar').style.display = fechada ? 'none' : '';
+  // só o último BM pode ser reaberto
+  const ultimo = Math.max(...M.medicoes.map(m => m.numero));
+  $('bReabrir').style.display = fechada && M.bm.numero === ultimo ? '' : 'none';
+}
+
+const qtdEste = l => (l.item_id in editado) ? editado[l.item_id] : l.qb;
+
+function desenhar() {
+  if (!M) return;
+  const pl = $('selPl').value, q = $('busca').value.trim().toUpperCase();
+  const comQtd = $('fComQtd').checked, soLanc = $('fLancados').checked;
+  const fechada = M.bm.fechada;
+  const linhas = M.linhas.filter(l => !pl || l.planilha_id === pl).filter(l => {
+    if (l.tipo !== 'servico') return !q && !soLanc;
+    if (comQtd && !l.qc) return false;
+    if (soLanc && !qtdEste(l)) return false;
+    return !q || (l.item || '').toUpperCase().startsWith(q) || (l.descricao || '').toUpperCase().includes(q) || String(l.codigo || '').toUpperCase().includes(q);
+  });
+  let multi = M.planilhas.length > 1 && !pl, ultimaPl = null;
+  $('corpo').innerHTML = linhas.map(l => {
+    let cab = '';
+    if (multi && l.planilha_id !== ultimaPl) {
+      ultimaPl = l.planilha_id;
+      const p = M.planilhas.find(x => x.id === l.planilha_id);
+      cab = `<tr class="titulo"><td colspan="9">${M.nomePl(p)}</td></tr>`;
+    }
+    if (l.tipo !== 'servico') return cab + `<tr class="${l.tipo}"><td>${F.esc(l.item || '')}</td><td colspan="8">${F.esc(l.descricao)}</td></tr>`;
+    const qb = qtdEste(l), acum = l.qa + qb, saldo = l.qc - acum, excede = acum - l.qc > 1e-9;
+    return cab + `<tr data-id="${l.item_id}" class="${excede ? 'excede' : ''} ${qb ? 'lancado' : ''}">
+      <td>${F.esc(l.item)}</td><td class="desc">${F.esc(l.descricao)}</td><td>${F.esc(l.unidade || '')}</td>
+      <td class="n">${F.num(l.qc, 2)}</td><td class="n">${F.num(l.qa, 2)}</td>
+      <td class="n qb"><input data-id="${l.item_id}" value="${qb ? F.num(qb, 4).replace(/,?0+$/, '') : ''}" ${fechada ? 'disabled' : ''} placeholder="0">${fechada || saldo <= 0 ? '' : `<button class="sec" data-saldo="${l.item_id}" title="Preencher com o saldo">saldo</button>`}</td>
+      <td class="n">${F.num(acum, 2)}</td><td class="n">${F.num(saldo, 2)}</td><td class="n">${F.rs(Medicao.r2(qb * l.pu))}</td></tr>`;
+  }).join('') || '<tr><td colspan="9" class="vazio">Nada para mostrar com estes filtros.</td></tr>';
+
+  $('corpo').querySelectorAll('input[data-id]').forEach(inp => {
+    inp.onchange = () => {
+      const v = F.lerNum(inp.value);
+      if (inp.value.trim() !== '' && v == null) { inp.style.borderColor = 'var(--critico)'; return; }
+      editado[inp.dataset.id] = v || 0; sujo = true; desenhar(); resumo();
+    };
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.dispatchEvent(new Event('change')); proximo(inp); } };
+  });
+  $('corpo').querySelectorAll('button[data-saldo]').forEach(b => b.onclick = () => {
+    const l = M.linhas.find(x => x.item_id === b.dataset.saldo);
+    editado[l.item_id] = Math.max(0, l.qc - l.qa); sujo = true; desenhar(); resumo();
+  });
+}
+
+function proximo(inp) {
+  const todos = [...document.querySelectorAll('#corpo input[data-id]')];
+  const i = todos.findIndex(x => x.dataset.id === inp.dataset.id);
+  if (todos[i + 1]) todos[i + 1].focus();
+}
+
+function resumo() {
+  if (!M) return;
+  // recalcula com o que foi digitado
+  const linhas = M.linhas.map(l => l.tipo !== 'servico' ? l : { ...l, qb: qtdEste(l) });
+  const bruto = Medicao.r2(linhas.filter(l => l.tipo === 'servico').reduce((s, l) => s + Medicao.r2(l.qb * l.pu), 0));
+  const desc = Medicao.r2(bruto * M.desconto / 100), liq = Medicao.r2(bruto - desc);
+  const reajPct = F.lerNum($('reaj').value) || 0, reaj = Medicao.r2(liq * reajPct / 100);
+  const acumBruto = Medicao.r2(M.totais.va.bruto + bruto), contr = M.totais.vc.bruto;
+  const excedem = linhas.filter(l => l.tipo === 'servico' && l.qa + l.qb - l.qc > 1e-9).length;
+  const lancados = linhas.filter(l => l.tipo === 'servico' && l.qb).length;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="rotulo">Este BM (sem desconto)</div><div class="valor">${F.rs(bruto)}</div><div class="det">${lancados} itens lançados</div></div>
+    <div class="kpi"><div class="rotulo">Desconto ${F.pct(M.desconto)}</div><div class="valor">− ${F.rs(desc)}</div></div>
+    <div class="kpi"><div class="rotulo">Reajuste ${F.pct(reajPct)}</div><div class="valor">${F.rs(reaj)}</div></div>
+    <div class="kpi"><div class="rotulo">Total deste BM</div><div class="valor">${F.rs(liq + reaj)}</div><div class="det">líquido ${F.rs(liq)} + reajuste</div></div>
+    <div class="kpi ${excedem ? 'critico' : ''}"><div class="rotulo">Acumulado da obra</div><div class="valor">${F.pct(contr ? acumBruto / contr * 100 : 0)}</div><div class="det">${excedem ? excedem + ' item(ns) acima do contratado' : 'do valor contratado'}</div></div>`;
+  $('info').textContent = sujo ? 'Há alterações não salvas.' : '';
+}
+
+async function salvar(silencioso = false) {
+  if (M.bm.fechada) return true;
+  const ini = $('ini').value || null, fim = $('fim').value || null;
+  if (ini && fim && fim < ini) { alert('O fim do período está antes do início.'); return false; }
+  $('bSalvar').disabled = true; $('info').textContent = 'Salvando…';
+  try {
+    const { error: e1 } = await sb.from('medicoes').update({
+      periodo_inicio: ini, periodo_fim: fim, reajuste_pct: F.lerNum($('reaj').value) || 0, observacoes: $('obs').value.trim() || null
+    }).eq('id', bmId);
+    if (e1) throw e1;
+    const gravar = [], apagar = [];
+    for (const [item_id, q] of Object.entries(editado)) {
+      if (q) gravar.push({ medicao_id: bmId, item_id, quantidade: q });
+      else apagar.push(item_id);
+    }
+    if (gravar.length) {
+      const { error } = await sb.from('medicao_itens').upsert(gravar, { onConflict: 'medicao_id,item_id' });
+      if (error) throw error;
+    }
+    if (apagar.length) {
+      const { error } = await sb.from('medicao_itens').delete().eq('medicao_id', bmId).in('item_id', apagar);
+      if (error) throw error;
+    }
+    sujo = false;
+    await carregar();
+    if (!silencioso) { $('info').textContent = 'Salvo.'; setTimeout(() => { if (!sujo) $('info').textContent = ''; }, 2500); }
+    return true;
+  } catch (e) {
+    $('info').textContent = ''; alert('Erro ao salvar: ' + e.message); return false;
+  } finally { $('bSalvar').disabled = false; }
+}
+
+async function fechar() {
+  if (!$('ini').value || !$('fim').value) { alert('Informe o período (início e fim) antes de fechar o BM.'); return; }
+  const excedem = M.linhas.filter(l => l.tipo === 'servico' && l.qa + qtdEste(l) - l.qc > 1e-9).length;
+  const msg = (excedem ? `Atenção: ${excedem} item(ns) passaram do contratado.\n\n` : '') +
+    'Depois de fechado, as quantidades deste BM ficam protegidas contra alteração. Fechar o BM?';
+  if (!confirm(msg)) return;
+  if (!await salvar(true)) return;
+  const { error } = await sb.from('medicoes').update({ fechada: true }).eq('id', bmId);
+  if (error) { alert('Erro ao fechar: ' + error.message); return; }
+  await carregar();
+}
+
+async function reabrir() {
+  if (!confirm('Reabrir este BM para correção? As quantidades voltam a poder ser alteradas.')) return;
+  const { error } = await sb.from('medicoes').update({ fechada: false }).eq('id', bmId);
+  if (error) { alert('Erro ao reabrir: ' + error.message); return; }
+  await carregar();
+}
+</script>
+</body>
+</html>

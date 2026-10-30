@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boletim de Medição</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9edf2; color: #111; font-family: Arial, Helvetica, sans-serif; font-size: 10.5px; }
+  .ferramentas { position: sticky; top: 0; z-index: 2; background: #1f3864; color: #fff; padding: 10px 16px;
+    display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 13px; font-family: "Segoe UI", Arial, sans-serif; }
+  .ferramentas button { font: inherit; font-weight: 600; padding: 7px 14px; border-radius: 6px; border: 1px solid #fff; background: #fff; color: #1f3864; cursor: pointer; }
+  .ferramentas label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .ferramentas a { color: #dbe4f5; }
+  .folha { background: #fff; width: 277mm; margin: 16px auto; padding: 10mm; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+  .cab { display: grid; grid-template-columns: 1fr auto; gap: 10px; border-bottom: 2px solid #1f3864; padding-bottom: 6px; }
+  .cab .org { font-weight: 700; font-size: 11.5px; line-height: 1.35; }
+  .cab .bm { text-align: right; }
+  .cab .bm .num { font-size: 18px; font-weight: 700; color: #1f3864; }
+  .ident { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2px 18px; margin: 8px 0 10px; }
+  .ident div span { color: #555; }
+  h2 { font-size: 12px; margin: 12px 0 4px; color: #1f3864; text-transform: uppercase; letter-spacing: .3px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border: 1px solid #9aa3b5; padding: 3px 5px; vertical-align: top; }
+  th { background: #dfe6f2; font-size: 9.5px; text-transform: uppercase; }
+  td.n, th.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  tr.grupo td { background: #f0f3f9; font-weight: 700; }
+  tr.etapa td { font-weight: 700; background: #f6f8fb; }
+  tr.tot td { font-weight: 700; background: #eef2f8; }
+  tr.final td { font-weight: 700; background: #1f3864; color: #fff; font-size: 11.5px; }
+  tr.excede td { color: #b42318; }
+  .assin { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 34px; text-align: center; page-break-inside: avoid; }
+  .assin .linha { border-top: 1px solid #333; padding-top: 4px; }
+  [contenteditable] { outline: 1px dashed transparent; }
+  [contenteditable]:hover, [contenteditable]:focus { outline-color: #8aa4d6; }
+  .obs { margin-top: 8px; padding: 6px 8px; border: 1px solid #ccd3df; }
+  .rodape { margin-top: 10px; font-size: 9px; color: #666; display: flex; justify-content: space-between; }
+  .quebra { page-break-before: always; }
+  .bloco { page-break-inside: avoid; break-inside: avoid; }
+  .erro { padding: 40px; text-align: center; font-size: 14px; }
+  @media print {
+    body { background: #fff; }
+    .ferramentas { display: none; }
+    .folha { width: auto; margin: 0; padding: 0; box-shadow: none; }
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    [contenteditable] { outline: none; }
+  }
+</style>
+</head>
+<body>
+<div class="ferramentas">
+  <button id="bImprimir">Imprimir / salvar em PDF</button>
+  <label><input type="checkbox" id="cDetalhe" checked> Detalhamento por item</label>
+  <label><input type="checkbox" id="cSoBM"> Detalhar só itens medidos neste BM</label>
+  <span style="opacity:.8">Nomes nas assinaturas podem ser editados clicando sobre eles.</span>
+  <a id="lVoltar" href="#" style="margin-left:auto">← Voltar ao lançamento</a>
+</div>
+<div class="folha" id="folha"><div class="erro">Carregando…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script src="../comum/medicao.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const P = new URLSearchParams(location.search);
+const obraId = P.get('obra'), bmId = P.get('bm');
+let M = null;
+const pct = (v, b) => b ? F.pct(v / b * 100) : '—';
+
+(async function iniciar() {
+  const user = await SE.exigirLogin(); if (!user) return;
+  $('lVoltar').href = `medicao.html?obra=${obraId}&bm=${bmId}`;
+  $('bImprimir').onclick = () => window.print();
+  $('cDetalhe').onchange = desenhar; $('cSoBM').onchange = desenhar;
+  try { M = await Medicao.carregar(sb, obraId, bmId); }
+  catch (e) { $('folha').innerHTML = `<div class="erro">Erro: ${F.esc(e.message)}</div>`; return; }
+  M.usuario = user.email;
+  desenhar();
+})();
+
+function desenhar() {
+  const o = M.obra, b = M.bm, t = M.totais;
+  const nBM = String(b.numero).padStart(2, '0');
+  document.title = `BM ${nBM} - ${o.nome}`;
+  const periodo = b.periodo_inicio || b.periodo_fim ? `${F.data(b.periodo_inicio)} a ${F.data(b.periodo_fim)}` : 'período não informado';
+
+  let h = `<div class="cab">
+    <div class="org">${F.esc(o.contratante || '')}<br>${F.esc(o.objeto || o.nome)}</div>
+    <div class="bm"><div>BOLETIM DE MEDIÇÃO</div><div class="num">Nº ${nBM}</div><div>${periodo}</div>${b.fechada ? '' : '<div style="color:#b42318;font-weight:700">MINUTA — BM EM ABERTO</div>'}</div>
+  </div>
+  <div class="ident">
+    <div><span>Obra:</span> ${F.esc(o.nome)}</div>
+    <div><span>Contrato:</span> ${F.esc(o.num_contrato || '—')}</div>
+    <div><span>Processo:</span> ${F.esc(o.processo_siged || '—')}</div>
+    <div><span>Contratada:</span> ${F.esc(o.contratada || '—')}${o.cnpj_contratada ? ' · CNPJ ' + F.esc(o.cnpj_contratada) : ''}</div>
+    <div><span>Local:</span> ${F.esc(o.endereco || '—')}</div>
+    <div><span>Data-base:</span> ${F.esc(o.data_base || '—')}${o.fonte_precos ? ' · ' + F.esc(o.fonte_precos) : ''}</div>
+  </div>`;
+
+  // ---------- resumo por etapa (formato da aba BOLETIM) ----------
+  h += `<h2>Resumo por etapa</h2><table><thead><tr>
+      <th>Item</th><th>Descrição / etapa</th><th class="n">Valor contrato (R$)</th><th class="n">% contrato</th>
+      <th class="n">Medições anteriores (R$)</th><th class="n">${b.numero}ª medição (R$)</th><th class="n">% medição</th>
+      <th class="n">Acumulado (R$)</th><th class="n">% acumulado</th><th class="n">Saldo (R$)</th><th class="n">% saldo</th>
+    </tr></thead><tbody>`;
+  let grupo = null;
+  const variasPl = M.planilhas.length > 1;
+  for (const e of M.etapas) {
+    if (variasPl && e.planilha !== grupo) { grupo = e.planilha; h += `<tr class="grupo"><td colspan="11">${F.esc(grupo || 'Outros')}</td></tr>`; }
+    h += `<tr><td>${F.esc(e.item || '')}</td><td>${F.esc(e.descricao)}</td>
+      <td class="n">${F.num(e.vc)}</td><td class="n">${pct(e.vc, t.vc.bruto)}</td>
+      <td class="n">${F.num(e.va)}</td><td class="n">${F.num(e.vb)}</td><td class="n">${pct(e.vb, e.vc)}</td>
+      <td class="n">${F.num(e.vacum)}</td><td class="n">${pct(e.vacum, e.vc)}</td>
+      <td class="n">${F.num(e.vsaldo)}</td><td class="n">${pct(e.vsaldo, e.vc)}</td></tr>`;
+  }
+  const linhaTot = (rot, k, cls = 'tot') => `<tr class="${cls}"><td colspan="2">${rot}</td>
+    <td class="n">${F.num(t.vc[k])}</td><td class="n">${k === 'bruto' ? '100,00%' : ''}</td>
+    <td class="n">${F.num(t.va[k])}</td><td class="n">${F.num(t.vb[k])}</td><td class="n">${k === 'bruto' ? pct(t.vb.bruto, t.vc.bruto) : ''}</td>
+    <td class="n">${F.num(t.vacum[k])}</td><td class="n">${k === 'bruto' ? pct(t.vacum.bruto, t.vc.bruto) : ''}</td>
+    <td class="n">${F.num(t.vsaldo[k])}</td><td class="n">${k === 'bruto' ? pct(t.vsaldo.bruto, t.vc.bruto) : ''}</td></tr>`;
+  h += linhaTot('TOTAL SEM DESCONTO', 'bruto');
+  h += linhaTot(`DESCONTO DO CONTRATO (${F.pct(M.desconto)})`, 'desconto');
+  h += linhaTot('VALOR TOTAL COM DESCONTO', 'liquido');
+  h += `</tbody></table>`;
+
+  // ---------- valor a pagar ----------
+  h += `<div class="bloco"><h2>Valor desta medição</h2><table style="width:60%"><tbody>
+    <tr><td>Valor medido sem desconto</td><td class="n">${F.rs(t.vb.bruto)}</td></tr>
+    <tr><td>(−) Desconto do contrato (${F.pct(M.desconto)})</td><td class="n">${F.rs(t.vb.desconto)}</td></tr>
+    <tr><td>Valor medido com desconto</td><td class="n">${F.rs(t.vb.liquido)}</td></tr>
+    <tr><td>(+) Reajuste (${F.pct(b.reajuste_pct)})</td><td class="n">${F.rs(M.reajuste)}</td></tr>
+    <tr class="final"><td>VALOR TOTAL DESTA MEDIÇÃO</td><td class="n">${F.rs(M.totalBM)}</td></tr>
+  </tbody></table>`;
+  h += `<div style="margin-top:4px">Importa o valor desta medição em <b>${F.rs(M.totalBM)}</b> (${porExtenso(M.totalBM)}).</div>`;
+  if (b.observacoes) h += `<div class="obs"><b>Observações:</b> ${F.esc(b.observacoes)}</div>`;
+  h += assinaturas() + `</div>`;
+
+  // ---------- detalhamento por item ----------
+  if ($('cDetalhe').checked) {
+    const soBM = $('cSoBM').checked;
+    h += `<div class="quebra"></div><h2>Detalhamento por item — BM ${nBM}</h2><table><thead><tr>
+      <th>Item</th><th>Código</th><th>Descrição</th><th>Und</th><th class="n">Qtd contrato</th><th class="n">PU c/ BDI</th>
+      <th class="n">Qtd anterior</th><th class="n">Qtd este BM</th><th class="n">Qtd acumulada</th><th class="n">Saldo qtd</th>
+      <th class="n">Valor este BM</th><th class="n">Valor acumulado</th></tr></thead><tbody>`;
+    let pl = null;
+    const servicos = M.linhas.filter(l => l.tipo === 'servico' && (soBM ? l.qb : (l.qc || l.qacum)));
+    const etapasUsadas = new Set(servicos.map(s => s.etapa_id));
+    for (const l of M.linhas) {
+      if (variasPl && l.planilha_id !== pl && (l.tipo !== 'servico' || servicos.includes(l))) {
+        pl = l.planilha_id; const p = M.planilhas.find(x => x.id === pl);
+        h += `<tr class="grupo"><td colspan="12">${M.nomePl(p)}</td></tr>`;
+      }
+      if (l.tipo === 'etapa' && l.nivel === 1) {
+        if (etapasUsadas.has(l.item_id)) h += `<tr class="etapa"><td>${F.esc(l.item || '')}</td><td colspan="11">${F.esc(l.descricao)}</td></tr>`;
+        continue;
+      }
+      if (l.tipo !== 'servico' || !servicos.includes(l)) continue;
+      h += `<tr class="${l.excede ? 'excede' : ''}"><td>${F.esc(l.item)}</td><td>${F.esc(l.codigo || '')}</td><td>${F.esc(l.descricao)}</td><td>${F.esc(l.unidade || '')}</td>
+        <td class="n">${F.num(l.qc)}</td><td class="n">${F.num(l.pu)}</td><td class="n">${F.num(l.qa)}</td><td class="n">${F.num(l.qb)}</td>
+        <td class="n">${F.num(l.qacum)}</td><td class="n">${F.num(l.qsaldo)}</td><td class="n">${F.num(l.vb)}</td><td class="n">${F.num(l.vacum)}</td></tr>`;
+    }
+    const sb_ = servicos.reduce((s, l) => s + l.vb, 0), sa = servicos.reduce((s, l) => s + l.vacum, 0);
+    h += `<tr class="tot"><td colspan="10">TOTAL SEM DESCONTO${soBM ? ' (itens medidos neste BM)' : ''}</td><td class="n">${F.num(Medicao.r2(sb_))}</td><td class="n">${F.num(Medicao.r2(sa))}</td></tr></tbody></table>`;
+    h += `<div style="margin-top:4px;font-size:9.5px;color:#555">Valores dos itens com BDI e sem o desconto do contrato; o desconto de ${F.pct(M.desconto)} é aplicado sobre o total, no resumo.</div>`;
+  }
+
+  h += `<div class="rodape"><span>Gerado em ${new Date().toLocaleString('pt-BR')} · Sistema de Engenharia</span><span>Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</span></div>`;
+  $('folha').innerHTML = h;
+}
+
+function assinaturas() {
+  return `<div class="assin">
+    <div><div class="linha" contenteditable="true">Fiscal do contrato</div><div contenteditable="true" style="color:#555">Nome · Registro profissional</div></div>
+    <div><div class="linha" contenteditable="true">${F.esc(M.obra.contratada || 'Contratada')}</div><div contenteditable="true" style="color:#555">Responsável técnico · Registro profissional</div></div>
+  </div>`;
+}
+
+// valor por extenso em reais
+function porExtenso(v) {
+  const U = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
+  const D = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa'];
+  const C = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos'];
+  const ate999 = n => {
+    if (n === 100) return 'cem';
+    const c = Math.floor(n / 100), r = n % 100, p = [];
+    if (c) p.push(C[c]);
+    if (r < 20) { if (r) p.push(U[r]); }
+    else { const d = Math.floor(r / 10), u = r % 10; p.push(u ? D[d] + ' e ' + U[u] : D[d]); }
+    return p.join(' e ');
+  };
+  const inteiro = n => {
+    if (n === 0) return 'zero';
+    const grupos = [], esc = [['', ''], ['mil', 'mil'], ['milhão', 'milhões'], ['bilhão', 'bilhões']];
+    let i = 0;
+    while (n > 0) { grupos.push([n % 1000, i]); n = Math.floor(n / 1000); i++; }
+    const partes = grupos.filter(([g]) => g).reverse().map(([g, k]) => {
+      if (k === 0) return ate999(g);
+      if (k === 1) return g === 1 ? 'mil' : ate999(g) + ' mil';
+      return ate999(g) + ' ' + (g === 1 ? esc[k][0] : esc[k][1]);
+    });
+    // "e" antes do último grupo quando ele é < 100 ou centena redonda
+    const ult = grupos[0][0];
+    if (partes.length > 1 && ult && (ult < 100 || ult % 100 === 0)) return partes.slice(0, -1).join(', ') + ' e ' + partes.at(-1);
+    return partes.join(', ');
+  };
+  const reais = Math.floor(Math.round(v * 100) / 100), cent = Math.round((v - reais) * 100);
+  let s = '';
+  if (reais) {
+    s = inteiro(reais);
+    s += (reais % 1000000 === 0 && reais >= 1000000) ? ' de reais' : (reais === 1 ? ' real' : ' reais');
+  }
+  if (cent) s += (s ? ' e ' : '') + inteiro(cent) + (cent === 1 ? ' centavo' : ' centavos');
+  return s || 'zero reais';
+}
+</script>
+</body>
+</html>
