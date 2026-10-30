@@ -36,12 +36,13 @@
     <a class="novo" href="locacao.html"><b>+ Laudo de locação</b><span>Método do valor do imóvel: PVG Cuiabá, CUB, Ross-Heidecke e valor por extenso (modelo SMECEL).</span></a>
     <a class="novo" href="terreno.html"><b>+ Laudo de terreno</b><span>Método comparativo direto: amostra, homogeneização por fatores e tratamento estatístico (NBR 14653-2).</span></a>
     <a class="novo" href="proposta.html"><b>+ Proposta Geoflora</b><span>Proposta técnica com o timbre da Geoflora, linhas de custo e imposto de 15,5% por dentro.</span></a>
+    <a class="novo" href="spt.html"><b>+ Boletim de sondagem SPT</b><span>Golpes por 15 cm, N<sub>SPT</sub>, camadas, nível d'água, perfil e classificação (NBR 6484:2020).</span></a>
     <a class="novo" href="relatorio.html?novo=1"><b>+ Relatório de vistoria</b><span>Relatório de campo para clientes: logo e empresa editáveis, serviços, fotos, PDF e Word.</span></a>
   </section>
   <section class="painel">
     <div class="filtros">
       <input id="busca" type="search" placeholder="Buscar pelo título">
-      <select id="tipo"><option value="">Todos os tipos</option><option value="locacao">Laudo de locação</option><option value="terreno">Laudo de terreno</option><option value="proposta">Proposta</option><option value="relatorio">Relatório de vistoria</option></select>
+      <select id="tipo"><option value="">Todos os tipos</option><option value="locacao">Laudo de locação</option><option value="terreno">Laudo de terreno</option><option value="proposta">Proposta</option><option value="relatorio">Relatório de vistoria</option><option value="spt">Sondagem SPT</option></select>
     </div>
     <div class="tabela-wrap">
       <table>
@@ -59,8 +60,8 @@
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
-const PAG = { locacao: 'locacao.html', terreno: 'terreno.html', proposta: 'proposta.html', relatorio: 'relatorio.html' };
-const NOME = { locacao: 'Laudo de locação', terreno: 'Laudo de terreno', proposta: 'Proposta', relatorio: 'Relatório de vistoria' };
+const PAG = { locacao: 'locacao.html', terreno: 'terreno.html', proposta: 'proposta.html', relatorio: 'relatorio.html', spt: 'spt.html' };
+const NOME = { locacao: 'Laudo de locação', terreno: 'Laudo de terreno', proposta: 'Proposta', relatorio: 'Relatório de vistoria', spt: 'Sondagem SPT' };
 let lista = [];
 
 (async function iniciar() {

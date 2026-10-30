@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boletim de sondagem SPT</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  main { max-width: 1180px; }
+  .grade4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 14px; }
+  @media (max-width: 760px) { .grade4 { grid-template-columns: 1fr 1fr; } }
+  h3 { margin: 0 0 8px; font-size: 1rem; }
+  table.ed { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  table.ed th { font-size: .72rem; text-transform: uppercase; color: var(--texto-2); text-align: center; padding: 4px; }
+  table.ed td { padding: 2px 3px; text-align: center; }
+  table.ed input, table.ed select { padding: 5px 6px; text-align: center; min-width: 0; }
+  table.ed td.prof { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  table.ed td.n { font-weight: 700; font-size: 1rem; }
+  table.ed td.cls { font-size: .78rem; color: var(--texto-2); text-align: left; }
+  table.ed .desc input { text-align: left; }
+  .x { background: transparent; border: none; color: var(--critico); cursor: pointer; font-size: 1rem; padding: 2px 6px; }
+  .lado { display: grid; grid-template-columns: 1.25fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 960px) { .lado { grid-template-columns: 1fr; } }
+  .dica { font-size: .8rem; color: var(--texto-2); margin: 6px 0 0; }
+  .botoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+
+  /* ---------- boletim impresso ---------- */
+  #boletim { background: #fff; color: #111; width: 210mm; margin: 20px auto; padding: 10mm; box-shadow: 0 2px 10px rgba(0,0,0,.15); font: 9.5px Arial, Helvetica, sans-serif; }
+  #boletim .cab { display: grid; grid-template-columns: 1fr auto; border: 1.5px solid #222; }
+  #boletim .cab .t { padding: 6px 8px; }
+  #boletim .cab .t b { font-size: 13px; display: block; }
+  #boletim .cab .furo { border-left: 1.5px solid #222; padding: 6px 12px; text-align: center; font-size: 10px; }
+  #boletim .cab .furo b { font-size: 18px; display: block; }
+  #boletim table { width: 100%; border-collapse: collapse; }
+  #boletim .id td, #boletim .rod td { border: 1px solid #222; padding: 2px 5px; vertical-align: top; font-size: 10px; line-height: 1.3; }
+  #boletim .id td span { color: #555; display: block; font-size: 8px; text-transform: uppercase; }
+  #boletim .perfil { border: 1.5px solid #222; border-top: none; }
+  #boletim svg { display: block; width: 100%; height: auto; }
+  #boletim .rod td { border: 1px solid #222; padding: 3px 5px; vertical-align: top; }
+  #boletim .assin { text-align: center; padding-top: 22px !important; }
+  #boletim .legenda { font-size: 8px; color: #333; padding: 3px 5px; border: 1px solid #222; border-top: none; }
+  @media print {
+    @page { size: A4 portrait; margin: 8mm; }
+    body { background: #fff; }
+    .topo, main > *:not(#boletim), .rodape { display: none !important; }
+    main { padding: 0; max-width: none; }
+    #boletim { box-shadow: none; margin: 0; width: auto; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="cabecalho">
+    <div><h2>Boletim de sondagem SPT</h2><p>NBR 6484:2020 — golpes a cada 15 cm, N<sub>SPT</sub> = soma dos 30 cm finais, perfil e boletim para impressão.</p></div>
+    <button onclick="window.print()">Imprimir / salvar em PDF</button>
+  </div>
+
+  <section class="painel">
+    <h3>Identificação</h3>
+    <div class="grade4">
+      <div style="grid-column:span 2"><label for="cliente">Cliente / interessado</label><input id="cliente"></div>
+      <div style="grid-column:span 2"><label for="obra">Obra</label><input id="obra"></div>
+      <div style="grid-column:span 2"><label for="local">Local / endereço</label><input id="local" placeholder="Cuiabá-MT"></div>
+      <div><label for="furo">Furo nº</label><input id="furo" value="SP-01"></div>
+      <div><label for="folha">Folha</label><input id="folha" value="1/1"></div>
+      <div><label for="dIni">Início</label><input id="dIni" type="date"></div>
+      <div><label for="dFim">Término</label><input id="dFim" type="date"></div>
+      <div><label for="cota">Cota da boca (m)</label><input id="cota" placeholder="Ex.: 100,00"></div>
+      <div><label for="coord">Coordenadas (UTM / lat-long)</label><input id="coord"></div>
+      <div><label for="revest">Revestimento</label><input id="revest" value="Ø 2½&quot; (63,5 mm)"></div>
+      <div><label for="sondador">Sondador</label><input id="sondador"></div>
+      <div style="grid-column:span 2"><label for="rt">Responsável técnico</label><input id="rt" value="Eng. Civil Diego Nascimento Soares Leal — CREA-MT 37420"></div>
+    </div>
+    <div class="grade4">
+      <div><label for="naIni">NA inicial (m)</label><input id="naIni" placeholder="vazio = não encontrado"></div>
+      <div><label for="naFin">NA após 24 h (m)</label><input id="naFin"></div>
+      <div style="grid-column:span 2"><label for="parada">Critério de paralisação</label>
+        <input id="parada" list="paradas" placeholder="Ex.: impenetrável ao amostrador padrão">
+        <datalist id="paradas"><option>Atingida a profundidade programada</option><option>Impenetrável ao amostrador padrão (NBR 6484:2020, 5.2.4.2)</option><option>Impenetrável ao trépano de lavagem</option><option>Três metros sucessivos com 30 golpes nos 15 cm iniciais</option><option>Quatro metros sucessivos com 50 golpes nos 30 cm iniciais</option></datalist></div>
+    </div>
+  </section>
+
+  <div class="lado" style="margin-top:16px">
+    <section class="painel">
+      <h3>Ensaios por metro</h3>
+      <table class="ed">
+        <thead><tr><th>Prof. (m)</th><th>Avanço</th><th>1º 15</th><th>2º 15</th><th>3º 15</th><th title="Penetração do último trecho, se menor que 15 cm">Pen. 3º (cm)</th><th>N<sub>SPT</sub></th><th>Classificação</th></tr></thead>
+        <tbody id="tbM"></tbody>
+      </table>
+      <div class="botoes"><button type="button" class="sec" id="bMaisM">+ 1 metro</button><button type="button" class="sec" id="bMenosM">− último metro</button></div>
+      <p class="dica">Avanço: TH = trado helicoidal; CA = circulação de água. N = golpes do 2º + 3º trechos. Se o último trecho não completou 15 cm, informe a penetração (ex.: 50 golpes em 8 cm): o boletim mostra 50/8.</p>
+    </section>
+    <section class="painel">
+      <h3>Camadas</h3>
+      <table class="ed">
+        <thead><tr><th>De (m)</th><th>Até (m)</th><th>Descrição do solo</th><th>Origem</th><th></th></tr></thead>
+        <tbody id="tbC"></tbody>
+      </table>
+      <datalist id="solos"><option>Aterro de argila siltosa com entulho</option><option>Argila siltosa</option><option>Argila arenosa</option><option>Argila silto-arenosa</option><option>Silte argiloso</option><option>Silte arenoso</option><option>Areia fina argilosa</option><option>Areia fina a média siltosa</option><option>Areia média a grossa</option><option>Pedregulho laterítico com matriz argilosa</option><option>Filito alterado (silte argiloso)</option></datalist>
+      <div class="botoes"><button type="button" class="sec" id="bMaisC">+ camada</button></div>
+      <p class="dica">Comece a descrição pelo material principal (argila, silte, areia…), acrescente a cor e outras características. A classificação de compacidade ou consistência vem do primeiro termo (Tabela A.1 da NBR 6484).</p>
+      <label for="obs">Observações</label><textarea id="obs" rows="3"></textarea>
+    </section>
+  </div>
+
+  <div id="boletim"></div>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let nM = 10, nC = 2;
+const num = v => { const t = String(v ?? '').trim().replace(',', '.'); if (!t) return null; const n = Number(t); return Number.isFinite(n) ? n : null; };
+const fm = (n, c = 2) => n == null ? '' : n.toFixed(c).replace('.', ',');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- linhas editáveis (os valores ficam nos campos; aqui só se cria/remove linha) ----------
+function guardar(sel) { const v = {}; document.querySelectorAll(sel + ' input, ' + sel + ' select').forEach(el => v[el.id] = el.value); return v; }
+function devolver(v) { for (const [id, val] of Object.entries(v)) { const el = $(id); if (el) el.value = val; } }
+function linhasM() {
+  const v = guardar('#tbM');
+  let h = '';
+  for (let m = 1; m <= nM; m++) h += `<tr><td class="prof">${m},00</td>
+    <td><select id="av${m}"><option>TH</option><option>CA</option></select></td>
+    <td><input id="g1_${m}" inputmode="numeric"></td><td><input id="g2_${m}" inputmode="numeric"></td><td><input id="g3_${m}" inputmode="numeric"></td>
+    <td><input id="p3_${m}" inputmode="numeric" placeholder="15"></td><td class="n" id="n${m}"></td><td class="cls" id="c${m}"></td></tr>`;
+  $('tbM').innerHTML = h; devolver(v);
+  for (let m = 1; m <= nM; m++) if (!v['av' + m]) $('av' + m).value = m <= 1 ? 'TH' : ($('av' + (m - 1)).value || 'TH');
+}
+function linhasC() {
+  const v = guardar('#tbC');
+  let h = '';
+  for (let c = 1; c <= nC; c++) h += `<tr><td><input id="cde${c}" style="width:62px"></td><td><input id="cate${c}" style="width:62px"></td>
+    <td class="desc"><input id="cdesc${c}" list="solos"></td>
+    <td><select id="corig${c}"><option value="">—</option><option>Aterro</option><option>Solo residual</option><option>Solo sedimentar</option><option>Solo laterítico</option><option>Rocha alterada</option></select></td>
+    <td><button type="button" class="x" data-c="${c}" title="Remover camada">✕</button></td></tr>`;
+  $('tbC').innerHTML = h; devolver(v);
+  document.querySelectorAll('#tbC [data-c]').forEach(b => b.onclick = () => removerCamada(+b.dataset.c));
+}
+function removerCamada(c) {
+  for (let k = c; k < nC; k++) for (const p of ['cde', 'cate', 'cdesc', 'corig']) $(p + k).value = $(p + (k + 1)).value;
+  nC--; linhasC(); calcular(); $('obs').dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+// ---------- leitura e cálculo ----------
+function camadas() {
+  const l = [];
+  for (let c = 1; c <= nC; c++) {
+    const de = num($('cde' + c).value), ate = num($('cate' + c).value), desc = $('cdesc' + c).value.trim();
+    if (de != null && ate != null && ate > de) l.push({ de, ate, desc, origem: $('corig' + c).value });
+  }
+  return l.sort((a, b) => a.de - b.de);
+}
+// NBR 6484:2020, Tabela A.1
+function tipoSolo(desc) {
+  const p = desc.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/^ATERRO( DE)?\s*/, '').split(/[\s,\-]+/);
+  if (p[0] === 'AREIA' || p[0] === 'PEDREGULHO' || (p[0] === 'SILTE' && /^AREN/.test(p[1] || ''))) return 'areia';
+  if (p[0] === 'ARGILA' || p[0] === 'SILTE') return 'argila';
+  return null;
+}
+function classifica(N, tipo) {
+  if (N == null || !tipo) return '';
+  if (tipo === 'areia') return N <= 4 ? 'Fofa' : N <= 8 ? 'Pouco compacta' : N <= 18 ? 'Medianamente compacta' : N <= 40 ? 'Compacta' : 'Muito compacta';
+  return N <= 2 ? 'Muito mole' : N <= 5 ? 'Mole' : N <= 10 ? 'Média' : N <= 19 ? 'Rija' : N <= 30 ? 'Muito rija' : 'Dura';
+}
+function ensaios() {
+  const cs = camadas(), l = [];
+  for (let m = 1; m <= nM; m++) {
+    const g = [1, 2, 3].map(k => num($(`g${k}_${m}`).value)), p3 = num($('p3_' + m).value);
+    const vazio = g.every(x => x == null);
+    const N = vazio || g[1] == null ? null : g[1] + (g[2] || 0);
+    const parcial = p3 != null && p3 < 15;
+    // a amostra do ensaio do metro m vai de m a m + 0,45
+    const cam = cs.find(c => m + 0.2 >= c.de && m + 0.2 < c.ate) || cs.find(c => m >= c.de && m <= c.ate);
+    l.push({ m, g, p3, N, parcial, av: $('av' + m).value, cls: classifica(N, cam && tipoSolo(cam.desc)) });
+  }
+  return l;
+}
+function calcular() {
+  for (const e of ensaios()) { $('n' + e.m).textContent = e.N == null ? '' : e.N + (e.parcial ? '*' : ''); $('c' + e.m).textContent = e.cls; }
+  desenharBoletim();
+}
+
+// ---------- boletim com perfil em SVG ----------
+function corSolo(desc) {
+  const t = tipoSolo(desc), d = desc.toUpperCase();
+  if (d.startsWith('ATERRO')) return ['#c9b79c', 'aterro'];
+  if (/^(PEDREG|CASCALHO|LATER)/.test(d)) return ['#c98b5b', 'pedregulho'];
+  if (d.replace(/^ATERRO( DE)?\s*/, '').startsWith('SILTE')) return ['#b9c7a3', 'silte'];
+  if (t === 'areia') return ['#f1dc8e', 'areia'];
+  if (t === 'argila') return ['#d9a68c', 'argila'];
+  return ['#ddd', ''];
+}
+function desenharBoletim() {
+  const E = ensaios(), C = camadas();
+  const prof = Math.max(nM + 0.45, ...C.map(c => c.ate), 1);
+  const na = num($('naIni').value), na24 = num($('naFin').value);
+  const esc1 = 34, topo = 30, H = topo + prof * esc1 + 4;
+  // colunas: prof | cota | amostra | golpes | N gráfico | perfil | descrição
+  const X = { prof: 0, cota: 42, golpes: 84, nNum: 168, graf: 200, perfil: 380, desc: 420, fim: 760 };
+  const y = d => topo + d * esc1;
+  let s = `<svg viewBox="0 0 ${X.fim} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="Arial" font-size="9">
+    <defs>
+      <pattern id="hp-areia" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="#f1dc8e"/><circle cx="2" cy="2" r=".7" fill="#8a6d1a"/><circle cx="5" cy="5" r=".7" fill="#8a6d1a"/></pattern>
+      <pattern id="hp-argila" width="8" height="4" patternUnits="userSpaceOnUse"><rect width="8" height="4" fill="#d9a68c"/><line x1="0" y1="2" x2="8" y2="2" stroke="#8b4a2b" stroke-width=".6"/></pattern>
+      <pattern id="hp-silte" width="8" height="6" patternUnits="userSpaceOnUse"><rect width="8" height="6" fill="#b9c7a3"/><line x1="0" y1="3" x2="3" y2="3" stroke="#4f6234" stroke-width=".7"/><line x1="5" y1="0" x2="8" y2="0" stroke="#4f6234" stroke-width=".7"/></pattern>
+      <pattern id="hp-aterro" width="8" height="8" patternUnits="userSpaceOnUse"><rect width="8" height="8" fill="#c9b79c"/><path d="M0 8L8 0" stroke="#6b5a3f" stroke-width=".6"/></pattern>
+      <pattern id="hp-pedregulho" width="9" height="9" patternUnits="userSpaceOnUse"><rect width="9" height="9" fill="#c98b5b"/><circle cx="3" cy="3" r="1.6" fill="none" stroke="#6b3a17" stroke-width=".6"/><circle cx="7" cy="7" r="1.2" fill="none" stroke="#6b3a17" stroke-width=".6"/></pattern>
+    </defs>
+    <g font-weight="bold" text-anchor="middle" font-size="8">
+      <text x="${(X.prof + X.cota) / 2}" y="12">PROF.</text><text x="${(X.prof + X.cota) / 2}" y="22">(m)</text>
+      <text x="${(X.cota + X.golpes) / 2}" y="12">COTA</text><text x="${(X.cota + X.golpes) / 2}" y="22">(m)</text>
+      <text x="${(X.golpes + X.nNum) / 2}" y="12">GOLPES / 15 cm</text><text x="${(X.golpes + X.nNum) / 2}" y="22">1º  2º  3º</text>
+      <text x="${(X.nNum + X.graf) / 2}" y="12">N</text><text x="${(X.nNum + X.graf) / 2}" y="22">SPT</text>
+      <text x="${(X.graf + X.perfil) / 2}" y="12">GRÁFICO N (golpes/30 cm)</text>
+      <text x="${(X.perfil + X.desc) / 2}" y="12">PERFIL</text>
+      <text x="${(X.desc + X.fim) / 2}" y="12">DESCRIÇÃO DO MATERIAL</text>
+    </g>`;
+  // escala do gráfico de N: 0 a 50
+  const gx = n => X.graf + 6 + Math.min(n, 50) / 50 * (X.perfil - X.graf - 12);
+  for (const v of [0, 10, 20, 30, 40, 50]) s += `<line x1="${gx(v)}" y1="${topo}" x2="${gx(v)}" y2="${H - 4}" stroke="#ccc" stroke-width=".5"/><text x="${gx(v)}" y="${topo - 3}" text-anchor="middle" font-size="7">${v}</text>`;
+  // camadas
+  const cota = num($('cota').value);
+  for (const c of C) {
+    const [cor, pad] = corSolo(c.desc);
+    s += `<rect x="${X.perfil}" y="${y(c.de)}" width="${X.desc - X.perfil}" height="${(c.ate - c.de) * esc1}" fill="${pad ? `url(#hp-${pad})` : cor}" stroke="#222" stroke-width=".6"/>
+      <line x1="${X.desc}" y1="${y(c.ate)}" x2="${X.fim}" y2="${y(c.ate)}" stroke="#222" stroke-width=".6"/>`;
+    const linhasTxt = quebra(`${c.desc}${c.origem ? ' (' + c.origem.toLowerCase() + ')' : ''}`, 62);
+    const meio = (y(c.de) + y(c.ate)) / 2 - (linhasTxt.length - 1) * 5.5;
+    linhasTxt.forEach((t, k) => s += `<text x="${X.desc + 6}" y="${meio + k * 11 + 3}">${esc(t)}</text>`);
+    s += `<text x="${X.fim - 4}" y="${y(c.ate) - 3}" text-anchor="end" font-size="7.5" fill="#444">${fm(c.ate)} m</text>`;
+  }
+  // metros
+  for (let m = 0; m <= Math.floor(prof + 1e-9); m++) {
+    s += `<line x1="0" y1="${y(m)}" x2="${X.perfil}" y2="${y(m)}" stroke="#999" stroke-width=".4"/>`;
+    if (m) s += `<text x="${(X.prof + X.cota) / 2}" y="${y(m) + 3}" text-anchor="middle">${fm(m)}</text>` + (cota != null ? `<text x="${(X.cota + X.golpes) / 2}" y="${y(m) + 3}" text-anchor="middle">${fm(cota - m)}</text>` : '');
+  }
+  // golpes e gráfico
+  const pts = [];
+  for (const e of E) {
+    const yy = y(e.m + 0.225) + 3;
+    const gtxt = e.g.map((g, k) => g == null ? '–' : (k === 2 && e.parcial ? `${g}/${e.p3}` : g));
+    [0, 1, 2].forEach(k => s += `<text x="${X.golpes + 14 + k * 28}" y="${yy}" text-anchor="middle">${gtxt[k]}</text>`);
+    s += `<text x="${(X.nNum + X.graf) / 2}" y="${yy}" text-anchor="middle" font-weight="bold" font-size="10">${e.N == null ? '' : e.N + (e.parcial ? '*' : '')}</text>`;
+    s += `<text x="${(X.nNum + X.graf) / 2}" y="${yy + 9}" text-anchor="middle" font-size="6" fill="#777">${e.av}</text>`;
+    if (e.N != null) pts.push([gx(e.N), y(e.m + 0.225)]);
+  }
+  if (pts.length) s += `<polyline points="${pts.map(p => p.join(',')).join(' ')}" fill="none" stroke="#1f3864" stroke-width="1.4"/>` + pts.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="2.3" fill="#1f3864"/>`).join('');
+  // nível d'água
+  const marcaNA = (d, rot, dx) => `<g><path d="M${X.perfil - 14 + dx} ${y(d) - 7} l7 0 l-3.5 7 z" fill="#1d6fd6"/><line x1="${X.perfil - 18 + dx}" y1="${y(d)}" x2="${X.perfil + 2}" y2="${y(d)}" stroke="#1d6fd6" stroke-width="1"/><text x="${X.perfil - 20 + dx}" y="${y(d) - 1}" text-anchor="end" font-size="7" fill="#1d6fd6">${rot} ${fm(d)}</text></g>`;
+  if (na != null) s += marcaNA(na, 'NA', 0);
+  if (na24 != null && na24 !== na) s += marcaNA(na24, 'NA 24h', -40);
+  // grade externa
+  for (const x of [X.cota, X.golpes, X.nNum, X.graf, X.perfil, X.desc]) s += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="#222" stroke-width=".8"/>`;
+  s += `<line x1="0" y1="${topo}" x2="${X.fim}" y2="${topo}" stroke="#222" stroke-width=".8"/><rect x="0" y="0" width="${X.fim}" height="${H}" fill="none" stroke="#222" stroke-width="1.2"/>`;
+  const ultimo = [...E].reverse().find(e => e.N != null);
+  s += `</svg>`;
+
+  const v = id => esc($(id).value);
+  const data = id => $(id).value ? new Date($(id).value + 'T12:00').toLocaleDateString('pt-BR') : '';
+  $('boletim').innerHTML = `
+    <div class="cab"><div class="t"><b>BOLETIM DE SONDAGEM À PERCUSSÃO — SPT</b>NBR 6484:2020 · Martelo 65 kg, queda 75 cm · Amostrador padrão Ø ext. 50,8 mm / int. 34,9 mm</div>
+      <div class="furo">FURO<b>${v('furo') || '—'}</b>Folha ${v('folha')}</div></div>
+    <table class="id"><tr><td colspan="2"><span>Cliente</span>${v('cliente')}</td><td colspan="2"><span>Obra</span>${v('obra')}</td></tr>
+      <tr><td colspan="2"><span>Local</span>${v('local')}</td><td><span>Coordenadas</span>${v('coord')}</td><td><span>Cota da boca</span>${v('cota') ? v('cota') + ' m' : ''}</td></tr>
+      <tr><td><span>Início</span>${data('dIni')}</td><td><span>Término</span>${data('dFim')}</td><td><span>Revestimento</span>${v('revest')}</td><td><span>Profundidade final</span>${ultimo ? fm(ultimo.m + (30 + (ultimo.parcial ? ultimo.p3 : 15)) / 100) + ' m' : ''}</td></tr>
+      <tr><td><span>NA inicial</span>${na != null ? fm(na) + ' m' : 'Não encontrado'}</td><td><span>NA após 24 h</span>${na24 != null ? fm(na24) + ' m' : (na == null ? 'Não encontrado' : '—')}</td><td colspan="2"><span>Critério de paralisação</span>${v('parada')}</td></tr></table>
+    <div class="perfil">${s}</div>
+    <div class="legenda">TH = trado helicoidal · CA = circulação de água · N<sub>SPT</sub> = golpes do 2º + 3º trechos de 15 cm · golpes/penetração (ex.: 50/8) = trecho incompleto · * N com trecho incompleto. Classificação conforme NBR 6484:2020, Tabela A.1.${$('obs').value.trim() ? '<br><b>Observações:</b> ' + v('obs') : ''}</div>
+    <table class="rod"><tr><td style="width:50%"><span style="font-size:8px;color:#555">SONDADOR</span><br>${v('sondador')}</td>
+      <td class="assin">______________________________________<br>${v('rt')}</td></tr></table>
+    <div style="text-align:right;font-size:7.5px;color:#777;margin-top:3px">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</div>`;
+}
+function quebra(t, n) { const out = []; let l = ''; for (const w of t.split(' ')) { if ((l + ' ' + w).trim().length > n) { out.push(l.trim()); l = w; } else l += ' ' + w; } if (l.trim()) out.push(l.trim()); return out; }
+
+// ---------- montagem ----------
+linhasM(); linhasC();
+$('cde1').value = '0,00';
+$('bMaisM').onclick = () => { nM++; linhasM(); calcular(); $('obs').dispatchEvent(new Event('input', { bubbles: true })); };
+$('bMenosM').onclick = () => { if (nM > 1) { nM--; linhasM(); calcular(); $('obs').dispatchEvent(new Event('input', { bubbles: true })); } };
+$('bMaisC').onclick = () => {
+  nC++; linhasC();
+  const ant = $('cate' + (nC - 1)); if (ant && ant.value) $('cde' + nC).value = ant.value;
+  calcular();
+};
+document.addEventListener('input', e => { if (!e.target.closest('.se-barra')) calcular(); });
+document.addEventListener('change', e => { if (!e.target.closest('.se-barra')) calcular(); });
+calcular();
+
+window.LAUDO_CFG = {
+  tipo: 'spt', nome: 'Boletim SPT',
+  titulo: () => `SPT ${$('furo').value || ''} — ${$('obra').value || $('cliente').value || 'sem obra'}`,
+  valor: () => null,
+  extra: () => ({ nM, nC }),
+  antes: d => { if (d.extra) { nM = d.extra.nM || nM; nC = d.extra.nC || nC; linhasM(); linhasC(); } },
+  depois: () => calcular()
+};
+</script>
+<script src="../comum/laudo-nuvem.js"></script>
+</body>
+</html>
