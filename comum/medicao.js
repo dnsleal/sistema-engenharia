@@ -8,13 +8,15 @@
   };
 
   async function carregar(sb, obraId, bmId) {
+    // itens e lançamentos podem passar de 1.000 linhas: lidos em lotes (SE.todos)
+    const comoResposta = p => p.then(data => ({ data, error: null }), error => ({ data: null, error }));
     const [o, pl, it, ms, li] = await Promise.all([
       sb.from('obras').select('*').eq('id', obraId).single(),
       sb.from('planilhas').select('*').eq('obra_id', obraId).order('tipo', { ascending: false }).order('numero'),
-      sb.from('v_itens_saldo').select('*').eq('obra_id', obraId).order('planilha_numero').order('ordem').limit(10000),
+      comoResposta(SE.todos(() => sb.from('v_itens_saldo').select('*').eq('obra_id', obraId).order('planilha_numero').order('ordem').order('item_id'))),
       sb.from('medicoes').select('*').eq('obra_id', obraId).order('numero'),
-      sb.from('medicao_itens').select('item_id, quantidade, medicao_id, medicoes!inner(obra_id, numero)')
-        .eq('medicoes.obra_id', obraId).limit(100000)
+      comoResposta(SE.todos(() => sb.from('medicao_itens').select('id, item_id, quantidade, medicao_id, medicoes!inner(obra_id, numero)')
+        .eq('medicoes.obra_id', obraId).order('id')))
     ]);
     for (const r of [o, pl, it, ms, li]) if (r.error) throw r.error;
     const bm = ms.data.find(m => m.id === bmId);

@@ -68,7 +68,7 @@ const obraId = P.get('obra'), bmId = P.get('bm');
     sb.from('obras').select('*').eq('id', obraId).single(),
     sb.from('medicoes').select('*').eq('id', bmId).single(),
     sb.from('fotos').select('*').eq('medicao_id', bmId).order('ordem').order('created_at'),
-    sb.from('v_itens_saldo').select('item_id, item, descricao, planilha_tipo, planilha_numero').eq('obra_id', obraId).eq('tipo', 'servico').limit(10000)
+    SE.todos(() => sb.from('v_itens_saldo').select('item_id, item, descricao, planilha_tipo, planilha_numero').eq('obra_id', obraId).eq('tipo', 'servico').order('planilha_numero').order('ordem').order('item_id')).then(data => ({ data }))
   ]);
   if (o.error || m.error || f.error) { $('paginas').innerHTML = '<div class="msg">Não foi possível carregar o relatório.</div>'; return; }
   const fotos = f.data;

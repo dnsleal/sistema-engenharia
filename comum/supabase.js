@@ -27,5 +27,18 @@
     location.replace(raiz() + 'login.html');
   }
 
-  window.SE = { sb, exigirLogin, sair, raiz };
+  // Lê TODAS as linhas de uma consulta, em lotes. O Supabase devolve no máximo
+  // 1.000 linhas por pedido; sem isso, obras grandes apareceriam pela metade.
+  // Uso: const linhas = await SE.todos(() => sb.from('itens').select('*').eq(...).order('ordem'));
+  async function todos(consulta, lote = 1000) {
+    const saida = [];
+    for (let de = 0; ; de += lote) {
+      const { data, error } = await consulta().range(de, de + lote - 1);
+      if (error) throw error;
+      saida.push(...data);
+      if (data.length < lote) return saida;
+    }
+  }
+
+  window.SE = { sb, exigirLogin, sair, raiz, todos };
 })();

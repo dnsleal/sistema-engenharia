@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backup — Sistema de Engenharia</title>
+<link rel="stylesheet" href="comum/estilo.css">
+<style>
+  .opcoes { display: grid; gap: 10px; margin: 6px 0 14px; }
+  .opcoes label { display: flex; gap: 10px; align-items: flex-start; font-weight: 500; color: var(--texto); margin: 0; }
+  .opcoes input { width: auto; margin-top: 3px; }
+  .opcoes small { display: block; color: var(--texto-2); font-weight: 400; }
+  #log { font-family: ui-monospace, Consolas, monospace; font-size: .82rem; background: var(--fundo); border: 1px solid var(--linha); border-radius: 6px; padding: 10px; max-height: 280px; overflow: auto; white-space: pre-wrap; display: none; margin-top: 12px; }
+  ol.passos { padding-left: 20px; line-height: 1.6; }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav>
+    <a href="index.html">Central</a><a href="processos/index.html">Processos</a>
+    <a href="orcamento/index.html">Orçamento</a><a href="laudos/index.html">Documentos</a>
+    <a href="backup.html" class="ativo">Backup</a>
+  </nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+<main>
+  <div class="cabecalho">
+    <div><h2>Backup dos dados</h2><p>O plano gratuito do Supabase não guarda cópia que você possa baixar. Baixe a sua aqui, de preferência todo mês.</p></div>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="painel">
+    <div class="opcoes">
+      <label><input type="checkbox" id="oJson" checked><span><b>Cópia completa (.json)</b><small>Tudo o que está no banco, inclusive laudos com fotos e orçamentos. É a cópia que permite restaurar o sistema.</small></span></label>
+      <label><input type="checkbox" id="oXlsx" checked><span><b>Planilha para consulta (.xlsx)</b><small>Uma aba por tabela (obras, itens, medições, processos…), para abrir no Excel. Campos muito longos ficam resumidos.</small></span></label>
+      <label><input type="checkbox" id="oFotos"><span><b>Fotos dos relatórios fotográficos (.zip)</b><small>Arquivos de imagem dos BMs. Pode demorar e ocupar alguns MB.</small></span></label>
+    </div>
+    <button id="bGerar">Gerar backup</button>
+    <div id="log"></div>
+    <p class="msg" id="msg"></p>
+  </section>
+
+  <section class="painel" style="margin-top:16px">
+    <h3 style="margin:0 0 6px">Guardar no Google Drive</h3>
+    <ol class="passos">
+      <li>Gere o backup acima: os arquivos vão para a pasta de downloads.</li>
+      <li>Abra o Drive (drive.google.com ou o app no celular) e arraste os arquivos para uma pasta <b>Backup Sistema</b>.</li>
+      <li>Guarde pelo menos os 3 últimos meses. O nome de cada arquivo já leva a data.</li>
+    </ol>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="comum/config.js"></script>
+<script src="comum/supabase.js"></script>
+<script src="comum/formatos.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+// ordem pensada para restaurar: primeiro o que outros apontam
+const TABELAS = [
+  ['obras', 'Obras'], ['planilhas', 'Planilhas'], ['itens', 'Itens'], ['cronograma', 'Cronograma'],
+  ['medicoes', 'Medições'], ['medicao_itens', 'Itens medidos'], ['fotos', 'Fotos'], ['notificacoes', 'Notificações'],
+  ['processos', 'Processos'], ['processo_movimentos', 'Movimentações'], ['orcamentos', 'Orçamentos'], ['laudos', 'Documentos']
+];
+let usuario = null;
+
+(async function iniciar() {
+  usuario = await SE.exigirLogin(); if (!usuario) return;
+  $('uEmail').textContent = usuario.email; $('bSair').onclick = SE.sair;
+  $('bGerar').onclick = gerar;
+  let ult = null; try { ult = localStorage.getItem('se_ultimo_backup'); } catch (_) {}
+  const dias = ult ? Math.floor((Date.now() - Date.parse(ult)) / 864e5) : null;
+  $('kpis').innerHTML = `<div class="kpi ${dias == null || dias > 30 ? 'critico' : ''}"><div class="rotulo">Último backup neste navegador</div>
+    <div class="valor">${ult ? new Date(ult).toLocaleDateString('pt-BR') : 'nunca'}</div><div class="det">${dias == null ? 'faça o primeiro agora' : dias > 30 ? `há ${dias} dias — recomendado: todo mês` : `há ${dias} dia(s)`}</div></div>`;
+})();
+
+const log = t => { $('log').style.display = 'block'; $('log').textContent += t + '\n'; $('log').scrollTop = 1e9; };
+const dataArq = () => new Date().toISOString().slice(0, 10);
+function baixar(blob, nome) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+
+async function gerar() {
+  if (!$('oJson').checked && !$('oXlsx').checked && !$('oFotos').checked) { $('msg').textContent = 'Marque pelo menos uma opção.'; return; }
+  $('bGerar').disabled = true; $('log').textContent = ''; $('msg').textContent = '';
+  try {
+    const dados = {};
+    for (const [t, rot] of TABELAS) {
+      dados[t] = await SE.todos(() => sb.from(t).select('*').order('id'));
+      log(`${rot}: ${dados[t].length} linha(s)`);
+    }
+    const total = Object.values(dados).reduce((s, l) => s + l.length, 0);
+
+    if ($('oJson').checked) {
+      const doc = { app: 'sistema-engenharia', versao: 1, gerado_em: new Date().toISOString(), usuario: usuario.email, tabelas: dados };
+      baixar(new Blob([JSON.stringify(doc)], { type: 'application/json' }), `backup-sistema-engenharia-${dataArq()}.json`);
+      log('✓ Cópia completa (.json) gerada.');
+    }
+
+    if ($('oXlsx').checked) {
+      const wb = XLSX.utils.book_new();
+      const resumo = [['Backup do Sistema de Engenharia'], ['Gerado em', new Date().toLocaleString('pt-BR')], ['Usuário', usuario.email], [],
+        ['Tabela', 'Linhas'], ...TABELAS.map(([t, rot]) => [rot, dados[t].length]), ['Total', total], [],
+        ['Observação', 'Campos com mais de 30.000 caracteres (orçamentos e documentos com fotos) aparecem resumidos; a cópia .json traz tudo.']];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
+      for (const [t, rot] of TABELAS) {
+        const linhas = dados[t].map(r => {
+          const o = {};
+          for (const [k, v] of Object.entries(r)) {
+            let x = (v !== null && typeof v === 'object') ? JSON.stringify(v) : v;
+            if (typeof x === 'string' && x.length > 30000) x = x.slice(0, 200) + ` … [resumido: ${x.length} caracteres — ver o .json]`;
+            o[k] = x;
+          }
+          return o;
+        });
+        const ws = linhas.length ? XLSX.utils.json_to_sheet(linhas) : XLSX.utils.aoa_to_sheet([['(sem dados)']]);
+        XLSX.utils.book_append_sheet(wb, ws, rot.slice(0, 31));
+      }
+      XLSX.writeFile(wb, `backup-sistema-engenharia-${dataArq()}.xlsx`);
+      log('✓ Planilha (.xlsx) gerada.');
+    }
+
+    if ($('oFotos').checked) {
+      const fotos = dados.fotos;
+      if (!fotos.length) log('Fotos: nenhuma foto de BM cadastrada.');
+      else {
+        const zip = new JSZip(), obras = Object.fromEntries(dados.obras.map(o => [o.id, o.nome]));
+        const bms = Object.fromEntries(dados.medicoes.map(m => [m.id, m.numero]));
+        const limpo = s => String(s || 'sem-nome').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w\- ]+/g, '').trim().slice(0, 50);
+        const lista = [['arquivo', 'obra', 'bm', 'legenda', 'data']];
+        for (let i = 0; i < fotos.length; i += 50) {
+          const lote = fotos.slice(i, i + 50);
+          const { data: ass, error } = await sb.storage.from('fotos').createSignedUrls(lote.map(f => f.caminho), 600);
+          if (error) throw error;
+          for (let k = 0; k < lote.length; k++) {
+            const f = lote[k], url = ass[k] && ass[k].signedUrl;
+            if (!url) continue;
+            const nome = `${limpo(obras[f.obra_id])}/BM${String(bms[f.medicao_id] || 0).padStart(2, '0')}/${String(f.ordem + 1).padStart(3, '0')}-${f.id.slice(0, 8)}.jpg`;
+            zip.file(nome, await (await fetch(url)).blob());
+            lista.push([nome, obras[f.obra_id] || '', bms[f.medicao_id] || '', f.legenda || '', f.data || '']);
+          }
+          log(`Fotos: ${Math.min(i + 50, fotos.length)} de ${fotos.length}`);
+        }
+        zip.file('lista-de-fotos.csv', lista.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n'));
+        baixar(await zip.generateAsync({ type: 'blob' }), `backup-fotos-${dataArq()}.zip`);
+        log('✓ Fotos (.zip) geradas.');
+      }
+    }
+    try { localStorage.setItem('se_ultimo_backup', new Date().toISOString()); } catch (_) {}
+    $('msg').className = 'msg ok'; $('msg').textContent = `Backup concluído: ${total} linha(s) em ${TABELAS.length} tabelas. Guarde os arquivos no Drive.`;
+  } catch (e) {
+    $('msg').className = 'msg erro'; $('msg').textContent = 'Erro no backup: ' + e.message;
+  } finally { $('bGerar').disabled = false; }
+}
+</script>
+</body>
+</html>

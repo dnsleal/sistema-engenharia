@@ -90,8 +90,8 @@ let userId = null, fotos = [], itens = [], urls = {};
   const [o, m, it] = await Promise.all([
     sb.from('obras').select('nome').eq('id', obraId).single(),
     sb.from('medicoes').select('numero, periodo_inicio, periodo_fim').eq('id', bmId).single(),
-    sb.from('v_itens_saldo').select('item_id, item, descricao, tipo, planilha_tipo, planilha_numero, ordem').eq('obra_id', obraId)
-      .eq('tipo', 'servico').order('planilha_numero').order('ordem').limit(10000)
+    SE.todos(() => sb.from('v_itens_saldo').select('item_id, item, descricao, tipo, planilha_tipo, planilha_numero, ordem').eq('obra_id', obraId)
+      .eq('tipo', 'servico').order('planilha_numero').order('ordem').order('item_id')).then(data => ({ data }))
   ]);
   if (o.error || m.error) { $('sub').textContent = 'BM não encontrado.'; return; }
   const n = String(m.data.numero).padStart(2, '0');

@@ -230,7 +230,9 @@ function desenharEtapas(lista, o) {
 
 async function carregarItens() {
   if (!planilhas.length) { $('itens').innerHTML = '<tr><td colspan="9" class="vazio">Nenhuma planilha importada.</td></tr>'; return; }
-  const { data, error } = await sb.from('v_itens_saldo').select('*').eq('obra_id', obraId).order('planilha_numero').order('ordem').limit(5000);
+  let data, error = null;
+  try { data = await SE.todos(() => sb.from('v_itens_saldo').select('*').eq('obra_id', obraId).order('planilha_numero').order('ordem').order('item_id')); }
+  catch (e) { error = e; }
   if (error) { $('itens').innerHTML = `<tr><td colspan="9" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
   itens = data;
   desenharItens();
