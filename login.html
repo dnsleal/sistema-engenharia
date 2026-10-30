@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Entrar — Sistema de Engenharia</title>
+<link rel="stylesheet" href="comum/estilo.css">
+<style>
+  body { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
+  .caixa { width: min(400px, 100%); }
+  .marca { text-align: center; margin-bottom: 18px; }
+  .marca h1 { font-size: 1.3rem; margin: 0; color: var(--marinho); }
+  .marca p { margin: 4px 0 0; color: var(--texto-2); font-size: .88rem; }
+  .acoes { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+  .acoes button { justify-content: center; }
+  .links { display: flex; justify-content: space-between; margin-top: 14px; font-size: .85rem; }
+  .links a { cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="caixa">
+  <div class="marca">
+    <h1>Sistema de Engenharia</h1>
+    <p>Obras, medições, orçamentos e laudos</p>
+  </div>
+  <form class="painel" id="form">
+    <label for="email">E-mail</label>
+    <input id="email" type="email" autocomplete="email" required>
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" autocomplete="current-password" minlength="8" required>
+    <div class="acoes">
+      <button type="submit" id="bEntrar">Entrar</button>
+    </div>
+    <div class="links">
+      <a id="lCriar">Criar conta</a>
+      <a id="lEsqueci">Esqueci a senha</a>
+    </div>
+    <div class="msg" id="msg" role="status"></div>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="comum/config.js"></script>
+<script src="comum/supabase.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+let modo = 'entrar';   // entrar | criar | recuperar
+
+function msg(t, tipo) { $('msg').className = 'msg ' + (tipo || ''); $('msg').textContent = t || ''; }
+function destino() {
+  const v = new URLSearchParams(location.search).get('voltar');
+  return v && v.startsWith('/') ? v : 'index.html';
+}
+function trocarModo(m) {
+  modo = m; msg('');
+  $('bEntrar').textContent = { entrar: 'Entrar', criar: 'Criar conta', recuperar: 'Enviar link de nova senha' }[m];
+  $('senha').closest('form').querySelector('label[for=senha]').style.display = m === 'recuperar' ? 'none' : '';
+  $('senha').style.display = m === 'recuperar' ? 'none' : '';
+  $('senha').required = m !== 'recuperar';
+  $('senha').autocomplete = m === 'criar' ? 'new-password' : 'current-password';
+  $('lCriar').textContent = m === 'entrar' ? 'Criar conta' : 'Voltar para entrar';
+}
+$('lCriar').onclick = () => trocarModo(modo === 'entrar' ? 'criar' : 'entrar');
+$('lEsqueci').onclick = () => trocarModo('recuperar');
+
+// Já está logado? vai direto.
+sb.auth.getSession().then(({ data }) => { if (data.session) location.replace(destino()); });
+
+$('form').onsubmit = async e => {
+  e.preventDefault();
+  const email = $('email').value.trim(), senha = $('senha').value;
+  $('bEntrar').disabled = true; msg('Aguarde…');
+  try {
+    if (modo === 'entrar') {
+      const { error } = await sb.auth.signInWithPassword({ email, password: senha });
+      if (error) throw error;
+      location.replace(destino());
+    } else if (modo === 'criar') {
+      const { data, error } = await sb.auth.signUp({
+        email, password: senha,
+        options: { emailRedirectTo: location.href.split('?')[0] }
+      });
+      if (error) throw error;
+      if (data.session) location.replace(destino());
+      else msg('Conta criada. Abra o e-mail de confirmação que enviamos e depois entre aqui.', 'ok');
+    } else {
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('?')[0] });
+      if (error) throw error;
+      msg('Se o e-mail estiver cadastrado, chegará um link para criar nova senha.', 'ok');
+    }
+  } catch (err) {
+    const t = String(err.message || err);
+    msg(/Invalid login/i.test(t) ? 'E-mail ou senha incorretos.'
+      : /Email not confirmed/i.test(t) ? 'Confirme o e-mail antes de entrar (veja sua caixa de entrada).'
+      : /Password should be/i.test(t) ? 'A senha precisa ter pelo menos 8 caracteres.'
+      : 'Não foi possível concluir: ' + t, 'erro');
+  } finally { $('bEntrar').disabled = false; }
+};
+
+// Volta do link "esqueci a senha": pede a nova senha.
+sb.auth.onAuthStateChange(async (ev) => {
+  if (ev === 'PASSWORD_RECOVERY') {
+    const nova = prompt('Digite a nova senha (mínimo 8 caracteres):');
+    if (nova) {
+      const { error } = await sb.auth.updateUser({ password: nova });
+      msg(error ? 'Erro ao trocar a senha: ' + error.message : 'Senha alterada. Entrando…', error ? 'erro' : 'ok');
+      if (!error) location.replace('index.html');
+    }
+  }
+});
+</script>
+</body>
+</html>

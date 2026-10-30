@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Central de Monitoramento — Sistema de Engenharia</title>
+<link rel="stylesheet" href="comum/estilo.css">
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav>
+    <a href="index.html" class="ativo">Central</a>
+    <a title="Fase 2">Medições</a>
+    <a title="Fase 4">Orçamento</a>
+    <a title="Fase 5">Laudos</a>
+  </nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div>
+      <h2>Central de Monitoramento</h2>
+      <p>Situação de todas as obras fiscalizadas, atualizada a cada medição.</p>
+    </div>
+    <button id="bNova">+ Nova obra</button>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="painel">
+    <div class="tabela-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Obra</th><th>Contratada</th><th>Contrato</th>
+            <th class="n">Valor total</th><th>Executado</th><th class="n">Saldo</th>
+            <th class="n">Aditivo</th><th class="n">BM</th><th>Término</th><th>Situação</th>
+          </tr>
+        </thead>
+        <tbody id="linhas"><tr><td colspan="10" class="vazio">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<!-- Cadastro / edição de obra -->
+<dialog id="dObra">
+  <form method="dialog" id="fObra">
+    <header id="dTitulo">Nova obra</header>
+    <div class="corpo">
+      <label for="o_nome">Nome da obra *</label>
+      <input id="o_nome" required placeholder="Ex.: CMEI Altos do São Gonçalo">
+      <label for="o_objeto">Objeto</label>
+      <textarea id="o_objeto" rows="2"></textarea>
+      <div class="grade2">
+        <div><label for="o_contratante">Contratante</label><input id="o_contratante" placeholder="Ex.: SMECEL"></div>
+        <div><label for="o_contratada">Contratada</label><input id="o_contratada"></div>
+        <div><label for="o_cnpj">CNPJ da contratada</label><input id="o_cnpj"></div>
+        <div><label for="o_contrato">Nº do contrato</label><input id="o_contrato"></div>
+        <div><label for="o_siged">Nº do processo (SIGED)</label><input id="o_siged"></div>
+        <div><label for="o_tipo">Tipo (limite de aditivo)</label>
+          <select id="o_tipo"><option value="obra">Obra — 25%</option><option value="reforma">Reforma — 50%</option></select></div>
+      </div>
+      <label for="o_endereco">Endereço</label>
+      <input id="o_endereco">
+      <div class="grade3">
+        <div><label for="o_valor">Valor do contrato (R$)</label><input id="o_valor" inputmode="decimal"></div>
+        <div><label for="o_desc">Desconto (%)</label><input id="o_desc" inputmode="decimal"></div>
+        <div><label for="o_bdi">BDI (%)</label><input id="o_bdi" inputmode="decimal"></div>
+        <div><label for="o_inicio">Início</label><input id="o_inicio" type="date"></div>
+        <div><label for="o_prazo">Prazo (dias)</label><input id="o_prazo" type="number" min="0"></div>
+        <div><label for="o_termino">Término vigente</label><input id="o_termino" type="date"></div>
+        <div><label for="o_reaj">Reajuste (%)</label><input id="o_reaj" inputmode="decimal"></div>
+        <div><label for="o_status">Situação</label>
+          <select id="o_status">
+            <option value="em_andamento">Em andamento</option><option value="paralisada">Paralisada</option>
+            <option value="concluida">Concluída</option><option value="encerrada">Encerrada</option>
+          </select></div>
+      </div>
+      <label for="o_obs">Observações</label>
+      <textarea id="o_obs" rows="2"></textarea>
+      <div class="msg" id="oMsg"></div>
+    </div>
+    <footer>
+      <button type="button" class="sec" id="bCancelar">Cancelar</button>
+      <button type="submit" id="bSalvar">Salvar</button>
+    </footer>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="comum/config.js"></script>
+<script src="comum/supabase.js"></script>
+<script src="comum/formatos.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+let obras = [];
+let editando = null;
+
+const SITUACAO = {
+  em_andamento: ['Em andamento', 'ok'], paralisada: ['Paralisada', 'alerta'],
+  concluida: ['Concluída', 'neutro'], encerrada: ['Encerrada', 'neutro']
+};
+
+(async function iniciar() {
+  const user = await SE.exigirLogin();
+  if (!user) return;
+  $('uEmail').textContent = user.email;
+  $('bSair').onclick = SE.sair;
+  $('bNova').onclick = () => abrir(null);
+  $('bCancelar').onclick = () => $('dObra').close();
+  $('fObra').onsubmit = salvar;
+  await carregar();
+})();
+
+async function carregar() {
+  const { data, error } = await sb.from('v_obras_resumo').select('*').order('nome');
+  if (error) { $('linhas').innerHTML = `<tr><td colspan="10" class="vazio">Erro ao carregar: ${F.esc(error.message)}</td></tr>`; return; }
+  obras = data;
+  desenharKpis();
+  desenharTabela();
+}
+
+function desenharKpis() {
+  const ativas = obras.filter(o => !['concluida', 'encerrada'].includes(o.status));
+  const soma = k => ativas.reduce((s, o) => s + Number(o[k] || 0), 0);
+  const total = soma('valor_total'), exec = soma('valor_executado');
+  const vencidas = ativas.filter(o => o.prazo_vencido).length;
+  const acimaLimite = ativas.filter(o => o.pct_aditivo != null && Number(o.pct_aditivo) > Number(o.limite_aditivo_pct)).length;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="rotulo">Obras ativas</div><div class="valor">${ativas.length}</div><div class="det">${obras.length} cadastradas</div></div>
+    <div class="kpi"><div class="rotulo">Valor contratado</div><div class="valor">${F.rs(total)}</div><div class="det">original + aditivos</div></div>
+    <div class="kpi"><div class="rotulo">Executado</div><div class="valor">${F.rs(exec)}</div><div class="det">${total ? F.pct(exec / total * 100) : '—'} do total</div></div>
+    <div class="kpi"><div class="rotulo">Saldo a executar</div><div class="valor">${F.rs(total - exec)}</div></div>
+    <div class="kpi ${vencidas ? 'critico' : ''}"><div class="rotulo">Prazo vencido</div><div class="valor">${vencidas}</div><div class="det">obras após o término vigente</div></div>
+    <div class="kpi ${acimaLimite ? 'critico' : ''}"><div class="rotulo">Aditivo acima do limite</div><div class="valor">${acimaLimite}</div><div class="det">25% obra · 50% reforma</div></div>`;
+}
+
+function desenharTabela() {
+  if (!obras.length) {
+    $('linhas').innerHTML = '<tr><td colspan="10" class="vazio">Nenhuma obra cadastrada. Clique em <b>+ Nova obra</b> para começar.</td></tr>';
+    return;
+  }
+  $('linhas').innerHTML = obras.map(o => {
+    const [txt, cls] = SITUACAO[o.status] || [o.status, 'neutro'];
+    const pct = Number(o.pct_executado || 0);
+    const acima = o.pct_aditivo != null && Number(o.pct_aditivo) > Number(o.limite_aditivo_pct);
+    let sit = `<span class="etiqueta ${cls}">${txt}</span>`;
+    if (o.prazo_vencido) sit += ` <span class="etiqueta critico">Prazo vencido</span>`;
+    else if (o.dias_restantes != null && o.dias_restantes <= 30 && !['concluida','encerrada'].includes(o.status))
+      sit += ` <span class="etiqueta alerta">${o.dias_restantes} dias</span>`;
+    return `<tr data-id="${o.obra_id}" style="cursor:pointer" title="Clique para editar os dados da obra">
+      <td><b>${F.esc(o.nome)}</b></td>
+      <td>${F.esc(o.contratada || '—')}</td>
+      <td>${F.esc(o.num_contrato || '—')}</td>
+      <td class="n">${F.rs(o.valor_total)}</td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="barra" style="flex:1"><span style="width:${Math.min(pct, 100)}%"></span></div><span class="n" style="min-width:56px">${F.pct(o.pct_executado)}</span></div></td>
+      <td class="n">${F.rs(o.valor_saldo)}</td>
+      <td class="n" style="${acima ? 'color:var(--critico);font-weight:600' : ''}">${F.pct(o.pct_aditivo)}</td>
+      <td class="n">${o.ultimo_bm ?? '—'}</td>
+      <td>${F.data(o.termino_vigente)}</td>
+      <td>${sit}</td></tr>`;
+  }).join('');
+  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => abrir(tr.dataset.id));
+}
+
+const CAMPOS = {
+  o_nome: 'nome', o_objeto: 'objeto', o_contratante: 'contratante', o_contratada: 'contratada',
+  o_cnpj: 'cnpj_contratada', o_contrato: 'num_contrato', o_siged: 'processo_siged', o_tipo: 'tipo_obra',
+  o_endereco: 'endereco', o_inicio: 'data_inicio', o_prazo: 'prazo_dias', o_termino: 'termino_vigente',
+  o_status: 'status', o_obs: 'observacoes'
+};
+const NUMEROS = { o_valor: 'valor_contrato', o_desc: 'desconto_pct', o_bdi: 'bdi_pct', o_reaj: 'reajuste_pct' };
+
+async function abrir(id) {
+  editando = id;
+  $('fObra').reset(); $('oMsg').textContent = '';
+  $('dTitulo').textContent = id ? 'Editar obra' : 'Nova obra';
+  if (id) {
+    const { data, error } = await sb.from('obras').select('*').eq('id', id).single();
+    if (error) { alert('Erro: ' + error.message); return; }
+    for (const [el, col] of Object.entries(CAMPOS)) $(el).value = data[col] ?? '';
+    for (const [el, col] of Object.entries(NUMEROS)) $(el).value = data[col] == null ? '' : F.num(data[col], col === 'valor_contrato' ? 2 : 2);
+  }
+  $('dObra').showModal();
+  $('o_nome').focus();
+}
+
+async function salvar(e) {
+  e.preventDefault();
+  const reg = {};
+  for (const [el, col] of Object.entries(CAMPOS)) { const v = $(el).value.trim(); reg[col] = v === '' ? null : v; }
+  for (const [el, col] of Object.entries(NUMEROS)) reg[col] = F.lerNum($(el).value);
+  if (reg.prazo_dias != null) reg.prazo_dias = parseInt(reg.prazo_dias, 10);
+  if (reg.desconto_pct == null) reg.desconto_pct = 0;
+  if (reg.reajuste_pct == null) reg.reajuste_pct = 0;
+  if (!reg.nome) { $('oMsg').className = 'msg erro'; $('oMsg').textContent = 'Informe o nome da obra.'; return; }
+
+  $('bSalvar').disabled = true;
+  try {
+    if (editando) {
+      const { error } = await sb.from('obras').update(reg).eq('id', editando);
+      if (error) throw error;
+    } else {
+      const { data, error } = await sb.from('obras').insert(reg).select('id').single();
+      if (error) throw error;
+      // toda obra nasce com a sua planilha original (vazia, preenchida na fase 1)
+      const { error: e2 } = await sb.from('planilhas').insert({ obra_id: data.id, tipo: 'original', numero: 0, data: reg.data_inicio });
+      if (e2) throw e2;
+    }
+    $('dObra').close();
+    await carregar();
+  } catch (err) {
+    $('oMsg').className = 'msg erro'; $('oMsg').textContent = 'Erro ao salvar: ' + err.message;
+  } finally { $('bSalvar').disabled = false; }
+}
+</script>
+</body>
+</html>
