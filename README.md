@@ -12,7 +12,7 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 | 1 | Importar planilha orçamentária, aditivos, cronograma; página da obra | pronto |
 | 2 | Medições (BM): lançamento, fechamento, boletim em PDF | pronto |
 | 3 | Relatório fotográfico por BM (4 fotos por página, PDF) | pronto |
-| 4 | Orçamento SINAPI-MT | a fazer |
+| 4 | Orçamento SINAPI-MT (base pronta 09/2026, analítico, salvo no sistema, vira planilha da obra) | pronto |
 | 5 | Laudos de avaliação (locação e terreno) | a fazer |
 | 6 | Propostas e ferramentas de cálculo | a fazer |
 
@@ -27,6 +27,9 @@ obras/boletim.html    Boletim de medição para imprimir ou salvar em PDF
 obras/fotos.html      Fotos do BM: enviar (câmera ou arquivos), legenda, item, ordem
 obras/relatorio-fotos.html  Relatório fotográfico do BM para imprimir ou salvar em PDF
 login.html            Entrar, criar conta, recuperar senha
+orcamento/index.html  App de orçamento (Orçamento Offline) ligado ao sistema
+orcamento/nuvem.js    Login, orçamentos no banco, base pronta, analítico, virar planilha da obra
+orcamento/bases/      Bases SINAPI prontas (só MT) em JSON; index.json lista as disponíveis
 comum/
   config.js           Endereço e chave pública do Supabase
   supabase.js         Conexão e controle de login
@@ -54,3 +57,9 @@ supabase/migrations/  SQL que cria o banco, em ordem (0001, 0002…)
 5. Publique os arquivos (Vercel, Netlify ou GitHub Pages) e crie a sua conta pela tela de login.
 
 Nunca coloque no código a chave secreta (`service_role` / `sb_secret_…`).
+
+## Bases SINAPI prontas
+
+`orcamento/bases/sinapi-mt-AAAA-MM.json` traz, só para MT: insumos e composições nos dois regimes (desonerado e não desonerado), a composição analítica, o % de mão de obra e o preço de SP (%AS) dos insumos sem preço em MT. Composições com custo zero em MT ficam fora da busca.
+
+Para incluir um mês novo, gere o arquivo a partir dos relatórios da CAIXA (SINAPI_Referência e SINAPI_mão_de_obra) e acrescente uma linha em `orcamento/bases/index.json`. Também é possível importar o mês direto no app (Bancos de dados → Importar planilha); nesse caso a base fica só no navegador onde foi importada.
