@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Processos SIGED — Sistema de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css">
+<style>
+  .filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros input, .filtros select { width: auto; min-width: 190px; }
+  .kpi { cursor: pointer; }
+  .kpi.sel { outline: 2px solid var(--azul); }
+  .kpi.alerta .valor { color: var(--alerta); }
+  td.num { font-family: ui-monospace, Consolas, monospace; font-size: .85rem; white-space: nowrap; }
+  td.assunto { min-width: 220px; }
+  .sub { color: var(--texto-2); font-size: .8rem; }
+  .dica { font-size: .82rem; color: var(--texto-2); margin: 4px 0 0; }
+  .limite { font-weight: 600; }
+  .movs { margin-top: 14px; border-top: 1px solid var(--linha); padding-top: 10px; }
+  .movs h4 { margin: 0 0 8px; font-size: .95rem; }
+  .mov { display: grid; grid-template-columns: 92px 1fr auto; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--linha); font-size: .88rem; }
+  .mov .d { color: var(--texto-2); font-variant-numeric: tabular-nums; }
+  .mov button { padding: 2px 8px; font-size: .75rem; border-color: var(--critico); color: var(--critico); background: transparent; }
+  .novo-mov { display: grid; grid-template-columns: 140px 1fr; gap: 0 10px; margin-top: 8px; }
+  @media (max-width: 640px) { .novo-mov { grid-template-columns: 1fr; } .mov { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema de Engenharia</h1>
+  <nav>
+    <a href="../index.html">Central</a>
+    <a href="index.html" class="ativo">Processos</a>
+    <a href="../orcamento/index.html">Orçamento</a>
+    <a href="../laudos/index.html">Documentos</a>
+  </nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div>
+      <h2>Processos SIGED</h2>
+      <p id="subt">Prazos, respostas e histórico dos processos acompanhados.</p>
+    </div>
+    <button id="bNovo">+ Novo processo</button>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="painel">
+    <div class="filtros">
+      <input id="busca" type="search" placeholder="Buscar nº, assunto ou interessado">
+      <select id="fStatus">
+        <option value="abertos">Em aberto</option>
+        <option value="">Todos</option>
+        <option value="recebido">Recebido</option>
+        <option value="em_analise">Em análise</option>
+        <option value="aguardando">Aguardando terceiros</option>
+        <option value="respondido">Respondido</option>
+        <option value="arquivado">Arquivado</option>
+      </select>
+      <select id="fObra"><option value="">Todas as obras</option></select>
+    </div>
+    <div class="tabela-wrap">
+      <table>
+        <thead><tr><th>Nº SIGED</th><th>Assunto</th><th>Obra</th><th>Entrada</th><th>Data-limite</th><th>Situação</th><th>Status</th></tr></thead>
+        <tbody id="linhas"><tr><td colspan="7" class="vazio">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="dica">Prazo: não se conta o dia de entrada; vencimento em fim de semana, feriado ou ponto facultativo (Carnaval, Corpus Christi) passa para o próximo dia útil. Atraso sem tolerância: 1 dia depois da data-limite já é vencido.</p>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<dialog id="dProc">
+  <form method="dialog" id="fProc">
+    <header id="dTitulo">Novo processo</header>
+    <div class="corpo">
+      <div class="grade2">
+        <div><label for="p_numero">Nº do processo (SIGED) *</label><input id="p_numero" required placeholder="Ex.: SMECEL.2026.012345"></div>
+        <div><label for="p_tipo">Tipo</label><input id="p_tipo" list="tipos" placeholder="Ofício, notificação, pedido…">
+          <datalist id="tipos"><option>Ofício</option><option>Notificação</option><option>Pedido de aditivo</option><option>Medição</option><option>Recurso</option><option>Parecer técnico</option><option>Diligência</option></datalist></div>
+      </div>
+      <label for="p_assunto">Assunto *</label><input id="p_assunto" required>
+      <div class="grade2">
+        <div><label for="p_interessado">Interessado / órgão de origem</label><input id="p_interessado"></div>
+        <div><label for="p_obra">Obra vinculada</label><select id="p_obra"><option value="">— nenhuma —</option></select></div>
+      </div>
+      <div class="grade3">
+        <div><label for="p_entrada">Data de entrada / ciência *</label><input id="p_entrada" type="date" required></div>
+        <div><label for="p_prazo">Prazo (dias)</label><input id="p_prazo" type="number" min="0" placeholder="Ex.: 15"></div>
+        <div><label for="p_contagem">Contagem</label><select id="p_contagem"><option value="corridos">Dias corridos</option><option value="uteis">Dias úteis</option></select></div>
+      </div>
+      <div class="grade3">
+        <div><label for="p_limite">Data-limite</label><input id="p_limite" type="date"></div>
+        <div><label for="p_status">Status</label>
+          <select id="p_status"><option value="recebido">Recebido</option><option value="em_analise">Em análise</option><option value="aguardando">Aguardando terceiros</option><option value="respondido">Respondido</option><option value="arquivado">Arquivado</option></select></div>
+        <div><label for="p_respondido">Respondido em</label><input id="p_respondido" type="date"></div>
+      </div>
+      <p class="dica" id="infoLimite"></p>
+      <div class="grade2">
+        <div><label for="p_responsavel">Responsável</label><input id="p_responsavel"></div>
+        <div><label for="p_link">Link do processo</label><input id="p_link" type="url" placeholder="https://…"></div>
+      </div>
+      <label for="p_obs">Observações</label><textarea id="p_obs" rows="2"></textarea>
+
+      <div class="movs" id="cxMovs" style="display:none">
+        <h4>Histórico de movimentações</h4>
+        <div id="movs"></div>
+        <div class="novo-mov">
+          <div><label for="m_data">Data</label><input id="m_data" type="date"></div>
+          <div><label for="m_desc">O que aconteceu</label><input id="m_desc" placeholder="Ex.: Encaminhado ao jurídico; resposta enviada pelo ofício nº…"></div>
+          <div><label for="m_destino">Tramitado para</label><input id="m_destino" placeholder="Setor / órgão"></div>
+          <div><label for="m_doc">Documento</label><input id="m_doc" placeholder="Nº do despacho, ofício ou parecer"></div>
+        </div>
+        <button type="button" class="sec" id="bAddMov" style="margin-top:8px">+ Registrar movimentação</button>
+      </div>
+      <div class="msg" id="pMsg"></div>
+    </div>
+    <footer>
+      <button type="button" class="sec" id="bExcluir" style="margin-right:auto;border-color:var(--critico);color:var(--critico);display:none">Excluir</button>
+      <button type="button" class="sec" id="bRespondido" style="display:none">Marcar respondido hoje</button>
+      <button type="button" class="sec" id="bCancelar">Fechar</button>
+      <button type="submit" id="bSalvar">Salvar</button>
+    </footer>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js"></script>
+<script src="../comum/supabase.js"></script>
+<script src="../comum/formatos.js"></script>
+<script src="../comum/prazos.js"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const STATUS = { recebido: 'Recebido', em_analise: 'Em análise', aguardando: 'Aguardando terceiros', respondido: 'Respondido', arquivado: 'Arquivado' };
+const FECHADOS = ['respondido', 'arquivado'];
+let lista = [], obras = [], editando = null, filtroKpi = null, limiteManual = false;
+
+(async function iniciar() {
+  const u = await SE.exigirLogin(); if (!u) return;
+  $('uEmail').textContent = u.email; $('bSair').onclick = SE.sair;
+  const obraParam = new URLSearchParams(location.search).get('obra');
+  const { data: ob } = await sb.from('obras').select('id, nome').order('nome');
+  obras = ob || [];
+  const opts = obras.map(o => `<option value="${o.id}">${F.esc(o.nome)}</option>`).join('');
+  $('fObra').innerHTML += opts; $('p_obra').innerHTML += opts;
+  if (obraParam) { $('fObra').value = obraParam; $('fStatus').value = ''; }
+  for (const id of ['busca']) $(id).oninput = desenhar;
+  for (const id of ['fStatus', 'fObra']) $(id).onchange = () => { filtroKpi = null; desenhar(); };
+  $('bNovo').onclick = () => abrir(null);
+  $('bCancelar').onclick = () => $('dProc').close();
+  $('fProc').onsubmit = salvar;
+  for (const id of ['p_entrada', 'p_prazo', 'p_contagem']) $(id).oninput = () => { limiteManual = false; recalcLimite(); };
+  $('p_limite').oninput = () => { limiteManual = true; recalcLimite(); };
+  $('p_status').onchange = () => { if (FECHADOS.includes($('p_status').value) && !$('p_respondido').value && $('p_status').value === 'respondido') $('p_respondido').value = Prazos.hoje(); recalcLimite(); };
+  $('bRespondido').onclick = () => { $('p_status').value = 'respondido'; $('p_respondido').value = Prazos.hoje(); recalcLimite(); };
+  $('bAddMov').onclick = addMov;
+  $('bExcluir').onclick = excluir;
+  await carregar();
+  const abrirId = new URLSearchParams(location.search).get('id');
+  if (abrirId) abrir(abrirId);
+})();
+
+async function carregar() {
+  const { data, error } = await sb.from('processos').select('*, obras(nome)').order('data_limite', { ascending: true, nullsFirst: false });
+  if (error) { $('linhas').innerHTML = `<tr><td colspan="7" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
+  lista = data; desenhar();
+}
+
+// situação do prazo: [texto, classe, ordem]
+function situacao(p) {
+  if (FECHADOS.includes(p.status)) {
+    if (p.respondido_em && p.data_limite) return p.respondido_em <= p.data_limite ? ['Respondido no prazo', 'ok', 5] : [`Respondido com ${Prazos.diasAte(p.respondido_em, p.data_limite)} dia(s) de atraso`, 'alerta', 5];
+    return [STATUS[p.status], 'neutro', 6];
+  }
+  if (!p.data_limite) return ['Sem prazo', 'neutro', 4];
+  const d = Prazos.diasAte(p.data_limite);
+  if (d < 0) return [`Vencido há ${-d} dia(s)`, 'critico', 0];
+  if (d === 0) return ['Vence hoje', 'critico', 1];
+  if (d <= 3) return [`Vence em ${d} dia(s)`, 'alerta', 2];
+  return [`${d} dias`, 'ok', 3];
+}
+
+function desenharKpis() {
+  const abertos = lista.filter(p => !FECHADOS.includes(p.status));
+  const conta = f => abertos.filter(f).length;
+  const d = p => p.data_limite ? Prazos.diasAte(p.data_limite) : null;
+  const K = [
+    ['vencidos', 'Vencidos', conta(p => d(p) != null && d(p) < 0), 'critico'],
+    ['hoje', 'Vencem hoje', conta(p => d(p) === 0), 'critico'],
+    ['semana', 'Próximos 7 dias', conta(p => d(p) != null && d(p) > 0 && d(p) <= 7), 'alerta'],
+    ['abertos', 'Em aberto', abertos.length, ''],
+    ['fora', 'Respondidos fora do prazo', lista.filter(p => p.status === 'respondido' && p.respondido_em && p.data_limite && p.respondido_em > p.data_limite).length, '']
+  ];
+  $('kpis').innerHTML = K.map(([k, rot, n, cls]) =>
+    `<div class="kpi ${n && cls ? cls : ''} ${filtroKpi === k ? 'sel' : ''}" data-k="${k}"><div class="rotulo">${rot}</div><div class="valor">${n}</div><div class="det">${filtroKpi === k ? 'filtro ativo — clique para limpar' : 'clique para filtrar'}</div></div>`).join('');
+  document.querySelectorAll('.kpi[data-k]').forEach(el => el.onclick = () => { filtroKpi = filtroKpi === el.dataset.k ? null : el.dataset.k; desenhar(); });
+}
+
+function desenhar() {
+  desenharKpis();
+  const q = $('busca').value.trim().toUpperCase(), st = $('fStatus').value, ob = $('fObra').value;
+  const d = p => p.data_limite ? Prazos.diasAte(p.data_limite) : null;
+  const fK = {
+    vencidos: p => !FECHADOS.includes(p.status) && d(p) != null && d(p) < 0,
+    hoje: p => !FECHADOS.includes(p.status) && d(p) === 0,
+    semana: p => !FECHADOS.includes(p.status) && d(p) != null && d(p) > 0 && d(p) <= 7,
+    abertos: p => !FECHADOS.includes(p.status),
+    fora: p => p.status === 'respondido' && p.respondido_em && p.data_limite && p.respondido_em > p.data_limite
+  };
+  let l = lista.filter(p =>
+    (filtroKpi ? fK[filtroKpi](p) : (!st || (st === 'abertos' ? !FECHADOS.includes(p.status) : p.status === st))) &&
+    (!ob || p.obra_id === ob) &&
+    (!q || [p.numero, p.assunto, p.interessado, p.tipo].some(x => (x || '').toUpperCase().includes(q))));
+  l = l.map(p => ({ p, s: situacao(p) })).sort((a, b) => a.s[2] - b.s[2] || (a.p.data_limite || '9').localeCompare(b.p.data_limite || '9'));
+  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="7" class="vazio">${lista.length ? 'Nenhum processo com estes filtros.' : 'Nenhum processo cadastrado. Clique em <b>+ Novo processo</b>.'}</td></tr>`; return; }
+  $('linhas').innerHTML = l.map(({ p, s }) => `<tr data-id="${p.id}" style="cursor:pointer">
+    <td class="num">${F.esc(p.numero)}</td>
+    <td class="assunto"><b>${F.esc(p.assunto)}</b><div class="sub">${F.esc([p.tipo, p.interessado].filter(Boolean).join(' · '))}</div></td>
+    <td>${F.esc(p.obras ? p.obras.nome : '—')}</td>
+    <td>${F.data(p.data_entrada)}</td>
+    <td class="limite">${F.data(p.data_limite)}${p.prazo_dias != null ? `<div class="sub">${p.prazo_dias} dias ${p.contagem === 'uteis' ? 'úteis' : 'corridos'}</div>` : ''}</td>
+    <td><span class="etiqueta ${s[1]}">${s[0]}</span></td>
+    <td>${STATUS[p.status]}</td></tr>`).join('');
+  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => abrir(tr.dataset.id));
+}
+
+function recalcLimite() {
+  const ini = $('p_entrada').value, n = $('p_prazo').value, c = $('p_contagem').value;
+  if (!limiteManual && ini && n !== '') $('p_limite').value = Prazos.limite(ini, parseInt(n, 10), c) || '';
+  const lim = $('p_limite').value;
+  let info = '';
+  if (lim) {
+    const fer = [];
+    if (ini && n !== '') { // feriados e pontos facultativos no caminho
+      for (let s = Prazos.soma(ini, 1); s <= lim; s = Prazos.soma(s, 1)) { const f = Prazos.feriado(s); if (f) fer.push(`${F.data(s)} ${f}`); }
+    }
+    const dd = Prazos.diasAte(lim);
+    info = `Data-limite ${F.data(lim)} (${new Date(lim + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long' })})` +
+      (FECHADOS.includes($('p_status').value) ? '' : dd < 0 ? ` — vencido há ${-dd} dia(s).` : dd === 0 ? ' — vence hoje.' : ` — faltam ${dd} dia(s).`) +
+      (fer.length ? ` Feriados/pontos facultativos no período: ${fer.join('; ')}.` : '') +
+      (limiteManual ? ' Data-limite digitada à mão.' : '');
+  }
+  $('infoLimite').textContent = info;
+}
+
+async function abrir(id) {
+  editando = id; limiteManual = false;
+  $('fProc').reset(); $('pMsg').textContent = ''; $('movs').innerHTML = '';
+  $('dTitulo').textContent = id ? 'Processo' : 'Novo processo';
+  $('cxMovs').style.display = id ? '' : 'none';
+  $('bExcluir').style.display = id ? '' : 'none';
+  $('bRespondido').style.display = id ? '' : 'none';
+  $('m_data').value = Prazos.hoje();
+  if (id) {
+    const p = lista.find(x => x.id === id);
+    if (!p) return;
+    const v = { p_numero: p.numero, p_tipo: p.tipo, p_assunto: p.assunto, p_interessado: p.interessado, p_obra: p.obra_id, p_entrada: p.data_entrada,
+      p_prazo: p.prazo_dias, p_contagem: p.contagem, p_limite: p.data_limite, p_status: p.status, p_respondido: p.respondido_em,
+      p_responsavel: p.responsavel, p_link: p.link, p_obs: p.observacoes };
+    for (const [k, val] of Object.entries(v)) $(k).value = val ?? '';
+    // data-limite diferente do cálculo = foi digitada à mão
+    limiteManual = !!(p.data_limite && p.prazo_dias != null && Prazos.limite(p.data_entrada, p.prazo_dias, p.contagem) !== p.data_limite) || (p.data_limite && p.prazo_dias == null);
+    $('dTitulo').textContent = 'Processo ' + p.numero;
+    carregarMovs();
+  } else {
+    $('p_entrada').value = Prazos.hoje();
+    const ob = $('fObra').value; if (ob) $('p_obra').value = ob;
+  }
+  recalcLimite();
+  $('dProc').showModal();
+}
+
+async function salvar(e) {
+  e.preventDefault();
+  const txt = id => $(id).value.trim() || null;
+  const reg = {
+    numero: txt('p_numero'), tipo: txt('p_tipo'), assunto: txt('p_assunto'), interessado: txt('p_interessado'),
+    obra_id: $('p_obra').value || null, data_entrada: $('p_entrada').value,
+    prazo_dias: $('p_prazo').value === '' ? null : parseInt($('p_prazo').value, 10), contagem: $('p_contagem').value,
+    data_limite: $('p_limite').value || null, status: $('p_status').value, respondido_em: $('p_respondido').value || null,
+    responsavel: txt('p_responsavel'), link: txt('p_link'), observacoes: txt('p_obs')
+  };
+  if (!reg.numero || !reg.assunto || !reg.data_entrada) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'Preencha nº, assunto e data de entrada.'; return; }
+  if (reg.status === 'respondido' && !reg.respondido_em) reg.respondido_em = Prazos.hoje();
+  $('bSalvar').disabled = true;
+  try {
+    let r;
+    if (editando) r = await sb.from('processos').update(reg).eq('id', editando).select('id').single();
+    else r = await sb.from('processos').insert(reg).select('id').single();
+    if (r.error) throw r.error;
+    const novo = !editando;
+    await carregar();
+    if (novo) { abrir(r.data.id); $('pMsg').className = 'msg ok'; $('pMsg').textContent = 'Processo cadastrado. Registre as movimentações abaixo, se quiser.'; }
+    else $('dProc').close();
+  } catch (err) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'Erro ao salvar: ' + err.message; }
+  finally { $('bSalvar').disabled = false; }
+}
+
+async function carregarMovs() {
+  const { data, error } = await sb.from('processo_movimentos').select('*').eq('processo_id', editando).order('data', { ascending: false }).order('created_at', { ascending: false });
+  if (error) { $('movs').innerHTML = `<p class="dica">Erro: ${F.esc(error.message)}</p>`; return; }
+  $('movs').innerHTML = data.length ? data.map(m => `<div class="mov"><span class="d">${F.data(m.data)}</span>
+      <span>${F.esc(m.descricao)}${m.destino ? ` <span class="sub">→ ${F.esc(m.destino)}</span>` : ''}${m.documento ? ` <span class="sub">· ${F.esc(m.documento)}</span>` : ''}</span>
+      <button type="button" data-mov="${m.id}">excluir</button></div>`).join('')
+    : '<p class="dica">Nenhuma movimentação registrada.</p>';
+  document.querySelectorAll('[data-mov]').forEach(b => b.onclick = async () => {
+    if (!confirm('Excluir esta movimentação?')) return;
+    await sb.from('processo_movimentos').delete().eq('id', b.dataset.mov); carregarMovs();
+  });
+}
+
+async function addMov() {
+  const desc = $('m_desc').value.trim();
+  if (!desc) { $('m_desc').focus(); return; }
+  const { error } = await sb.from('processo_movimentos').insert({
+    processo_id: editando, data: $('m_data').value || Prazos.hoje(), descricao: desc,
+    destino: $('m_destino').value.trim() || null, documento: $('m_doc').value.trim() || null
+  });
+  if (error) { alert('Erro: ' + error.message); return; }
+  $('m_desc').value = ''; $('m_destino').value = ''; $('m_doc').value = '';
+  carregarMovs();
+}
+
+async function excluir() {
+  if (!confirm('Excluir este processo e todo o histórico dele? Não dá para desfazer.')) return;
+  const { error } = await sb.from('processos').delete().eq('id', editando);
+  if (error) { alert('Erro: ' + error.message); return; }
+  $('dProc').close(); await carregar();
+}
+</script>
+</body>
+</html>

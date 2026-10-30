@@ -12,6 +12,7 @@
   <nav>
     <a href="index.html" class="ativo">Central</a>
     <a title="Fase 2">Medições</a>
+    <a href="processos/index.html">Processos</a>
     <a href="orcamento/index.html">Orçamento</a>
     <a href="laudos/index.html">Documentos</a>
     <a title="Fase 5">Laudos</a>
@@ -141,7 +142,20 @@ function desenharKpis() {
     <div class="kpi"><div class="rotulo">Executado</div><div class="valor">${F.rs(exec)}</div><div class="det">${total ? F.pct(exec / total * 100) : '—'} do total</div></div>
     <div class="kpi"><div class="rotulo">Saldo a executar</div><div class="valor">${F.rs(total - exec)}</div></div>
     <div class="kpi ${vencidas ? 'critico' : ''}"><div class="rotulo">Prazo vencido</div><div class="valor">${vencidas}</div><div class="det">obras após o término vigente</div></div>
-    <div class="kpi ${acimaLimite ? 'critico' : ''}"><div class="rotulo">Aditivo acima do limite</div><div class="valor">${acimaLimite}</div><div class="det">25% obra · 50% reforma</div></div>`;
+    <div class="kpi ${acimaLimite ? 'critico' : ''}"><div class="rotulo">Aditivo acima do limite</div><div class="valor">${acimaLimite}</div><div class="det">25% obra · 50% reforma</div></div>
+    <a class="kpi" id="kpiProc" href="processos/index.html" style="text-decoration:none;color:inherit"><div class="rotulo">Processos SIGED</div><div class="valor">…</div><div class="det">vencidos / em aberto</div></a>`;
+  kpiProcessos();
+}
+
+// prazos dos processos do SIGED (a data-limite já vem calculada e gravada)
+async function kpiProcessos() {
+  const { data } = await sb.from('processos').select('data_limite, status').not('status', 'in', '(respondido,arquivado)');
+  const el = document.getElementById('kpiProc'); if (!el || !data) return;
+  const d = new Date(), hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const venc = data.filter(p => p.data_limite && p.data_limite < hoje).length, hj = data.filter(p => p.data_limite === hoje).length;
+  el.classList.toggle('critico', venc + hj > 0);
+  el.querySelector('.valor').textContent = `${venc} / ${data.length}`;
+  el.querySelector('.det').textContent = hj ? `vencidos / em aberto · ${hj} vence(m) hoje` : 'vencidos / em aberto';
 }
 
 function desenharTabela() {

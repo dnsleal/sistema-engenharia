@@ -15,7 +15,8 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 | 4 | Orçamento SINAPI-MT (base pronta 09/2026, analítico, salvo no sistema, vira planilha da obra) | pronto |
 | 5 | Laudos de avaliação (locação SMECEL e terreno) salvos no sistema | pronto |
 | 6 | Proposta Geoflora e relatório de vistoria (clientes) salvos no sistema | pronto |
-| 7 | Simulador de armaduras; acompanhamento de processos SIGED | a fazer |
+| 7 | Acompanhamento de processos SIGED (prazos, histórico, alertas) | pronto |
+| 8 | Simulador de armaduras | a fazer |
 
 ## Estrutura
 
@@ -28,6 +29,7 @@ obras/boletim.html    Boletim de medição para imprimir ou salvar em PDF
 obras/fotos.html      Fotos do BM: enviar (câmera ou arquivos), legenda, item, ordem
 obras/relatorio-fotos.html  Relatório fotográfico do BM para imprimir ou salvar em PDF
 login.html            Entrar, criar conta, recuperar senha
+processos/index.html  Processos do SIGED: prazos (corridos/úteis), situação, histórico de movimentações
 laudos/index.html     Documentos salvos (laudos, propostas, relatórios) e modelos para começar um novo
 laudos/locacao.html   Laudo de locação (PVG, CUB, Ross-Heidecke) — formulário original + salvar no sistema
 laudos/terreno.html   Laudo de terreno (comparativo direto, homogeneização) — idem
@@ -40,6 +42,7 @@ comum/
   config.js           Endereço e chave pública do Supabase
   supabase.js         Conexão e controle de login
   formatos.js         R$, %, datas e números no padrão brasileiro
+  prazos.js           Data-limite com prorrogação para o próximo dia útil; feriados nacionais, de Cuiabá e pontos facultativos
   estilo.css          Visual único do sistema
   importar.js         Leitura da planilha orçamentária e do cronograma
   medicao.js          Cálculo do BM por item e por etapa (desconto e reajuste)
