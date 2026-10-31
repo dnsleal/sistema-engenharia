@@ -54,6 +54,7 @@
 <script src="../comum/config.js"></script>
 <script src="../comum/supabase.js"></script>
 <script src="../comum/formatos.js"></script>
+<script src="../comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -84,9 +85,14 @@ const obraId = P.get('obra'), bmId = P.get('bm');
   $('bImprimir').disabled = false; $('bImprimir').textContent = 'Imprimir / salvar em PDF';
 })();
 
+Drive.botoes({ barra: '.ferramentas', antesDe: '#lVoltar', alvo: '.pagina', formatos: ['pdf', 'docx'], margemPdf: 0,
+  cssPdf: '.drv-pdf .pagina{height:296mm!important}',
+  pasta: () => ['Obras', document.body.dataset.obra, 'Relatórios fotográficos'] });
+
 function desenhar(o, m, fotos, url, itens) {
   const n = String(m.numero).padStart(2, '0');
   document.title = `Relatório fotográfico BM ${n} - ${o.nome}`;
+  document.body.dataset.obra = o.nome || '';
   const periodo = m.periodo_inicio ? `${F.data(m.periodo_inicio)} a ${F.data(m.periodo_fim)}` : '';
   const porPag = 4, total = Math.ceil(fotos.length / porPag);
   let h = '';

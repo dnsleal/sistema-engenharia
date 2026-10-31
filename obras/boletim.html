@@ -64,6 +64,7 @@
 <script src="../comum/supabase.js"></script>
 <script src="../comum/formatos.js"></script>
 <script src="../comum/medicao.js"></script>
+<script src="../comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -83,10 +84,14 @@ const pct = (v, b) => b ? F.pct(v / b * 100) : '—';
   desenhar();
 })();
 
+Drive.botoes({ barra: '.ferramentas', antesDe: '#lVoltar', alvo: '#folha',
+  pasta: () => ['Obras', document.body.dataset.obra, 'Medições'] });
+
 function desenhar() {
   const o = M.obra, b = M.bm, t = M.totais;
   const nBM = String(b.numero).padStart(2, '0');
   document.title = `BM ${nBM} - ${o.nome}`;
+  document.body.dataset.obra = o.nome || '';
   const periodo = b.periodo_inicio || b.periodo_fim ? `${F.data(b.periodo_inicio)} a ${F.data(b.periodo_fim)}` : 'período não informado';
 
   let h = `<div class="cab">

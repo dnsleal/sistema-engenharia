@@ -35,6 +35,7 @@
     <div class="opcoes">
       <label><input type="checkbox" id="oJson" checked><span><b>Cópia completa (.json)</b><small>Tudo o que está no banco, inclusive laudos com fotos e orçamentos. É a cópia que permite restaurar o sistema.</small></span></label>
       <label><input type="checkbox" id="oXlsx" checked><span><b>Planilha para consulta (.xlsx)</b><small>Uma aba por tabela (obras, itens, medições, processos…), para abrir no Excel. Campos muito longos ficam resumidos.</small></span></label>
+      <label><input type="checkbox" id="oDrive"><span><b>Enviar também para o Google Drive</b><small>Os mesmos arquivos vão para a pasta <i>Sistema de Engenharia / Backups</i> do seu Drive.</small></span></label>
       <label><input type="checkbox" id="oFotos"><span><b>Fotos dos relatórios fotográficos (.zip)</b><small>Arquivos de imagem dos BMs. Pode demorar e ocupar alguns MB.</small></span></label>
     </div>
     <button id="bGerar">Gerar backup</button>
@@ -59,6 +60,7 @@
 <script src="comum/config.js"></script>
 <script src="comum/supabase.js"></script>
 <script src="comum/formatos.js"></script>
+<script src="comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -87,10 +89,19 @@ function baixar(blob, nome) {
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
 }
 
+async function paraDrive(blob, nome) {
+  if (!$('oDrive').checked) return;
+  log(`Enviando ${nome} para o Drive…`);
+  const r = await Drive.enviarArquivo(blob, nome, ['Backups']);
+  log(`✓ ${nome} salvo no Drive (Sistema de Engenharia / Backups).`);
+  return r;
+}
+
 async function gerar() {
   if (!$('oJson').checked && !$('oXlsx').checked && !$('oFotos').checked) { $('msg').textContent = 'Marque pelo menos uma opção.'; return; }
   $('bGerar').disabled = true; $('log').textContent = ''; $('msg').textContent = '';
   try {
+    if ($('oDrive').checked) await Drive.obterToken();   // login do Google logo no clique
     const dados = {};
     for (const [t, rot] of TABELAS) {
       dados[t] = await SE.todos(() => sb.from(t).select('*').order('id'));
@@ -100,8 +111,10 @@ async function gerar() {
 
     if ($('oJson').checked) {
       const doc = { app: 'sistema-engenharia', versao: 1, gerado_em: new Date().toISOString(), usuario: usuario.email, tabelas: dados };
-      baixar(new Blob([JSON.stringify(doc)], { type: 'application/json' }), `backup-sistema-engenharia-${dataArq()}.json`);
+      const bJson = new Blob([JSON.stringify(doc)], { type: 'application/json' });
+      baixar(bJson, `backup-sistema-engenharia-${dataArq()}.json`);
       log('✓ Cópia completa (.json) gerada.');
+      await paraDrive(bJson, `backup-sistema-engenharia-${dataArq()}.json`);
     }
 
     if ($('oXlsx').checked) {
@@ -125,6 +138,7 @@ async function gerar() {
       }
       XLSX.writeFile(wb, `backup-sistema-engenharia-${dataArq()}.xlsx`);
       log('✓ Planilha (.xlsx) gerada.');
+      await paraDrive(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: Drive.MIME.xlsx }), `backup-sistema-engenharia-${dataArq()}.xlsx`);
     }
 
     if ($('oFotos').checked) {
@@ -149,8 +163,10 @@ async function gerar() {
           log(`Fotos: ${Math.min(i + 50, fotos.length)} de ${fotos.length}`);
         }
         zip.file('lista-de-fotos.csv', lista.map(l => l.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n'));
-        baixar(await zip.generateAsync({ type: 'blob' }), `backup-fotos-${dataArq()}.zip`);
+        const bZip = await zip.generateAsync({ type: 'blob' });
+        baixar(bZip, `backup-fotos-${dataArq()}.zip`);
         log('✓ Fotos (.zip) geradas.');
+        await paraDrive(new Blob([bZip], { type: 'application/zip' }), `backup-fotos-${dataArq()}.zip`);
       }
     }
     try { localStorage.setItem('se_ultimo_backup', new Date().toISOString()); } catch (_) {}

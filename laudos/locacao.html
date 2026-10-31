@@ -868,5 +868,10 @@ window.LAUDO_CFG = {
 <script src="../comum/config.js"></script>
 <script src="../comum/supabase.js"></script>
 <script src="../comum/laudo-nuvem.js"></script>
+<script src="../comum/drive.js"></script>
+<script>
+Drive.botoes({ barra: '.se-barra', antesDe: '#seSalvar', alvo: '.folha .pagina', formatos: ['pdf', 'docx', 'xlsx'], classe: '',
+  nome: () => 'Laudo de locação - ' + window.LAUDO_CFG.titulo(), pasta: () => ['Laudos', 'Locação'] });
+</script>
 </body>
 </html>

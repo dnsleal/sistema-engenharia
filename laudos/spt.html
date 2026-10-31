@@ -301,5 +301,10 @@ window.LAUDO_CFG = {
 };
 </script>
 <script src="../comum/laudo-nuvem.js"></script>
+<script src="../comum/drive.js"></script>
+<script>
+Drive.botoes({ barra: '.se-barra', antesDe: '#seSalvar', alvo: '#boletim', formatos: ['pdf', 'docx'], classe: '',
+  nome: () => window.LAUDO_CFG.titulo(), pasta: () => ['Sondagens', document.getElementById('obra').value || 'Sem obra'] });
+</script>
 </body>
 </html>

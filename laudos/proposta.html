@@ -385,5 +385,10 @@ window.LAUDO_CFG = {
 <script src="../comum/config.js"></script>
 <script src="../comum/supabase.js"></script>
 <script src="../comum/laudo-nuvem.js"></script>
+<script src="../comum/drive.js"></script>
+<script>
+Drive.botoes({ barra: '.se-barra', antesDe: '#seSalvar', alvo: '.folha', formatos: ['pdf', 'docx', 'xlsx'], classe: '',
+  nome: () => (window.LAUDO_CFG.titulo && window.LAUDO_CFG.titulo()) || document.title, pasta: () => ['Propostas'] });
+</script>
 </body>
 </html>

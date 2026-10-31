@@ -5,5 +5,7 @@
 window.SE_CONFIG = {
   SUPABASE_URL: 'https://qwmvejmjtennukqqhlil.supabase.co',
   SUPABASE_KEY: 'sb_publishable_nc5OeDbk2tcNZZ_yvivhrA_1ESmWcY4',
-  NOME_SISTEMA: 'Sistema de Engenharia'
+  NOME_SISTEMA: 'Sistema de Engenharia',
+  // ID do cliente OAuth do Google (público). Vazio = botões do Drive avisam que falta configurar.
+  GOOGLE_CLIENT_ID: ''
 };

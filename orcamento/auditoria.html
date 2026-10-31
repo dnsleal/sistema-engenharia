@@ -110,6 +110,7 @@
 <script src="../comum/supabase.js"></script>
 <script src="../comum/formatos.js"></script>
 <script src="../comum/importar.js"></script>
+<script src="../comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -141,6 +142,10 @@ let base = null, baseInfo = null, itens = null, origem = null, wb = null, result
   $('arquivo').onchange = abrirArquivo; $('aba').onchange = lerAba;
   $('obra').onchange = listarPlanilhas; $('planilha').onchange = carregarPlanilha;
   $('bImprimir').onclick = () => window.print(); $('bXlsx').onclick = exportar;
+  Drive.botoes({ barra: '.botoes', salvar: 'planilha', paisagem: true,
+    alvo: () => resultado.length ? [$('cabImp'), $('kpis'), document.querySelector('#cxTab table')] : [],
+    xlsx: () => { if (!resultado.length) throw new Error('Carregue uma planilha antes.'); return montarWb(); },
+    nome: () => 'Auditoria - ' + (origem ? origem.nome : 'planilha'), pasta: () => ['Auditorias'] });
   $('base').onchange = carregarBase;
 
   const [{ data: obras }, idx] = await Promise.all([
@@ -339,7 +344,7 @@ function desenharTabela() {
       ${r.achados.length ? `<div class="sub">${r.achados.map(a => F.esc(a[1])).join(' · ')}</div>` : ''}</td></tr>`).join('');
 }
 
-function exportar() {
+function montarWb() {
   const rows = resultado.map(r => ({
     Item: r.item, Banco: r.banco, Código: r.codigo, Descrição: r.descricao, Unidade: r.unidade, Quantidade: r.quantidade,
     'PU sem BDI': r.pu_sem_bdi, 'PU com BDI': r.pu_com_bdi, 'BDI (%)': r.bdi != null ? +r.bdi.toFixed(2) : null,
@@ -357,8 +362,10 @@ function exportar() {
   const ws = XLSX.utils.json_to_sheet(rows);
   ws['!cols'] = [8, 9, 10, 60, 7, 11, 12, 12, 8, 12, 9, 10, 14, 30, 60].map(w => ({ wch: w }));
   XLSX.utils.book_append_sheet(wbOut, ws, 'Itens');
-  XLSX.writeFile(wbOut, `auditoria-${new Date().toISOString().slice(0, 10)}.xlsx`);
+  return wbOut;
 }
+function exportar() { XLSX.writeFile(montarWb(), `auditoria-${new Date().toISOString().slice(0, 10)}.xlsx`); }
+
 
 function msg(t, erro) { $('msg').className = 'msg' + (erro ? ' erro' : ''); $('msg').textContent = t; }
 </script>
