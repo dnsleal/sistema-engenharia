@@ -490,6 +490,14 @@
     return base || "obra";
   }
 
+  // usado pelos botões do Google Drive
+  window.RELATORIO_DRIVE = {
+    html: function(){ return buildReportHTML('pdf'); },
+    nome: function(){ return buildFilename('x').replace(/\.x$/, ''); },
+    obra: function(){ return (state.obra && state.obra.nome) || 'Sem obra'; },
+    validar: function(){ return validarCampos(); }
+  };
+
   function buildFilename(ext){
     var slug = slugify(state.obra.nome);
     var date = state.obra.dataRelatorio || todayISO();
@@ -1250,5 +1258,18 @@ window.LAUDO_CFG = {
 <script src="../comum/config.js"></script>
 <script src="../comum/supabase.js"></script>
 <script src="../comum/laudo-nuvem.js"></script>
+<script src="../comum/drive.js"></script>
+<script>
+Drive.botoes({ barra: '#card-export', antesDe: '.export-hint', classe: 'btn btn-secondary', formatos: ['pdf', 'docx'],
+  alvo: () => {
+    const v = window.RELATORIO_DRIVE.validar();
+    if (!v.valid) throw new Error('Preencha os campos obrigatórios: ' + v.missing.join(', '));
+    const c = document.getElementById('report-print-container');
+    c.innerHTML = window.RELATORIO_DRIVE.html();
+    return [c];
+  },
+  depois: () => { document.getElementById('report-print-container').innerHTML = ''; },
+  nome: () => window.RELATORIO_DRIVE.nome(), pasta: () => ['Relatórios de vistoria', window.RELATORIO_DRIVE.obra()] });
+</script>
 </body>
 </html>

@@ -97,6 +97,7 @@
 <script src="comum/config.js"></script>
 <script src="comum/supabase.js"></script>
 <script src="comum/formatos.js"></script>
+<script src="comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -114,6 +115,9 @@ const SITUACAO = {
   $('uEmail').textContent = user.email;
   $('bSair').onclick = SE.sair;
   $('bNova').onclick = () => abrir(null);
+  Drive.botoes({ barra: '.cabecalho', antesDe: '#bNova', salvar: 'planilha', paisagem: true,
+    alvo: () => [$('kpis'), document.querySelector('.tabela-wrap table')],
+    nome: () => 'Central de obras - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'), pasta: () => [] });
   $('bCancelar').onclick = () => { $('dObra').close(); if (voltarParaObra) location.href = 'obras/obra.html?id=' + editando; };
   $('fObra').onsubmit = salvar;
   await carregar();

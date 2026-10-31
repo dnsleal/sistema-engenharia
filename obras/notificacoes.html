@@ -127,6 +127,7 @@
 <script src="../comum/supabase.js"></script>
 <script src="../comum/formatos.js"></script>
 <script src="../comum/prazos.js"></script>
+<script src="../comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -156,6 +157,9 @@ const CAMPOS = { n_numero: 'numero', n_data: 'data', n_categoria: 'categoria', n
   $('busca').oninput = desenhar;
   $('fSit').onchange = () => { filtroKpi = null; desenhar(); };
   $('bNova').onclick = () => abrir(null);
+  Drive.botoes({ barra: () => $('bNova').parentElement, antesDe: '#bNova', salvar: 'planilha', paisagem: true,
+    alvo: () => [document.querySelector('.cabecalho h2'), $('subt'), document.querySelector('.tabela-wrap table')], remover: 'td:last-child, th:last-child',
+    nome: () => 'Notificações - ' + obra.nome + ' - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'), pasta: () => ['Obras', obra.nome, 'Notificações'] });
   $('bCancelar').onclick = () => $('dNot').close();
   $('fNot').onsubmit = salvar;
   $('bExcluir').onclick = excluir;

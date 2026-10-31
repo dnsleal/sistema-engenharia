@@ -194,6 +194,13 @@
     });
     await Promise.all(tarefas);
     copia.querySelectorAll('[data-drv-fora]').forEach(n => n.remove());
+    // a área copiada pode estar escondida ou fora da tela na página (área de impressão): na cópia ela aparece normal
+    const rs = getComputedStyle(el);
+    if (rs.display === 'none') copia.style.setProperty('display', 'block', 'important');
+    if (rs.position === 'fixed' || rs.position === 'absolute') {
+      copia.style.setProperty('position', 'static', 'important');
+      copia.style.setProperty('left', 'auto', 'important'); copia.style.setProperty('top', 'auto', 'important');
+    }
     if (copia.dataset && copia.dataset.drvFora) return null;
     return copia;
   }
@@ -230,14 +237,17 @@
       caixa.appendChild(c);
     }
     document.body.appendChild(fora);
+    // com a página rolada para baixo o html2canvas desenha em branco: sobe ao topo e volta depois
+    const rolagem = [window.scrollX, window.scrollY];
+    window.scrollTo(0, 0);
     try {
       return await html2pdf().set({
         margin: m4, image: { type: 'jpeg', quality: 0.93 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: cfg.paisagem ? 'landscape' : 'portrait' },
         pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'img', '.foto', '.assin'] }
       }).from(caixa).outputPdf('blob');
-    } finally { fora.remove(); }
+    } finally { fora.remove(); window.scrollTo(rolagem[0], rolagem[1]); }
   }
 
   async function gerarXlsx(cfg) {
@@ -256,8 +266,13 @@
     if (!n) throw new Error('Este documento não tem tabelas para virar planilha.');
     return wb;
   }
+  // planilha pronta da própria página (ex.: exportação com formatação do orçamento) ou montada das tabelas
+  async function blobXlsx(cfg) {
+    if (cfg.blobXlsx) { const b = await cfg.blobXlsx(); return new Blob([b], { type: MIME.xlsx }); }
+    return wbBlob(await gerarXlsx(cfg));
+  }
   const wbBlob = wb => new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type: MIME.xlsx });
-  const temTabela = cfg => !!cfg.xlsx || elementos(cfg.alvo).some(el => el.tagName === 'TABLE' || el.querySelector('table'));
+  const temTabela = cfg => !!cfg.xlsx || !!cfg.blobXlsx || elementos(cfg.alvo).some(el => el.tagName === 'TABLE' || el.querySelector('table'));
 
   // ------------------------------------------------------------------ ações
   async function acao(cfg, tipo) {
@@ -274,7 +289,7 @@
     }
     if (tipo === 'gsheet') {
       avisar('Preparando a planilha…', true);
-      return enviar(wbBlob(await gerarXlsx(cfg)), nome, caminho, MIME.gsheet);
+      return enviar(await blobXlsx(cfg), nome, caminho, MIME.gsheet);
     }
     if (tipo === 'pdf') {
       avisar('Gerando o PDF…', true);
@@ -284,7 +299,7 @@
     }
     if (tipo === 'xlsx') {
       avisar('Gerando o Excel…', true);
-      return enviar(wbBlob(await gerarXlsx(cfg)), nome + '.xlsx', caminho);
+      return enviar(await blobXlsx(cfg), nome + '.xlsx', caminho);
     }
     if (tipo === 'docx') {
       // o Google converte a página num documento e o exporta como Word; o temporário é apagado
@@ -308,7 +323,10 @@
       return r;
     } catch (e) {
       avisar('⚠ ' + esc(e.message), false, 10000, true);
-    } finally { if (botao) botao.disabled = false; }
+    } finally {
+      if (botao) botao.disabled = false;
+      if (cfg.depois) try { cfg.depois(); } catch (_) {}
+    }
   }
 
   // ------------------------------------------------------------------ interface
@@ -376,5 +394,5 @@
     return enviar(blob, limparNome(nome), caminho, converterPara);
   }
 
-  window.Drive = { botoes, executar, enviarArquivo, avisar, configurado: () => !!CID, MIME, obterToken, carregar, LIBS };
+  window.Drive = { botoes, executar, enviarArquivo, avisar, configurado: () => !!CID, MIME, obterToken, carregar, LIBS, gerarPdf, htmlDoc };
 })();

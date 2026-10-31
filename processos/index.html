@@ -134,6 +134,7 @@
 <script src="../comum/supabase.js"></script>
 <script src="../comum/formatos.js"></script>
 <script src="../comum/prazos.js"></script>
+<script src="../comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -153,6 +154,9 @@ let lista = [], obras = [], editando = null, filtroKpi = null, limiteManual = fa
   for (const id of ['busca']) $(id).oninput = desenhar;
   for (const id of ['fStatus', 'fObra']) $(id).onchange = () => { filtroKpi = null; desenhar(); };
   $('bNovo').onclick = () => abrir(null);
+  Drive.botoes({ barra: '.cabecalho', antesDe: '#bNovo', salvar: 'planilha', paisagem: true,
+    alvo: () => [$('kpis'), document.querySelector('.tabela-wrap table')],
+    nome: () => 'Processos SIGED - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'), pasta: () => ['Processos SIGED'] });
   $('bCancelar').onclick = () => $('dProc').close();
   $('fProc').onsubmit = salvar;
   for (const id of ['p_entrada', 'p_prazo', 'p_contagem']) $(id).oninput = () => { limiteManual = false; recalcLimite(); };

@@ -108,6 +108,7 @@
 <script src="../comum/config.js"></script>
 <script src="../comum/supabase.js"></script>
 <script src="../comum/formatos.js"></script>
+<script src="../comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -163,6 +164,10 @@ async function novoBM() {
     document.querySelectorAll('.abas button').forEach(x => x.classList.toggle('ativa', x === b));
     document.querySelectorAll('.aba').forEach(a => a.classList.toggle('ativa', a.id === 'aba-' + b.dataset.aba));
   });
+  Drive.botoes({ barra: () => $('lImportar').parentElement, antesDe: '#lImportar', salvar: 'planilha', paisagem: true,
+    alvo: () => [$('nome'), $('cxFicha'), $('kpis'), document.querySelector('.aba.ativa table')],
+    nome: () => ($('nome').textContent || 'Obra') + ' - ' + (document.querySelector('.abas button.ativa') || {}).textContent + ' - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'),
+    pasta: () => ['Obras', $('nome').textContent] });
   $('selPlanilha').onchange = desenharItens;
   $('busca').oninput = desenharItens;
   $('soComQuant').onchange = desenharItens;

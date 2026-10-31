@@ -91,6 +91,7 @@
 <script src="../comum/supabase.js"></script>
 <script src="../comum/formatos.js"></script>
 <script src="../comum/medicao.js"></script>
+<script src="../comum/drive.js"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -110,6 +111,9 @@ let sujo = false;
   $('busca').oninput = desenhar;
   for (const id of ['ini', 'fim', 'reaj', 'obs']) $(id).oninput = () => { sujo = true; resumo(); };
   $('bSalvar').onclick = () => salvar();
+  Drive.botoes({ barra: () => $('lBoletim').parentElement, salvar: 'planilha', paisagem: true,
+    alvo: () => [$('titulo'), $('sub'), document.querySelector('.tabela-wrap table')],
+    nome: () => 'Lançamento ' + document.title.replace(' — ', ' - '), pasta: () => ['Obras', M ? M.obra.nome : 'Sem obra', 'Medições'] });
   $('bFechar').onclick = fechar;
   $('bReabrir').onclick = reabrir;
   window.onbeforeunload = e => { if (sujo) { e.preventDefault(); e.returnValue = ''; } };

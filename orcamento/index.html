@@ -1502,5 +1502,42 @@ document.addEventListener('keydown', e => {
 <script src="../comum/config.js"></script>
 <script src="../comum/supabase.js"></script>
 <script src="nuvem.js"></script>
+<script src="../comum/drive.js"></script>
+<script>
+// Drive no orçamento: o PDF/Word saem da mesma vista de impressão; o Excel é a planilha "Contrato" formatada
+(function () {
+  let caixa = null;
+  function vistaImpressao() {
+    const prt = window.print; window.print = () => {};
+    try { printView(); } finally { window.print = prt; }
+    caixa && caixa.remove();
+    caixa = document.createElement('div');
+    caixa.style.cssText = 'position:fixed;left:-10000px;top:0;width:1080px;';
+    caixa.innerHTML = `<style>
+      #drvOrc{font:9pt Arial,sans-serif;color:#000;background:#fff}
+      #drvOrc table{border-collapse:collapse;width:100%}
+      #drvOrc td,#drvOrc th{border:1px solid #777;padding:2px 4px;vertical-align:top}
+      #drvOrc .hdr td{border:none}
+      #drvOrc tr.e td{background:#bad4ef;font-weight:bold}
+      #drvOrc tr.i td{background:#dee2e6}
+      #drvOrc .n{text-align:right}</style><div id="drvOrc">${document.getElementById('printArea').innerHTML}</div>`;
+    document.body.appendChild(caixa);
+    return [caixa.querySelector('#drvOrc')];
+  }
+  function planilhaContrato() {
+    return new Promise((ok, erro) => {
+      const dl = window.download;
+      window.download = (nome, blob) => { window.download = dl; ok(blob); };
+      exportXlsx('contrato').then(() => { if (window.download !== dl) { window.download = dl; erro(new Error('A planilha não foi gerada.')); } }, e => { window.download = dl; erro(e); });
+    });
+  }
+  Drive.botoes({
+    barra: () => document.getElementById('bPrint') && document.getElementById('bPrint').parentElement,
+    antesDe: '#bParaObra', classe: '', salvar: 'planilha', paisagem: true, margemPdf: 10,
+    alvo: vistaImpressao, blobXlsx: planilhaContrato, depois: () => { caixa && caixa.remove(); caixa = null; },
+    nome: () => 'Orçamento - ' + ((P.meta && P.meta.obra) || 'sem nome'), pasta: () => ['Orçamentos']
+  });
+})();
+</script>
 </body>
 </html>
