@@ -60,12 +60,13 @@
         <option value="respondido">Respondido</option>
         <option value="arquivado">Arquivado</option>
       </select>
+      <select id="fCat"><option value="">Todas as categorias</option></select>
       <select id="fObra"><option value="">Todas as obras</option></select>
     </div>
     <div class="tabela-wrap">
       <table>
-        <thead><tr><th>Nº SIGED</th><th>Assunto</th><th>Obra</th><th>Entrada</th><th>Data-limite</th><th>Situação</th><th>Status</th></tr></thead>
-        <tbody id="linhas"><tr><td colspan="7" class="vazio">Carregando…</td></tr></tbody>
+        <thead><tr><th>Nº SIGED</th><th>Assunto</th><th>Categoria</th><th>Obra</th><th>Entrada</th><th>Data-limite</th><th>Situação</th><th>Status</th></tr></thead>
+        <tbody id="linhas"><tr><td colspan="8" class="vazio">Carregando…</td></tr></tbody>
       </table>
     </div>
     <p class="dica">Prazo: não se conta o dia de entrada; vencimento em fim de semana, feriado ou ponto facultativo (Carnaval, Corpus Christi) passa para o próximo dia útil. Atraso sem tolerância: 1 dia depois da data-limite já é vencido.</p>
@@ -81,6 +82,10 @@
         <div><label for="p_numero">Nº do processo (SIGED) *</label><input id="p_numero" required placeholder="Ex.: SMECEL.2026.012345"></div>
         <div><label for="p_tipo">Tipo</label><input id="p_tipo" list="tipos" placeholder="Ofício, notificação, pedido…">
           <datalist id="tipos"><option>Ofício</option><option>Notificação</option><option>Pedido de aditivo</option><option>Medição</option><option>Recurso</option><option>Parecer técnico</option><option>Diligência</option></datalist></div>
+      </div>
+      <div class="grade2">
+        <div><label for="p_cat">Categoria</label><select id="p_cat"></select></div>
+        <div id="cxCatOutra" style="display:none"><label for="p_cat_outra">Qual categoria?</label><input id="p_cat_outra" placeholder="Escreva a categoria"></div>
       </div>
       <label for="p_assunto">Assunto *</label><input id="p_assunto" required>
       <div class="grade2">
@@ -140,6 +145,9 @@ const { sb } = SE;
 const $ = id => document.getElementById(id);
 const STATUS = { recebido: 'Recebido', em_analise: 'Em análise', aguardando: 'Aguardando terceiros', respondido: 'Respondido', arquivado: 'Arquivado' };
 const FECHADOS = ['respondido', 'arquivado'];
+const CATEGORIAS = ['Resposta a vereador', 'ACP/TAC', 'PSCIP', 'Manutenção', 'Diversos'];
+const OUTROS = '__outros';
+const ehFixa = c => CATEGORIAS.includes(c);
 let lista = [], obras = [], editando = null, filtroKpi = null, limiteManual = false;
 
 (async function iniciar() {
@@ -150,9 +158,11 @@ let lista = [], obras = [], editando = null, filtroKpi = null, limiteManual = fa
   obras = ob || [];
   const opts = obras.map(o => `<option value="${o.id}">${F.esc(o.nome)}</option>`).join('');
   $('fObra').innerHTML += opts; $('p_obra').innerHTML += opts;
+  $('p_cat').innerHTML = '<option value="">— sem categoria —</option>' + CATEGORIAS.map(c => `<option>${F.esc(c)}</option>`).join('') + `<option value="${OUTROS}">Outros</option>`;
+  $('p_cat').onchange = mostrarCatOutra;
   if (obraParam) { $('fObra').value = obraParam; $('fStatus').value = ''; }
   for (const id of ['busca']) $(id).oninput = desenhar;
-  for (const id of ['fStatus', 'fObra']) $(id).onchange = () => { filtroKpi = null; desenhar(); };
+  for (const id of ['fStatus', 'fObra', 'fCat']) $(id).onchange = () => { filtroKpi = null; desenhar(); };
   $('bNovo').onclick = () => abrir(null);
   Drive.botoes({ barra: '.cabecalho', antesDe: '#bNovo', salvar: 'planilha', paisagem: true,
     alvo: () => [$('kpis'), document.querySelector('.tabela-wrap table')],
@@ -172,8 +182,29 @@ let lista = [], obras = [], editando = null, filtroKpi = null, limiteManual = fa
 
 async function carregar() {
   const { data, error } = await sb.from('processos').select('*, obras(nome)').order('data_limite', { ascending: true, nullsFirst: false });
-  if (error) { $('linhas').innerHTML = `<tr><td colspan="7" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
-  lista = data; desenhar();
+  if (error) { $('linhas').innerHTML = `<tr><td colspan="8" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
+  lista = data; montarFiltroCat(); desenhar();
+}
+
+// Filtro: categorias fixas + "Outros" (todas as digitadas), com cada categoria digitada listada à parte
+function montarFiltroCat() {
+  const atual = $('fCat').value;
+  const outras = [...new Set(lista.map(p => p.categoria).filter(c => c && !ehFixa(c)))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  const conta = f => lista.filter(f).length;
+  let h = '<option value="">Todas as categorias</option>' +
+    CATEGORIAS.map(c => `<option value="${F.esc(c)}">${F.esc(c)} (${conta(p => p.categoria === c)})</option>`).join('') +
+    `<option value="${OUTROS}">Outros (${conta(p => p.categoria && !ehFixa(p.categoria))})</option>`;
+  if (outras.length) h += '<optgroup label="Outros — por nome">' + outras.map(c => `<option value="${F.esc(c)}">${F.esc(c)} (${conta(p => p.categoria === c)})</option>`).join('') + '</optgroup>';
+  h += `<option value="__sem">Sem categoria (${conta(p => !p.categoria)})</option>`;
+  $('fCat').innerHTML = h;
+  if ([...$('fCat').options].some(o => o.value === atual)) $('fCat').value = atual;
+}
+
+function mostrarCatOutra() {
+  const outro = $('p_cat').value === OUTROS;
+  $('cxCatOutra').style.display = outro ? '' : 'none';
+  $('p_cat_outra').required = outro;
+  if (outro) $('p_cat_outra').focus();
 }
 
 // situação do prazo: [texto, classe, ordem]
@@ -208,7 +239,8 @@ function desenharKpis() {
 
 function desenhar() {
   desenharKpis();
-  const q = $('busca').value.trim().toUpperCase(), st = $('fStatus').value, ob = $('fObra').value;
+  const q = $('busca').value.trim().toUpperCase(), st = $('fStatus').value, ob = $('fObra').value, ct = $('fCat').value;
+  const passaCat = p => !ct || (ct === OUTROS ? !!p.categoria && !ehFixa(p.categoria) : ct === '__sem' ? !p.categoria : p.categoria === ct);
   const d = p => p.data_limite ? Prazos.diasAte(p.data_limite) : null;
   const fK = {
     vencidos: p => !FECHADOS.includes(p.status) && d(p) != null && d(p) < 0,
@@ -219,13 +251,14 @@ function desenhar() {
   };
   let l = lista.filter(p =>
     (filtroKpi ? fK[filtroKpi](p) : (!st || (st === 'abertos' ? !FECHADOS.includes(p.status) : p.status === st))) &&
-    (!ob || p.obra_id === ob) &&
-    (!q || [p.numero, p.assunto, p.interessado, p.tipo, p.documento_resposta].some(x => (x || '').toUpperCase().includes(q))));
+    (!ob || p.obra_id === ob) && passaCat(p) &&
+    (!q || [p.numero, p.assunto, p.interessado, p.tipo, p.categoria, p.documento_resposta].some(x => (x || '').toUpperCase().includes(q))));
   l = l.map(p => ({ p, s: situacao(p) })).sort((a, b) => a.s[2] - b.s[2] || (a.p.data_limite || '9').localeCompare(b.p.data_limite || '9'));
-  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="7" class="vazio">${lista.length ? 'Nenhum processo com estes filtros.' : 'Nenhum processo cadastrado. Clique em <b>+ Novo processo</b>.'}</td></tr>`; return; }
+  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="8" class="vazio">${lista.length ? 'Nenhum processo com estes filtros.' : 'Nenhum processo cadastrado. Clique em <b>+ Novo processo</b>.'}</td></tr>`; return; }
   $('linhas').innerHTML = l.map(({ p, s }) => `<tr data-id="${p.id}" style="cursor:pointer">
     <td class="num">${F.esc(p.numero)}</td>
     <td class="assunto"><b>${F.esc(p.assunto)}</b><div class="sub">${F.esc([p.tipo, p.interessado].filter(Boolean).join(' · '))}</div></td>
+    <td>${p.categoria ? `<span class="etiqueta neutro">${F.esc(p.categoria)}</span>` : '<span class="sub">—</span>'}</td>
     <td>${F.esc(p.obras ? p.obras.nome : '—')}</td>
     <td>${F.data(p.data_entrada)}</td>
     <td class="limite">${F.data(p.data_limite)}${p.prazo_dias != null ? `<div class="sub">${p.prazo_dias} dias ${p.contagem === 'uteis' ? 'úteis' : 'corridos'}</div>` : ''}</td>
@@ -268,6 +301,8 @@ async function abrir(id) {
       p_prazo: p.prazo_dias, p_contagem: p.contagem, p_limite: p.data_limite, p_status: p.status, p_respondido: p.respondido_em,
       p_responsavel: p.responsavel, p_link: p.link, p_obs: p.observacoes, p_docresp: p.documento_resposta };
     for (const [k, val] of Object.entries(v)) $(k).value = val ?? '';
+    $('p_cat').value = !p.categoria ? '' : ehFixa(p.categoria) ? p.categoria : OUTROS;
+    $('p_cat_outra').value = p.categoria && !ehFixa(p.categoria) ? p.categoria : '';
     // data-limite diferente do cálculo = foi digitada à mão
     limiteManual = !!(p.data_limite && p.prazo_dias != null && Prazos.limite(p.data_entrada, p.prazo_dias, p.contagem) !== p.data_limite) || (p.data_limite && p.prazo_dias == null);
     $('dTitulo').textContent = 'Processo ' + p.numero;
@@ -275,7 +310,11 @@ async function abrir(id) {
   } else {
     $('p_entrada').value = Prazos.hoje();
     const ob = $('fObra').value; if (ob) $('p_obra').value = ob;
+    const ct = $('fCat').value;
+    if (ehFixa(ct)) $('p_cat').value = ct;
+    else if (ct && ct !== '__sem') { $('p_cat').value = OUTROS; if (ct !== OUTROS) $('p_cat_outra').value = ct; }
   }
+  mostrarCatOutra();
   recalcLimite();
   $('dProc').showModal();
 }
@@ -289,8 +328,10 @@ async function salvar(e) {
     prazo_dias: $('p_prazo').value === '' ? null : parseInt($('p_prazo').value, 10), contagem: $('p_contagem').value,
     data_limite: $('p_limite').value || null, status: $('p_status').value, respondido_em: $('p_respondido').value || null,
     responsavel: txt('p_responsavel'), link: txt('p_link'), observacoes: txt('p_obs'),
-    documento_resposta: txt('p_docresp')
+    documento_resposta: txt('p_docresp'),
+    categoria: $('p_cat').value === OUTROS ? txt('p_cat_outra') : ($('p_cat').value || null)
   };
+  if ($('p_cat').value === OUTROS && !reg.categoria) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'Escreva qual é a categoria (opção Outros).'; $('p_cat_outra').focus(); return; }
   if (!reg.numero || !reg.assunto || !reg.data_entrada) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'Preencha nº, assunto e data de entrada.'; return; }
   if (reg.status === 'respondido' && !reg.respondido_em) reg.respondido_em = Prazos.hoje();
   $('bSalvar').disabled = true;
