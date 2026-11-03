@@ -1,4 +1,4 @@
-// Liga o app de orçamento ao Sistema de Engenharia:
+// Liga o app de orçamento ao Sistema Integrado de Engenharia:
 // login, orçamentos salvos no banco, base SINAPI-MT pronta, composição analítica
 // e "virar planilha da obra". Roda depois do script do app e usa as funções dele
 // (P, save, render, fillMeta, saveBase, loadBases, numbering, itemCalc, computeAll…).

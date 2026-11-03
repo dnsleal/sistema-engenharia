@@ -5,7 +5,7 @@
 window.SE_CONFIG = {
   SUPABASE_URL: 'https://qwmvejmjtennukqqhlil.supabase.co',
   SUPABASE_KEY: 'sb_publishable_nc5OeDbk2tcNZZ_yvivhrA_1ESmWcY4',
-  NOME_SISTEMA: 'Sistema de Engenharia',
+  NOME_SISTEMA: 'Sistema Integrado de Engenharia',
   // Nome usado pelo D.I.E.G.O. na saudação da tela de entrada ("BEM-VINDO, DIEGO.")
   NOME_OPERADOR: 'Diego',
   // ID do cliente OAuth do Google (público). Vazio = botões do Drive avisam que falta configurar.

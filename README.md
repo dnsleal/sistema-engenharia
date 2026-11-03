@@ -1,4 +1,4 @@
-# Sistema de Engenharia
+# Sistema Integrado de Engenharia
 
 Sistema web para fiscalização de obras públicas, orçamentos e laudos, feito em HTML + JavaScript puro, com banco de dados, login e fotos no Supabase.
 

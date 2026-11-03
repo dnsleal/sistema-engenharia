@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Backup — Sistema de Engenharia</title>
+<title>Backup — Sistema Integrado de Engenharia</title>
 <link rel="stylesheet" href="comum/estilo.css?v=diego1">
 <style>
   .opcoes { display: grid; gap: 10px; margin: 6px 0 14px; }
@@ -16,7 +16,7 @@
 </head>
 <body>
 <header class="topo">
-  <h1>Sistema de Engenharia</h1>
+  <h1>Sistema Integrado de Engenharia</h1>
   <nav>
     <a href="index.html">Central</a><a href="processos/index.html">Processos</a>
     <a href="orcamento/index.html">Orçamento</a><a href="orcamento/auditoria.html">Auditoria</a><a href="laudos/index.html">Documentos</a>
@@ -119,7 +119,7 @@ async function gerar() {
 
     if ($('oXlsx').checked) {
       const wb = XLSX.utils.book_new();
-      const resumo = [['Backup do Sistema de Engenharia'], ['Gerado em', new Date().toLocaleString('pt-BR')], ['Usuário', usuario.email], [],
+      const resumo = [['Backup do Sistema Integrado de Engenharia'], ['Gerado em', new Date().toLocaleString('pt-BR')], ['Usuário', usuario.email], [],
         ['Tabela', 'Linhas'], ...TABELAS.map(([t, rot]) => [rot, dados[t].length]), ['Total', total], [],
         ['Observação', 'Campos com mais de 30.000 caracteres (orçamentos e documentos com fotos) aparecem resumidos; a cópia .json traz tudo.']];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
