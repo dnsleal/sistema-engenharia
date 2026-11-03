@@ -12,7 +12,7 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 | 1 | Importar planilha orçamentária, aditivos, cronograma; página da obra | pronto |
 | 2 | Medições (BM): lançamento, fechamento, boletim em PDF | pronto |
 | 3 | Relatório fotográfico por BM (4 fotos por página, PDF) | pronto |
-| 4 | Orçamento SINAPI-MT (base pronta 09/2026, analítico, salvo no sistema, vira planilha da obra) | pronto |
+| 4 | Orçamento (ObraCerta): SINAPI-MT 09/2026 pronta, ORSE e outras bases importadas, composições próprias, curva ABC, cronograma, relatórios Excel/PDF, grava na obra como planilha original ou aditivo | pronto |
 | 5 | Laudos de avaliação (locação SMECEL e terreno) salvos no sistema | pronto |
 | 6 | Proposta Geoflora e relatório de vistoria (clientes) salvos no sistema | pronto |
 | 7 | Acompanhamento de processos SIGED (prazos, histórico, alertas) | pronto |
@@ -35,9 +35,13 @@ laudos/locacao.html   Laudo de locação (PVG, CUB, Ross-Heidecke) — formulár
 laudos/terreno.html   Laudo de terreno (comparativo direto, homogeneização) — idem
 laudos/proposta.html  Proposta técnica Geoflora (timbre, imposto por dentro) — idem
 laudos/relatorio.html Relatório de vistoria para clientes (logo editável, fotos, PDF/Word) — idem
-orcamento/index.html  App de orçamento (Orçamento Offline) ligado ao sistema
-orcamento/nuvem.js    Login, orçamentos no banco, base pronta, analítico, virar planilha da obra
-orcamento/bases/      Bases SINAPI prontas (só MT) em JSON; index.json lista as disponíveis
+orcamento/index.html  App de orçamento (ObraCerta): planilha, BDI, curva ABC, cronograma, relatórios,
+                      composições próprias, bancos de preços; "Gravar na obra" leva a planilha para a obra
+                      (?id=<orçamento> abre direto; ?obra=<obra> lista e cria orçamentos daquela obra)
+orcamento/classico.html  App de orçamento anterior (Orçamento Offline), mantido para os orçamentos já feitos nele
+orcamento/nuvem.js    Ligação do app anterior com o sistema
+orcamento/bases/      Bases prontas: obracerta.json lista as do app atual (arquivos .json.gz, só MT);
+                      index.json e sinapi-mt-AAAA-MM.json servem ao app anterior e à Auditoria
 comum/
   config.js           Endereço e chave pública do Supabase
   supabase.js         Conexão e controle de login
@@ -57,6 +61,9 @@ supabase/migrations/  SQL que cria o banco, em ordem (0001, 0002…)
 - Saldo, % executado, valor de cada BM, % de aditivo e prazo vencido **não são gravados**: são calculados pelas views `v_itens_saldo`, `v_medicoes_resumo` e `v_obras_resumo`.
 - Um BM fechado não aceita alteração nas quantidades até ser reaberto.
 - As fotos ficam no bucket privado `fotos`, na pasta `<user_id>/<obra_id>/`.
+- Orçamentos (`orcamentos`, coluna `app`) e composições próprias (`orc_proprias`) são de cada usuário.
+- Bases de preço importadas (`orc_bases`, `orc_base_itens`, `orc_base_analitico`) são lidas por todos os usuários logados e só quem importou altera ou exclui. A importação grava uma versão nova e só no fim a função `orc_base_publicar` troca a versão ativa: se cair no meio, a base anterior continua inteira.
+- A medição é uma só: os BMs da obra. O orçamento, depois de gravado na obra, mostra na aba Medição os BMs lançados nela.
 
 ## Instalar uma cópia nova (para outra pessoa)
 
@@ -70,6 +77,10 @@ Nunca coloque no código a chave secreta (`service_role` / `sb_secret_…`).
 
 ## Bases SINAPI prontas
 
-`orcamento/bases/sinapi-mt-AAAA-MM.json` traz, só para MT: insumos e composições nos dois regimes (desonerado e não desonerado), a composição analítica, o % de mão de obra e o preço de SP (%AS) dos insumos sem preço em MT. Composições com custo zero em MT ficam fora da busca.
+O app de orçamento usa os arquivos listados em `orcamento/bases/obracerta.json` (ex.: `sinapi-mt-2026-09.obracerta.json.gz`, JSON comprimido com insumos, composições nos dois regimes e analítico). A base mais recente de cada fonte é a usada nos orçamentos novos. Para um mês novo, acrescente o arquivo e uma linha no `obracerta.json`; ou importe a planilha em Bancos de preços (fica no banco, para todos os usuários).
+
+Os padrões dos orçamentos novos (órgão, município, responsável técnico, taxa de administração) ficam em `comum/config.js`, no bloco `ORCAMENTO`.
+
+`orcamento/bases/sinapi-mt-AAAA-MM.json` (app anterior e Auditoria) traz, só para MT: insumos e composições nos dois regimes (desonerado e não desonerado), a composição analítica, o % de mão de obra e o preço de SP (%AS) dos insumos sem preço em MT. Composições com custo zero em MT ficam fora da busca.
 
 Para incluir um mês novo, gere o arquivo a partir dos relatórios da CAIXA (SINAPI_Referência e SINAPI_mão_de_obra) e acrescente uma linha em `orcamento/bases/index.json`. Também é possível importar o mês direto no app (Bancos de dados → Importar planilha); nesse caso a base fica só no navegador onde foi importada.

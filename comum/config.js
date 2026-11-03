@@ -9,5 +9,15 @@ window.SE_CONFIG = {
   // Nome usado pelo D.I.E.G.O. na saudação da tela de entrada ("BEM-VINDO, DIEGO.")
   NOME_OPERADOR: 'Diego',
   // ID do cliente OAuth do Google (público). Vazio = botões do Drive avisam que falta configurar.
-  GOOGLE_CLIENT_ID: ''
+  GOOGLE_CLIENT_ID: '',
+  // Padrões dos orçamentos novos (app de orçamento). Tudo pode ser trocado depois em "Dados e BDI".
+  ORCAMENTO: {
+    orgao: 'SECRETARIA MUNICIPAL DE SAÚDE',
+    municipio: 'Cuiabá - MT',
+    local: 'Cuiabá – MT',
+    responsavel: 'Diego Leal',
+    crea: 'Engenheiro Civil - CREA-MT 37420',
+    matricula: '',
+    adm: 6            // taxa de administração da obra (% sobre o custo direto); 0 = não incluir
+  }
 };

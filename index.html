@@ -5,6 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Central de Monitoramento — Sistema de Engenharia</title>
 <link rel="stylesheet" href="comum/estilo.css?v=diego1">
+<style>
+  .filtros-central { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros-central input { flex: 1 1 260px; width: auto; }
+  .filtros-central select { flex: 0 0 auto; width: auto; min-width: 210px; }
+  .filtros-central .contagem { color: var(--texto-2); font-size: .85rem; }
+  th button.ord { all: unset; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; text-transform: inherit; letter-spacing: inherit; }
+  th button.ord:hover, th button.ord:focus-visible { color: var(--verde); }
+  th button.ord:focus-visible { outline: 1px solid var(--verde); outline-offset: 2px; border-radius: 3px; }
+  th button.ord::after { content: '↕'; opacity: .35; font-size: .9em; }
+  th[aria-sort="ascending"] button.ord::after { content: '↑'; opacity: 1; color: var(--verde); }
+  th[aria-sort="descending"] button.ord::after { content: '↓'; opacity: 1; color: var(--verde); }
+  a.nome-obra { color: var(--texto); text-decoration: none; font-weight: 600; }
+  a.nome-obra:hover, a.nome-obra:focus-visible { color: var(--verde); text-decoration: underline; }
+  button.perigo { background: transparent; color: var(--critico); border-color: color-mix(in srgb, var(--critico) 60%, transparent); margin-right: auto; }
+  button.perigo:hover:not(:disabled) { border-color: var(--critico); box-shadow: 0 0 14px rgba(255, 92, 122, .25); }
+  .confirma { margin-top: 12px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--critico) 55%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--critico) 8%, transparent); font-size: .88rem; }
+  .dica-campo { font-size: .76rem; color: var(--texto-2); margin-top: 3px; }
+  #pgMsg { margin: 0 0 12px; }
+</style>
 </head>
 <body>
 <header class="topo">
@@ -29,16 +48,39 @@
     <button id="bNova">+ Nova obra</button>
   </div>
 
+  <div class="msg erro" id="pgMsg" role="alert" hidden></div>
   <section class="kpis" id="kpis"></section>
 
   <section class="painel">
+    <div class="filtros-central" role="search">
+      <input id="fBusca" type="search" placeholder="Buscar obra, contratada, contrato ou processo…" aria-label="Buscar obra">
+      <select id="fSituacao" aria-label="Filtrar por situação">
+        <option value="">Todas as obras</option>
+        <option value="ativas">Ativas (em andamento ou paralisadas)</option>
+        <option value="em_andamento">Em andamento</option>
+        <option value="paralisada">Paralisadas</option>
+        <option value="concluida">Concluídas</option>
+        <option value="encerrada">Encerradas</option>
+        <option value="vencido">Prazo vencido</option>
+        <option value="vence30">Vence em até 30 dias</option>
+        <option value="aditivo">Aditivo acima do limite</option>
+      </select>
+      <span class="contagem" id="fContagem" aria-live="polite"></span>
+    </div>
     <div class="tabela-wrap">
       <table>
         <thead>
-          <tr>
-            <th>Obra</th><th>Contratada</th><th>Contrato</th>
-            <th class="n">Valor total</th><th>Executado</th><th class="n">Saldo</th>
-            <th class="n">Aditivo</th><th class="n">BM</th><th>Término</th><th>Situação</th>
+          <tr id="cabTabela">
+            <th data-ord="nome"><button type="button" class="ord">Obra</button></th>
+            <th data-ord="contratada"><button type="button" class="ord">Contratada</button></th>
+            <th data-ord="num_contrato"><button type="button" class="ord">Contrato</button></th>
+            <th class="n" data-ord="valor_total"><button type="button" class="ord">Valor total</button></th>
+            <th data-ord="pct_executado"><button type="button" class="ord">Executado</button></th>
+            <th class="n" data-ord="valor_saldo"><button type="button" class="ord">Saldo</button></th>
+            <th class="n" data-ord="pct_aditivo"><button type="button" class="ord">Aditivo</button></th>
+            <th class="n" data-ord="ultimo_bm"><button type="button" class="ord">BM</button></th>
+            <th data-ord="termino_vigente"><button type="button" class="ord">Término</button></th>
+            <th data-ord="status"><button type="button" class="ord">Situação</button></th>
           </tr>
         </thead>
         <tbody id="linhas"><tr><td colspan="10" class="vazio">Carregando…</td></tr></tbody>
@@ -73,8 +115,8 @@
         <div><label for="o_desc">Desconto (%)</label><input id="o_desc" inputmode="decimal"></div>
         <div><label for="o_bdi">BDI (%)</label><input id="o_bdi" inputmode="decimal"></div>
         <div><label for="o_inicio">Início</label><input id="o_inicio" type="date"></div>
-        <div><label for="o_prazo">Prazo (dias)</label><input id="o_prazo" type="number" min="0"></div>
-        <div><label for="o_termino">Término vigente</label><input id="o_termino" type="date"></div>
+        <div><label for="o_prazo">Prazo (dias)</label><input id="o_prazo" type="number" min="1" step="1"></div>
+        <div><label for="o_termino">Término vigente</label><input id="o_termino" type="date"><div class="dica-campo" id="dTermino"></div></div>
         <div><label for="o_reaj">Reajuste (%)</label><input id="o_reaj" inputmode="decimal"></div>
         <div><label for="o_status">Situação</label>
           <select id="o_status">
@@ -84,9 +126,11 @@
       </div>
       <label for="o_obs">Observações</label>
       <textarea id="o_obs" rows="2"></textarea>
-      <div class="msg" id="oMsg"></div>
+      <div class="confirma" id="oExcluir" hidden></div>
+      <div class="msg" id="oMsg" role="alert"></div>
     </div>
     <footer>
+      <button type="button" class="perigo" id="bExcluir" hidden>Excluir obra</button>
       <button type="button" class="sec" id="bCancelar">Cancelar</button>
       <button type="submit" id="bSalvar">Salvar</button>
     </footer>
@@ -103,6 +147,18 @@ const { sb } = SE;
 const $ = id => document.getElementById(id);
 let obras = [];
 let editando = null;
+let usuario = null;
+// filtro, busca e ordenação da tabela (lembrados neste navegador)
+let vista = { busca: '', situacao: '', ord: 'nome', asc: true };
+try { Object.assign(vista, JSON.parse(localStorage.getItem('central.vista') || '{}')); } catch (_) {}
+const lembrar = () => { try { localStorage.setItem('central.vista', JSON.stringify({ situacao: vista.situacao, ord: vista.ord, asc: vista.asc })); } catch (_) {} };
+
+// aviso no topo da página (no lugar do alert)
+function avisoPagina(txt) {
+  const m = $('pgMsg');
+  m.textContent = txt || ''; m.hidden = !txt;
+  if (txt) m.scrollIntoView({ block: 'nearest' });
+}
 
 const SITUACAO = {
   em_andamento: ['Em andamento', 'ok'], paralisada: ['Paralisada', 'alerta'],
@@ -112,6 +168,7 @@ const SITUACAO = {
 (async function iniciar() {
   const user = await SE.exigirLogin();
   if (!user) return;
+  usuario = user;
   $('uEmail').textContent = user.email;
   $('bSair').onclick = SE.sair;
   $('bNova').onclick = () => abrir(null);
@@ -120,6 +177,17 @@ const SITUACAO = {
     nome: () => 'Central de obras - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'), pasta: () => [] });
   $('bCancelar').onclick = () => { $('dObra').close(); if (voltarParaObra) location.href = 'obras/obra.html?id=' + editando; };
   $('fObra').onsubmit = salvar;
+  $('bExcluir').onclick = excluir;
+  $('o_inicio').oninput = $('o_prazo').oninput = sugerirTermino;
+  $('o_termino').oninput = () => { $('o_termino').dataset.auto = ''; $('dTermino').textContent = ''; };
+  $('fBusca').value = vista.busca; $('fSituacao').value = vista.situacao;
+  $('fBusca').oninput = () => { vista.busca = $('fBusca').value; desenharTabela(); };
+  $('fSituacao').onchange = () => { vista.situacao = $('fSituacao').value; lembrar(); desenharTabela(); };
+  document.querySelectorAll('#cabTabela th[data-ord] button').forEach(b => b.onclick = () => {
+    const k = b.parentElement.dataset.ord;
+    if (vista.ord === k) vista.asc = !vista.asc; else { vista.ord = k; vista.asc = true; }
+    lembrar(); desenharTabela();
+  });
   await carregar();
   // vindo da página da obra: "Editar dados"
   const ed = new URLSearchParams(location.search).get('editar');
@@ -128,7 +196,7 @@ const SITUACAO = {
 
 async function carregar() {
   const { data, error } = await sb.from('v_obras_resumo').select('*').order('nome');
-  if (error) { $('linhas').innerHTML = `<tr><td colspan="10" class="vazio">Erro ao carregar: ${F.esc(error.message)}</td></tr>`; return; }
+  if (error) { $('linhas').innerHTML = `<tr><td colspan="10" class="vazio">Erro ao carregar: ${F.esc(error.message)}</td></tr>`; $('kpis').innerHTML = ''; return; }
   obras = data;
   desenharKpis();
   desenharTabela();
@@ -153,8 +221,16 @@ function desenharKpis() {
 
 // prazos dos processos do SIGED (a data-limite já vem calculada e gravada)
 async function kpiProcessos() {
-  const { data } = await sb.from('processos').select('data_limite, status').not('status', 'in', '(respondido,arquivado)');
-  const el = document.getElementById('kpiProc'); if (!el || !data) return;
+  const el = document.getElementById('kpiProc'); if (!el) return;
+  let data, error;
+  try { ({ data, error } = await sb.from('processos').select('data_limite, status').not('status', 'in', '(respondido,arquivado)')); }
+  catch (e) { error = e; }
+  if (error) {
+    el.querySelector('.valor').textContent = '—';
+    el.querySelector('.det').textContent = 'não foi possível carregar os processos';
+    el.title = 'Erro: ' + (error.message || error);
+    return;
+  }
   const d = new Date(), hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const venc = data.filter(p => p.data_limite && p.data_limite < hoje).length, hj = data.filter(p => p.data_limite === hoje).length;
   el.classList.toggle('critico', venc + hj > 0);
@@ -162,32 +238,75 @@ async function kpiProcessos() {
   el.querySelector('.det').textContent = hj ? `vencidos / em aberto · ${hj} vence(m) hoje` : 'vencidos / em aberto';
 }
 
+const ATIVA = o => !['concluida', 'encerrada'].includes(o.status);
+const ACIMA = o => o.pct_aditivo != null && Number(o.pct_aditivo) > Number(o.limite_aditivo_pct);
+const FILTROS = {
+  ativas: ATIVA,
+  em_andamento: o => o.status === 'em_andamento', paralisada: o => o.status === 'paralisada',
+  concluida: o => o.status === 'concluida', encerrada: o => o.status === 'encerrada',
+  vencido: o => o.prazo_vencido,
+  vence30: o => ATIVA(o) && !o.prazo_vencido && o.dias_restantes != null && o.dias_restantes <= 30,
+  aditivo: ACIMA
+};
+const NUMERICAS = ['valor_total', 'pct_executado', 'valor_saldo', 'pct_aditivo', 'ultimo_bm'];
+const semAcento = t => String(t ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+function obrasVisiveis() {
+  const termos = semAcento(vista.busca).split(/\s+/).filter(Boolean);
+  const f = FILTROS[vista.situacao];
+  const lista = obras.filter(o => (!f || f(o)) &&
+    termos.every(t => semAcento([o.nome, o.contratada, o.num_contrato, o.processo_siged].join(' ')).includes(t)));
+  const k = vista.ord, dir = vista.asc ? 1 : -1;
+  return lista.sort((a, b) => {
+    let x = a[k], y = b[k];
+    if (x == null || x === '') return 1;                 // vazios sempre no fim
+    if (y == null || y === '') return -1;
+    if (NUMERICAS.includes(k)) return (Number(x) - Number(y)) * dir;
+    if (k === 'status') { x = (SITUACAO[x] || [x])[0]; y = (SITUACAO[y] || [y])[0]; }
+    return String(x).localeCompare(String(y), 'pt-BR', { numeric: true, sensitivity: 'base' }) * dir;
+  });
+}
+
 function desenharTabela() {
+  document.querySelectorAll('#cabTabela th[data-ord]').forEach(th =>
+    th.setAttribute('aria-sort', th.dataset.ord === vista.ord ? (vista.asc ? 'ascending' : 'descending') : 'none'));
   if (!obras.length) {
+    $('fContagem').textContent = '';
     $('linhas').innerHTML = '<tr><td colspan="10" class="vazio">Nenhuma obra cadastrada. Clique em <b>+ Nova obra</b> para começar.</td></tr>';
     return;
   }
-  $('linhas').innerHTML = obras.map(o => {
+  const lista = obrasVisiveis();
+  $('fContagem').textContent = lista.length === obras.length ? `${obras.length} obra(s)` : `${lista.length} de ${obras.length} obra(s)`;
+  if (!lista.length) {
+    $('linhas').innerHTML = '<tr><td colspan="10" class="vazio">Nenhuma obra com esse filtro ou busca.</td></tr>';
+    return;
+  }
+  $('linhas').innerHTML = lista.map(o => {
     const [txt, cls] = SITUACAO[o.status] || [o.status, 'neutro'];
     const pct = Number(o.pct_executado || 0);
-    const acima = o.pct_aditivo != null && Number(o.pct_aditivo) > Number(o.limite_aditivo_pct);
+    const acima = ACIMA(o);
     let sit = `<span class="etiqueta ${cls}">${txt}</span>`;
     if (o.prazo_vencido) sit += ` <span class="etiqueta critico">Prazo vencido</span>`;
-    else if (o.dias_restantes != null && o.dias_restantes <= 30 && !['concluida','encerrada'].includes(o.status))
+    else if (o.dias_restantes != null && o.dias_restantes <= 30 && ATIVA(o))
       sit += ` <span class="etiqueta alerta">${o.dias_restantes} dias</span>`;
-    return `<tr data-id="${o.obra_id}" style="cursor:pointer" title="Abrir a obra">
-      <td><b>${F.esc(o.nome)}</b></td>
+    const url = 'obras/obra.html?id=' + encodeURIComponent(o.obra_id);
+    return `<tr data-id="${F.esc(o.obra_id)}" style="cursor:pointer" title="Abrir a obra">
+      <td><a class="nome-obra" href="${url}">${F.esc(o.nome)}</a></td>
       <td>${F.esc(o.contratada || '—')}</td>
       <td>${F.esc(o.num_contrato || '—')}</td>
       <td class="n">${F.rs(o.valor_total)}</td>
-      <td><div style="display:flex;align-items:center;gap:8px"><div class="barra" style="flex:1"><span style="width:${Math.min(pct, 100)}%"></span></div><span class="n" style="min-width:56px">${F.pct(o.pct_executado)}</span></div></td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="barra" style="flex:1" role="progressbar" aria-label="Executado" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(pct, 100)}"><span style="width:${Math.min(pct, 100)}%"></span></div><span class="n" style="min-width:56px">${F.pct(o.pct_executado)}</span></div></td>
       <td class="n">${F.rs(o.valor_saldo)}</td>
       <td class="n" style="${acima ? 'color:var(--critico);font-weight:600' : ''}">${F.pct(o.pct_aditivo)}</td>
       <td class="n">${o.ultimo_bm ?? '—'}</td>
       <td>${F.data(o.termino_vigente)}</td>
       <td>${sit}</td></tr>`;
   }).join('');
-  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => location.href = 'obras/obra.html?id=' + tr.dataset.id);
+  // a linha inteira abre a obra; pelo teclado, o nome da obra é um link (Tab + Enter)
+  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = e => {
+    if (e.target.closest('a')) return;
+    location.href = 'obras/obra.html?id=' + encodeURIComponent(tr.dataset.id);
+  });
 }
 
 const CAMPOS = {
@@ -198,19 +317,56 @@ const CAMPOS = {
 };
 const NUMEROS = { o_valor: 'valor_contrato', o_desc: 'desconto_pct', o_bdi: 'bdi_pct', o_reaj: 'reajuste_pct' };
 
+// percentuais guardam até 4 casas no banco: mostrar só 2 arredondava o valor ao salvar de novo
+const casasNum = (col, v) => col === 'valor_contrato' ? F.num(v, 2)
+  : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
 let voltarParaObra = false;
 async function abrir(id, daObra = false) {
+  avisoPagina('');
   editando = id; voltarParaObra = daObra;
-  $('fObra').reset(); $('oMsg').textContent = '';
+  $('fObra').reset(); $('oMsg').textContent = ''; $('oMsg').className = 'msg';
+  $('oExcluir').hidden = true; $('oExcluir').innerHTML = '';
+  $('o_termino').dataset.auto = ''; $('dTermino').textContent = '';
   $('dTitulo').textContent = id ? 'Editar obra' : 'Nova obra';
+  $('bExcluir').hidden = !id; $('bExcluir').disabled = false; $('bExcluir').textContent = 'Excluir obra';
   if (id) {
-    const { data, error } = await sb.from('obras').select('*').eq('id', id).single();
-    if (error) { alert('Erro: ' + error.message); return; }
+    const { data, error } = await sb.from('obras').select('*').eq('id', id).maybeSingle();
+    if (error || !data) { avisoPagina('Não foi possível abrir a obra: ' + (error ? error.message : 'ela não existe mais ou é de outro usuário.')); return; }
     for (const [el, col] of Object.entries(CAMPOS)) $(el).value = data[col] ?? '';
-    for (const [el, col] of Object.entries(NUMEROS)) $(el).value = data[col] == null ? '' : F.num(data[col], col === 'valor_contrato' ? 2 : 2);
+    for (const [el, col] of Object.entries(NUMEROS)) $(el).value = data[col] == null ? '' : casasNum(col, data[col]);
   }
   $('dObra').showModal();
   $('o_nome').focus();
+}
+
+// início + prazo → término (só preenche se o término estiver vazio ou tiver sido calculado aqui)
+function sugerirTermino() {
+  const ini = $('o_inicio').value, prazo = parseInt($('o_prazo').value, 10), t = $('o_termino');
+  if (!ini || !(prazo > 0) || (t.value && !t.dataset.auto)) return;
+  const d = new Date(ini + 'T12:00:00'); d.setDate(d.getDate() + prazo - 1);   // o dia do início conta como 1º dia
+  t.value = d.toISOString().slice(0, 10); t.dataset.auto = '1';
+  $('dTermino').textContent = `calculado: início + ${prazo} dias (ajuste se houver aditivo de prazo)`;
+}
+
+// confere os campos antes de gravar; devolve a mensagem do primeiro problema
+function validar(reg) {
+  if (!reg.nome) return ['o_nome', 'Informe o nome da obra.'];
+  for (const [el, col] of Object.entries(NUMEROS)) {
+    const txt = $(el).value.trim();
+    if (txt && reg[col] == null) return [el, `Valor inválido em “${document.querySelector(`label[for=${el}]`).textContent}”. Use, por exemplo, 1.234,56.`];
+  }
+  if (reg.valor_contrato != null && reg.valor_contrato < 0) return ['o_valor', 'O valor do contrato não pode ser negativo.'];
+  for (const [el, col, nome] of [['o_desc', 'desconto_pct', 'desconto'], ['o_bdi', 'bdi_pct', 'BDI']])
+    if (reg[col] != null && (reg[col] < 0 || reg[col] >= 100)) return [el, `O ${nome} deve ficar entre 0% e 100%.`];
+  if (reg.reajuste_pct != null && (reg.reajuste_pct <= -100 || reg.reajuste_pct > 1000)) return ['o_reaj', 'Reajuste fora do intervalo esperado.'];
+  if ($('o_prazo').value.trim() && !(Number.isInteger(Number($('o_prazo').value)) && Number($('o_prazo').value) > 0))
+    return ['o_prazo', 'O prazo deve ser um número inteiro de dias, maior que zero.'];
+  for (const [el, col] of [['o_inicio', 'data_inicio'], ['o_termino', 'termino_vigente']])
+    if (reg[col] && !/^\d{4}-\d{2}-\d{2}$/.test(reg[col])) return [el, 'Data inválida.'];
+  if (reg.data_inicio && reg.termino_vigente && reg.termino_vigente < reg.data_inicio)
+    return ['o_termino', 'O término vigente não pode ser antes do início.'];
+  return null;
 }
 
 async function salvar(e) {
@@ -218,10 +374,11 @@ async function salvar(e) {
   const reg = {};
   for (const [el, col] of Object.entries(CAMPOS)) { const v = $(el).value.trim(); reg[col] = v === '' ? null : v; }
   for (const [el, col] of Object.entries(NUMEROS)) reg[col] = F.lerNum($(el).value);
+  const erro = validar(reg);
+  if (erro) { $('oMsg').className = 'msg erro'; $('oMsg').textContent = erro[1]; $(erro[0]).focus(); return; }
   if (reg.prazo_dias != null) reg.prazo_dias = parseInt(reg.prazo_dias, 10);
   if (reg.desconto_pct == null) reg.desconto_pct = 0;
   if (reg.reajuste_pct == null) reg.reajuste_pct = 0;
-  if (!reg.nome) { $('oMsg').className = 'msg erro'; $('oMsg').textContent = 'Informe o nome da obra.'; return; }
 
   $('bSalvar').disabled = true;
   try {
@@ -241,6 +398,48 @@ async function salvar(e) {
   } catch (err) {
     $('oMsg').className = 'msg erro'; $('oMsg').textContent = 'Erro ao salvar: ' + err.message;
   } finally { $('bSalvar').disabled = false; }
+}
+
+// excluir obra: mostra o que será apagado e pede confirmação (com o nome, se já houver medição ou foto)
+async function excluir() {
+  const b = $('bExcluir'), box = $('oExcluir'), id = editando;
+  if (!id) return;
+  if (box.hidden) {
+    b.disabled = true;
+    const conta = async t => { const { count, error } = await sb.from(t).select('id', { count: 'exact', head: true }).eq('obra_id', id); if (error) throw error; return count || 0; };
+    let n;
+    try { n = { planilhas: await conta('planilhas'), medicoes: await conta('medicoes'), fotos: await conta('fotos'), notificacoes: await conta('notificacoes') }; }
+    catch (e) { $('oMsg').className = 'msg erro'; $('oMsg').textContent = 'Erro ao conferir a obra: ' + e.message; b.disabled = false; return; }
+    const nome = $('o_nome').value.trim();
+    const pedeNome = n.medicoes > 0 || n.fotos > 0;
+    box.innerHTML = `<b>Excluir “${F.esc(nome)}” de vez?</b><br>
+      Serão apagados também: ${n.planilhas} planilha(s) com itens e cronograma, ${n.medicoes} BM(s), ${n.fotos} foto(s) e ${n.notificacoes} notificação(ões).
+      Orçamentos e processos ligados a ela ficam, sem a obra. Não dá para desfazer.
+      ${pedeNome ? `<label for="oConfNome">Para confirmar, digite o nome da obra</label><input id="oConfNome" autocomplete="off">` : ''}`;
+    box.hidden = false; box.dataset.nome = pedeNome ? nome : '';
+    b.textContent = 'Confirmar exclusão'; b.disabled = false;
+    (pedeNome ? $('oConfNome') : b).focus();
+    return;
+  }
+  if (box.dataset.nome && ($('oConfNome').value.trim() !== box.dataset.nome)) {
+    $('oMsg').className = 'msg erro'; $('oMsg').textContent = 'O nome digitado não confere.'; $('oConfNome').focus(); return;
+  }
+  b.disabled = true; $('oMsg').className = 'msg'; $('oMsg').textContent = 'Excluindo…';
+  try {
+    // arquivos das fotos no armazenamento (as linhas da tabela saem junto com a obra)
+    const pasta = `${usuario.id}/${id}`;
+    const { data: arqs } = await sb.storage.from('fotos').list(pasta, { limit: 1000 });
+    if (arqs && arqs.length) await sb.storage.from('fotos').remove(arqs.map(a => `${pasta}/${a.name}`));
+    const { data, error } = await sb.from('obras').delete().eq('id', id).select('id');
+    if (error) throw error;
+    if (!data || !data.length) throw new Error('a obra não foi encontrada (pode ser de outro usuário).');
+    $('dObra').close();
+    if (voltarParaObra) history.replaceState(null, '', 'index.html');
+    voltarParaObra = false; editando = null;
+    await carregar();
+  } catch (e) {
+    $('oMsg').className = 'msg erro'; $('oMsg').textContent = 'Erro ao excluir: ' + e.message; b.disabled = false;
+  }
 }
 </script>
 </body>
