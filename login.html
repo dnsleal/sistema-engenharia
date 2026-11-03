@@ -3,46 +3,782 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Entrar — Sistema de Engenharia</title>
-<link rel="stylesheet" href="comum/estilo.css">
+<meta name="theme-color" content="#000000">
+<title>D.I.E.G.O. — Sistema de Engenharia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <style>
-  body { display: grid; place-items: center; min-height: 100vh; padding: 16px; }
-  .caixa { width: min(400px, 100%); }
-  .marca { text-align: center; margin-bottom: 18px; }
-  .marca h1 { font-size: 1.3rem; margin: 0; color: var(--marinho); }
-  .marca p { margin: 4px 0 0; color: var(--texto-2); font-size: .88rem; }
-  .acoes { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
-  .acoes button { justify-content: center; }
-  .links { display: flex; justify-content: space-between; margin-top: 14px; font-size: .85rem; }
-  .links a { cursor: pointer; }
+  /* ============================================================
+     D.I.E.G.O. — Digital Intelligence for Engineering,
+                  Geoscience & Operations
+     Tela de entrada do Sistema de Engenharia: a abertura (boot)
+     termina no formulário de login. Cores: preto, roxo e verde.
+     ============================================================ */
+  :root {
+    --bg: #000;
+    --roxo: #8b5cf6;
+    --roxo-claro: #c4b5fd;
+    --roxo-escuro: #3b0764;
+    --verde: #2bff9a;
+    --rosa: #ff5c7a;
+    --texto: #ece6ff;
+    --muted: #8e7cc0;
+    --f-titulo: 'Orbitron', 'Segoe UI', system-ui, sans-serif;
+    --f-mono: 'Share Tech Mono', ui-monospace, Consolas, monospace;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; background: var(--bg); }
+  body { color: var(--texto); font-family: var(--f-mono); }
+
+  /* ---------- Camada da abertura ---------- */
+  #diego-boot {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: radial-gradient(ellipse at center, #14062e 0%, #06000c 55%, #000 100%);
+    overflow: hidden;
+    transition: opacity .9s ease, filter .9s ease, transform .9s ease;
+  }
+  #diego-boot.saindo { opacity: 0; filter: blur(8px); transform: scale(1.04); }
+  #diego-boot.login { overflow-y: auto; }
+
+  .grade {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(139,92,246,.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139,92,246,.08) 1px, transparent 1px);
+    background-size: 40px 40px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 25%, transparent 80%);
+            mask-image: radial-gradient(ellipse at center, #000 25%, transparent 80%);
+    animation: gradeMove 18s linear infinite;
+  }
+  @keyframes gradeMove { to { background-position: 40px 40px, 40px 40px; } }
+  .scan {
+    position: fixed; inset: 0; pointer-events: none;
+    background: repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
+  }
+  .varredura {
+    position: fixed; left: 0; right: 0; height: 140px; pointer-events: none;
+    background: linear-gradient(to bottom, transparent, rgba(43,255,154,.06), transparent);
+    animation: varre 4.5s linear infinite;
+  }
+  @keyframes varre { from { top: -140px; } to { top: 100%; } }
+
+  /* ---------- Fundo: pranchas de engenharia ---------- */
+  .planta {
+    position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none;
+    opacity: 0; transition: opacity 1.4s ease;
+  }
+  #diego-boot.ativo .planta { opacity: .6; }
+  #diego-boot.login .planta { opacity: .35; }
+  .planta .d { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 2.8s ease; }
+  #diego-boot.ativo .planta .d { stroke-dashoffset: 0; }
+  .planta .v { stroke: var(--verde); }
+  .planta text {
+    font-family: var(--f-mono); font-size: 13px; fill: var(--roxo-claro); stroke: none;
+    letter-spacing: 1px; opacity: 0; transition: opacity 1s ease 2s;
+  }
+  #diego-boot.ativo .planta text { opacity: .85; }
+  .engrenagem { transform-box: fill-box; transform-origin: center; }
+  .eg1 { animation: gira 16s linear infinite; }
+  .eg2 { animation: gira 10.7s linear infinite reverse; }
+
+  .canto { position: fixed; width: 26px; height: 26px; border: 2px solid var(--verde); opacity: .65; }
+  .c1 { top: 14px; left: 14px; border-right: 0; border-bottom: 0; }
+  .c2 { top: 14px; right: 14px; border-left: 0; border-bottom: 0; }
+  .c3 { bottom: 14px; left: 14px; border-right: 0; border-top: 0; }
+  .c4 { bottom: 14px; right: 14px; border-left: 0; border-top: 0; }
+
+  /* ---------- Centro ---------- */
+  .centro {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 24px;
+  }
+  #diego-boot.login .centro { padding: 28px 16px 40px; }
+  .reator {
+    width: min(46vmin, 420px); height: auto; overflow: visible;
+    opacity: 0; transform: scale(.55) rotate(-40deg);
+    transition: opacity 1s ease, transform 1.3s cubic-bezier(.2,.8,.2,1), width 1s cubic-bezier(.2,.8,.2,1);
+  }
+  #diego-boot.ativo .reator { opacity: 1; transform: none; }
+  #diego-boot.login .reator { width: min(30vmin, 240px); }
+
+  .anel, .pulso, .cerebro, .rosto, .olhos, .barra { transform-box: fill-box; transform-origin: center; }
+  .a1 { animation: gira 40s linear infinite; }
+  .a2 { animation: gira 60s linear infinite reverse; }
+  .a3 { animation: gira 14s linear infinite; transition: stroke .8s; }
+  .a4 { animation: gira 3.2s linear infinite; }
+  .pulso { animation: pulso 2.4s ease-in-out infinite; }
+  @keyframes gira { to { transform: rotate(360deg); } }
+  @keyframes pulso { 0%,100% { opacity: .55; transform: scale(.94); } 50% { opacity: 1; transform: scale(1.06); } }
+  #db-prog { transition: stroke .8s; }
+  #diego-boot.online .a3 { stroke: var(--verde); }
+  #diego-boot.online .pulso { animation-duration: 1.1s; }
+
+  /* Cérebro-máquina: acende conforme os módulos carregam */
+  .cerebro { transition: opacity .9s ease, transform .9s ease; }
+  .lobo { fill: rgba(59,7,100,.3); stroke: var(--roxo); stroke-width: 2; }
+  .fissura { stroke: var(--roxo-claro); stroke-opacity: .6; stroke-width: 1.2; stroke-dasharray: 3 4; }
+  .tr { fill: none; stroke: var(--roxo); stroke-opacity: .55; stroke-width: 1.6; transition: stroke .4s, stroke-opacity .4s; }
+  .tr.aceso { stroke: var(--verde); stroke-opacity: 1; stroke-dasharray: 6 6; animation: fluxo .8s linear infinite; }
+  @keyframes fluxo { to { stroke-dashoffset: -12; } }
+  .no { fill: var(--roxo-escuro); stroke: var(--roxo); stroke-width: 1.2; transition: fill .4s, stroke .4s; }
+  .no.aceso { fill: var(--verde); stroke: var(--verde); animation: brilhaNo 1.4s ease-in-out infinite; }
+  @keyframes brilhaNo { 50% { opacity: .4; } }
+
+  /* Rosto do robô (design original do D.I.E.G.O.): aparece quando o sistema fica online */
+  .rosto { opacity: 0; transform: scale(.8); transition: opacity .9s ease .2s, transform .9s cubic-bezier(.2,.8,.2,1) .2s; }
+  #diego-boot.online .cerebro { opacity: 0; transform: scale(1.15); }
+  #diego-boot.online .rosto { opacity: 1; transform: none; }
+  .casco { fill: url(#db-g-casco); stroke: var(--roxo); stroke-width: 2; }
+  .placa { fill: url(#db-g-placa); stroke: var(--roxo-claro); stroke-opacity: .5; stroke-width: 1.2; }
+  .crista { fill: url(#db-g-crista); stroke: var(--roxo-claro); stroke-width: 1.2; }
+  .friso { fill: none; stroke: var(--roxo); stroke-width: 1.4; stroke-opacity: .9; }
+  .realce { fill: none; stroke: var(--roxo-claro); stroke-width: 1; stroke-opacity: .7; }
+  .circ { fill: none; stroke: var(--verde); stroke-width: 1; stroke-opacity: .75; }
+  .circ-no { fill: var(--verde); }
+  .respiro { stroke: var(--roxo-claro); stroke-width: 2; stroke-linecap: round; stroke-opacity: .8; }
+  .visor { fill: rgba(43,255,154,.12); stroke: var(--verde); stroke-width: 1.8; transition: fill .3s, stroke .3s; }
+  .olho { fill: var(--verde); transition: fill .3s; }
+  .turbina { transform-box: fill-box; transform-origin: center; animation: gira 3s linear infinite; }
+  .nucleo-peito { fill: var(--verde); animation: brilhaNo 1.2s ease-in-out infinite; }
+  #diego-boot.online .olhos { animation: piscar 3.6s ease-in-out infinite 1.2s; }
+  @keyframes piscar { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+  .reflexo { fill: rgba(255,255,255,.35); animation: varreVisor 2.4s ease-in-out infinite; }
+  @keyframes varreVisor { 0% { transform: translateX(0); } 60%, 100% { transform: translateX(92px); } }
+  .barra { stroke: var(--verde); stroke-width: 2.5; stroke-linecap: round; transform: scaleY(.3); transition: transform .2s; }
+  #diego-boot.falando .barra { animation: fala .32s ease-in-out infinite alternate; }
+  #diego-boot.falando .barra:nth-child(2n) { animation-duration: .24s; }
+  #diego-boot.falando .barra:nth-child(3n) { animation-duration: .4s; }
+  @keyframes fala { from { transform: scaleY(.2); } to { transform: scaleY(1); } }
+  /* Acesso negado: visor e olhos em vermelho por um instante */
+  #diego-boot.negado .visor { fill: rgba(255,92,122,.16); stroke: var(--rosa); }
+  #diego-boot.negado .olho, #diego-boot.negado .barra { fill: var(--rosa); stroke: var(--rosa); }
+
+  /* Textos */
+  .sigla {
+    margin-top: 18px; padding-left: .18em;
+    font-family: var(--f-titulo); font-weight: 800;
+    font-size: clamp(30px, 6vw, 64px); letter-spacing: .18em;
+    color: #f3eeff;
+    text-shadow: 0 0 18px rgba(139,92,246,.8), 0 0 2px #fff;
+    transition: font-size .8s ease, margin .8s ease;
+  }
+  #diego-boot.login .sigla { margin-top: 10px; font-size: clamp(26px, 4.4vw, 44px); }
+  .sigla span {
+    display: inline-block; opacity: 0;
+    transform: translateY(14px) scale(1.4); filter: blur(8px);
+    transition: opacity .45s, transform .45s cubic-bezier(.2,.8,.2,1), filter .45s;
+  }
+  .sigla span.on { opacity: 1; transform: none; filter: none; }
+  .sigla .ponto { color: var(--verde); text-shadow: 0 0 12px var(--verde); }
+  #diego-boot.online .sigla { animation: glitch 2.6s steps(1) infinite; }
+  @keyframes glitch {
+    0%, 90%, 100% { text-shadow: 0 0 18px rgba(139,92,246,.8), 0 0 2px #fff; transform: none; }
+    92% { text-shadow: -3px 0 var(--verde), 3px 0 var(--roxo); transform: translateX(2px); }
+    94% { text-shadow: 3px 0 var(--verde), -3px 0 var(--roxo); transform: translateX(-2px); }
+    96% { text-shadow: -1px 0 var(--verde), 1px 0 var(--roxo); transform: translateX(1px); }
+  }
+  .extenso {
+    margin-top: 10px; max-width: 92vw; line-height: 1.9;
+    font-family: var(--f-titulo); font-size: clamp(10px, 1.45vw, 15px);
+    letter-spacing: .2em; text-transform: uppercase; color: var(--roxo-claro);
+  }
+  #diego-boot.login .extenso { margin-top: 4px; font-size: clamp(9px, 1.1vw, 12px); }
+  .extenso span { display: inline-block; margin: 0 .3em; opacity: 0; transform: translateY(8px); transition: opacity .5s, transform .5s; }
+  .extenso span.on { opacity: 1; transform: none; }
+  .extenso b { color: var(--verde); font-weight: 800; text-shadow: 0 0 10px rgba(43,255,154,.7); }
+  .status { margin-top: 22px; min-height: 1.4em; font-size: 13px; letter-spacing: .3em; color: var(--muted); transition: color .6s; }
+  #diego-boot.login .status { margin-top: 14px; }
+  .status::after { content: '▌'; margin-left: 4px; color: var(--verde); animation: pisca 1s steps(1) infinite; }
+  @keyframes pisca { 50% { opacity: 0; } }
+  #diego-boot.online .status { color: var(--verde); text-shadow: 0 0 10px rgba(43,255,154,.6); }
+  #diego-boot.negado .status { color: var(--rosa); text-shadow: 0 0 10px rgba(255,92,122,.5); }
+  .tagline { margin-top: 8px; min-height: 1.5em; font-family: var(--f-titulo); font-size: clamp(12px, 1.6vw, 17px); letter-spacing: .12em; color: var(--texto); }
+
+  /* ---------- Formulário de login ---------- */
+  .acesso {
+    position: relative; width: min(400px, 100%); margin-top: 18px; text-align: left;
+    padding: 18px 20px 16px;
+    background: linear-gradient(180deg, rgba(59,7,100,.5), rgba(0,0,0,.72));
+    border: 1px solid rgba(139,92,246,.45);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    box-shadow: 0 0 40px rgba(139,92,246,.18), inset 0 0 24px rgba(139,92,246,.08);
+    display: none; opacity: 0; transform: translateY(16px);
+    transition: opacity .7s ease, transform .7s cubic-bezier(.2,.8,.2,1);
+  }
+  #diego-boot.login .acesso { display: block; }
+  #diego-boot.login.form-on .acesso { opacity: 1; transform: none; }
+  .acesso::before, .acesso::after { content: ''; position: absolute; width: 14px; height: 14px; border: 2px solid var(--verde); }
+  .acesso::before { top: -2px; left: -2px; border-right: 0; border-bottom: 0; }
+  .acesso::after { bottom: -2px; right: -2px; border-left: 0; border-top: 0; }
+  .acesso-tit {
+    margin-bottom: 6px; padding-bottom: 8px;
+    font-size: 11px; letter-spacing: .25em; color: var(--verde);
+    border-bottom: 1px dashed rgba(139,92,246,.45);
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  .acesso-tit span:last-child { color: var(--muted); }
+  @media (max-width: 420px) { .acesso-tit span:last-child { display: none; } }
+  .acesso label { display: block; margin: 12px 0 5px; font-size: 11px; letter-spacing: .2em; color: var(--roxo-claro); text-transform: uppercase; }
+  .acesso input {
+    width: 100%; padding: 10px 12px;
+    font: 15px var(--f-mono); letter-spacing: .04em; color: var(--texto);
+    background: rgba(0,0,0,.6); border: 1px solid rgba(139,92,246,.5); border-radius: 0;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .acesso input::placeholder { color: #5f5283; }
+  .acesso input:focus { outline: none; border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde), 0 0 16px rgba(43,255,154,.25); }
+  .acesso input:-webkit-autofill { -webkit-text-fill-color: var(--texto); -webkit-box-shadow: 0 0 0 40px #0b0418 inset; caret-color: var(--texto); }
+  .entrar {
+    width: 100%; margin-top: 18px; padding: 12px 16px; cursor: pointer;
+    font-family: var(--f-titulo); font-weight: 600; font-size: 13px; letter-spacing: .3em; padding-left: calc(16px + .3em);
+    color: #000; background: var(--verde); border: 1px solid var(--verde);
+    box-shadow: 0 0 18px rgba(43,255,154,.35);
+    transition: box-shadow .2s, background .2s, color .2s, opacity .2s;
+  }
+  .entrar:hover, .entrar:focus-visible { outline: none; box-shadow: 0 0 28px rgba(43,255,154,.6); }
+  .entrar:disabled { opacity: .6; cursor: wait; }
+  .links { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; font-size: 12px; letter-spacing: .08em; }
+  .links button { background: none; border: 0; padding: 2px 0; cursor: pointer; font: inherit; color: var(--roxo-claro); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(196,181,253,.4); }
+  .links button:hover, .links button:focus-visible { color: var(--verde); outline: none; }
+  .msg { margin-top: 12px; min-height: 1.2em; font-size: 13px; line-height: 1.45; letter-spacing: .02em; color: var(--muted); }
+  .msg.erro { color: var(--rosa); }
+  .msg.ok { color: var(--verde); }
+  .assinatura { margin-top: 16px; font-size: 11px; letter-spacing: .16em; color: var(--muted); opacity: 0; transition: opacity .8s .3s; }
+  #diego-boot.form-on .assinatura { opacity: 1; }
+
+  /* ---------- Painéis laterais ---------- */
+  .painel {
+    position: fixed; top: 44px; z-index: 2;
+    padding: 12px 14px; font-size: 12px;
+    background: linear-gradient(180deg, rgba(59,7,100,.45), rgba(0,0,0,.6));
+    border: 1px solid rgba(139,92,246,.3);
+    -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+    opacity: 0; transition: opacity .8s .4s;
+  }
+  #diego-boot.ativo .painel { opacity: 1; }
+  .esq { left: 44px; width: 310px; }
+  .dir { right: 44px; width: 240px; }
+  .painel-tit {
+    margin-bottom: 8px; padding-bottom: 6px;
+    font-size: 11px; letter-spacing: .25em; color: var(--verde);
+    border-bottom: 1px dashed rgba(139,92,246,.4);
+  }
+  #db-log { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+  #db-log li { display: flex; gap: 8px; white-space: nowrap; color: #bfb0e8; }
+  #db-log .seta { color: var(--roxo); }
+  #db-log .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  #db-log .ok { color: var(--verde); }
+  .dir dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+  .dir dt { color: var(--muted); letter-spacing: .15em; }
+  .dir dd { text-align: right; color: var(--texto); font-variant-numeric: tabular-nums; }
+
+  .pular {
+    position: fixed; right: 30px; bottom: 26px; z-index: 3;
+    padding: 8px 16px; cursor: pointer;
+    font-family: var(--f-mono); font-size: 12px; letter-spacing: .25em;
+    color: var(--roxo-claro); background: rgba(0,0,0,.5);
+    border: 1px solid rgba(139,92,246,.55);
+    transition: color .2s, border-color .2s, box-shadow .2s;
+  }
+  .pular:hover, .pular:focus-visible { color: var(--verde); border-color: var(--verde); box-shadow: 0 0 14px rgba(43,255,154,.35); outline: none; }
+  #diego-boot.login .pular { display: none; }
+  .rodape { position: fixed; left: 30px; bottom: 32px; z-index: 2; font-size: 11px; letter-spacing: .2em; color: var(--muted); }
+
+  @media (max-width: 1100px) {
+    .dir { display: none; }
+    .esq { top: auto; bottom: 74px; left: 16px; right: 16px; width: auto; }
+    #db-log { max-height: 84px; overflow: hidden; justify-content: flex-end; }
+    .centro { padding-bottom: 150px; }
+    #diego-boot.login .esq { display: none; }
+    #diego-boot.login .centro { padding-bottom: 40px; }
+  }
+  @media (max-width: 760px) {
+    .reator { width: min(66vw, 310px); }
+    #diego-boot.login .reator { width: min(42vw, 180px); }
+    .rodape { display: none; }
+    .pular { right: 16px; bottom: 22px; }
+    #diego-boot.ativo .planta { opacity: .4; }
+    #diego-boot.login .planta { opacity: .22; }
+  }
+  @media (max-height: 640px) { .reator { width: min(36vmin, 250px); } #diego-boot.login .reator { width: min(26vmin, 160px); } }
+  @media (max-height: 760px) and (min-width: 761px) { #diego-boot.login .reator { width: min(24vmin, 190px); } }
+  @media (prefers-reduced-motion: reduce) {
+    .anel, .pulso, .grade, .varredura, .engrenagem, .tr.aceso, .no.aceso, .reflexo, .turbina, .nucleo-peito,
+    #diego-boot.online .sigla, #diego-boot.online .olhos, #diego-boot.falando .barra { animation: none !important; }
+  }
 </style>
 </head>
 <body>
-<div class="caixa">
-  <div class="marca">
-    <h1>Sistema de Engenharia</h1>
-    <p>Obras, medições, orçamentos e laudos</p>
+
+<!-- ================= D.I.E.G.O. ================= -->
+<div id="diego-boot" aria-label="D.I.E.G.O. — entrada do Sistema de Engenharia">
+  <div class="grade"></div>
+
+  <!-- Fundo: pranchas de engenharia (ponte treliçada, hidrograma, engrenagens, viga, edifício, carimbo) -->
+  <svg class="planta" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <g fill="none" stroke="#8b5cf6" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+
+      <!-- Hidrograma -->
+      <path class="d" pathLength="1" d="M80,360 V560 H330"/>
+      <path class="d" pathLength="1" d="M74,370 L80,360 L86,370 M320,554 L330,560 L320,566"/>
+      <path class="d v" pathLength="1" d="M84,552 C120,548 140,540 160,500 C180,440 190,390 205,385 C222,390 235,450 260,500 C285,535 310,548 326,552"/>
+      <path d="M205,388 V560" stroke-dasharray="4 5" stroke-opacity=".7"/>
+      <text x="88" y="352">Q (m³/s)</text>
+      <text x="292" y="582">t (h)</text>
+      <text x="212" y="378">Qp</text>
+      <text x="80" y="606">HIDROGRAMA DE PROJETO</text>
+
+      <!-- Engrenagens -->
+      <g class="engrenagem eg1">
+        <circle cx="470" cy="140" r="48" stroke-width="10" stroke-dasharray="9.42 9.42"/>
+        <circle cx="470" cy="140" r="43"/>
+        <circle cx="470" cy="140" r="11"/>
+        <path d="M470,97 V129 M470,151 V183 M427,140 H459 M481,140 H513"/>
+      </g>
+      <g class="engrenagem eg2">
+        <circle cx="540" cy="58" r="32" stroke-width="9" stroke-dasharray="9.14 9.14"/>
+        <circle cx="540" cy="58" r="27"/>
+        <circle cx="540" cy="58" r="7"/>
+        <path d="M540,31 V51 M540,65 V85 M513,58 H533 M547,58 H567"/>
+      </g>
+
+      <!-- Viga biapoiada com carga distribuída e diagrama de momento -->
+      <path class="d" pathLength="1" d="M1060,120 H1300"/>
+      <path class="d" pathLength="1" id="db-cargas" d="M1060,122 V164"/>
+      <path class="d" pathLength="1" d="M1060,170 H1300" stroke-width="3"/>
+      <path class="d" pathLength="1" d="M1060,170 L1050,188 H1070 Z M1300,170 L1290,188 H1310 Z M1288,194 H1312"/>
+      <path d="M1060,215 H1300" stroke-dasharray="4 5" stroke-opacity=".7"/>
+      <path class="d v" pathLength="1" d="M1060,215 Q1180,295 1300,215"/>
+      <text x="1172" y="110">q</text>
+      <text x="1122" y="290">M máx = qL²/8</text>
+
+      <!-- Corte de edifício com fundação em estacas -->
+      <path class="d" pathLength="1" d="M1280,700 H1560" stroke-width="2"/>
+      <path class="d" pathLength="1" id="db-solo" d="M1284,712 L1296,700"/>
+      <path class="d" pathLength="1" d="M1330,700 V380 H1500 V700 M1415,380 V700 M1330,620 H1500 M1330,540 H1500 M1330,460 H1500 M1324,380 H1506 M1324,370 V380 M1506,370 V380"/>
+      <path class="d" pathLength="1" d="M1316,700 V718 H1344 V700 M1401,700 V718 H1429 V700 M1486,700 V718 H1514 V700"/>
+      <path d="M1330,718 V840 M1415,718 V840 M1500,718 V840" stroke-dasharray="6 5"/>
+      <path class="d" pathLength="1" d="M1300,380 V700 M1294,380 H1306 M1294,700 H1306"/>
+      <text x="1290" y="560" transform="rotate(-90 1290 560)">12,00 m</text>
+      <text x="1508" y="616">N+3,00</text>
+      <text x="1508" y="536">N+6,00</text>
+      <text x="1508" y="456">N+9,00</text>
+      <text x="1508" y="376">N+12,00</text>
+      <text x="1508" y="696">N±0,00</text>
+
+      <!-- Ponte treliçada (Warren) -->
+      <path class="d" pathLength="1" d="M60,660 H580 M60,652 V668 M580,652 V668"/>
+      <text x="262" y="652">L = 52,00 m</text>
+      <path class="d" pathLength="1" d="M112,690 H528"/>
+      <path class="d" pathLength="1" d="M60,760 H580" stroke-width="2"/>
+      <path class="d" pathLength="1" d="M60,760 L112,690 L164,760 L216,690 L268,760 L320,690 L372,760 L424,690 L476,760 L528,690 L580,760"/>
+      <path class="d" pathLength="1" d="M60,760 V830 M580,760 V830 M48,830 H72 M568,830 H592"/>
+      <path class="d v" pathLength="1" id="db-agua" d="M30,848 H610"/>
+
+      <!-- Carimbo da prancha -->
+      <path class="d" pathLength="1" d="M1010,760 H1250 V850 H1010 Z M1010,790 H1250 M1150,790 V850 M1010,820 H1250"/>
+      <text x="1020" y="780">D.I.E.G.O. · SISTEMA DE ENGENHARIA</text>
+      <text x="1020" y="810">PRANCHA 01/01</text>
+      <text x="1160" y="810">ESC. 1:100</text>
+      <text x="1020" y="840">CUIABÁ · MT</text>
+      <text x="1160" y="840">REV. 00</text>
+
+      <!-- Marcas de referência -->
+      <path d="M660,620 h16 M668,612 v16 M960,90 h16 M968,82 v16 M380,300 h16 M388,292 v16 M1200,450 h16 M1208,442 v16" stroke="#2bff9a" stroke-opacity=".6"/>
+    </g>
+  </svg>
+
+  <div class="varredura"></div>
+  <div class="scan"></div>
+  <span class="canto c1"></span><span class="canto c2"></span><span class="canto c3"></span><span class="canto c4"></span>
+
+  <aside class="painel esq" aria-hidden="true">
+    <div class="painel-tit">// LOG DE INICIALIZAÇÃO</div>
+    <ul id="db-log"></ul>
+  </aside>
+
+  <aside class="painel dir" aria-hidden="true">
+    <div class="painel-tit">// TELEMETRIA</div>
+    <dl>
+      <dt>DATA</dt><dd id="db-data">--</dd>
+      <dt>HORA</dt><dd id="db-hora">--</dd>
+      <dt>LOCAL</dt><dd>CUIABÁ · MT</dd>
+      <dt>COORD.</dt><dd>15°36′S 56°06′W</dd>
+      <dt>NÚCLEO</dt><dd id="db-nuc">--</dd>
+      <dt>LATÊNCIA</dt><dd id="db-lat">--</dd>
+      <dt>SINAPSES</dt><dd id="db-sin">--</dd>
+      <dt>MÓDULOS</dt><dd id="db-mod">0/0</dd>
+    </dl>
+  </aside>
+
+  <div class="centro">
+    <svg class="reator" viewBox="0 0 400 400" aria-hidden="true">
+      <defs>
+        <radialGradient id="db-nucleo" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#2bff9a" stop-opacity=".4"/>
+          <stop offset="45%" stop-color="#8b5cf6" stop-opacity=".28"/>
+          <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="db-brilho" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <clipPath id="db-clip-visor"><path d="M156,180 L200,192 L244,180 L240,197 L200,208 L160,197 Z"/></clipPath>
+        <linearGradient id="db-g-casco" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3a1670"/>
+          <stop offset="55%" stop-color="#160630"/>
+          <stop offset="100%" stop-color="#05010c"/>
+        </linearGradient>
+        <linearGradient id="db-g-placa" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#241046"/>
+          <stop offset="100%" stop-color="#030008"/>
+        </linearGradient>
+        <linearGradient id="db-g-crista" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#7c4ddb"/>
+          <stop offset="100%" stop-color="#2a0f55"/>
+        </linearGradient>
+      </defs>
+
+      <circle class="pulso" cx="200" cy="200" r="125" fill="url(#db-nucleo)"/>
+
+      <!-- Anéis -->
+      <g fill="none" filter="url(#db-brilho)">
+        <circle class="anel a1" cx="200" cy="200" r="192" stroke="#8b5cf6" stroke-opacity=".4" stroke-width="1" stroke-dasharray="4 6"/>
+        <circle class="anel a2" cx="200" cy="200" r="176" stroke="#2bff9a" stroke-opacity=".55" stroke-width="8" stroke-dasharray="1.5 7.5"/>
+        <circle class="anel a3" cx="200" cy="200" r="158" stroke="#8b5cf6" stroke-width="6" stroke-dasharray="70 22"/>
+        <circle cx="200" cy="200" r="138" stroke="#3b0764" stroke-width="4"/>
+        <circle id="db-prog" cx="200" cy="200" r="138" stroke="#2bff9a" stroke-width="4" stroke-linecap="round"
+                stroke-dasharray="867.08" stroke-dashoffset="867.08" transform="rotate(-90 200 200)"/>
+        <circle class="anel a4" cx="200" cy="200" r="118" stroke="#c4b5fd" stroke-opacity=".7" stroke-width="2" stroke-dasharray="140 600"/>
+      </g>
+
+      <g filter="url(#db-brilho)">
+        <!-- Cérebro-máquina -->
+        <g class="cerebro">
+          <path class="lobo" d="M196,138 C175,128 150,132 140,148 C122,150 112,168 118,184 C106,196 110,218 124,226 C122,244 140,258 158,254 C170,266 190,264 196,254 Z"/>
+          <path class="lobo" d="M204,138 C225,128 250,132 260,148 C278,150 288,168 282,184 C294,196 290,218 276,226 C278,244 260,258 242,254 C230,266 210,264 204,254 Z"/>
+          <path class="fissura" d="M200,134 V260"/>
+          <g id="db-trilhas"></g>
+          <g id="db-nos"></g>
+        </g>
+
+        <!-- Rosto do robô (design original do D.I.E.G.O.) -->
+        <g class="rosto">
+         <g transform="translate(200 200) scale(1.08) translate(-200 -200)">
+          <!-- Gola e ombros -->
+          <polygon class="casco" points="156,276 184,272 200,284 216,272 244,276 264,296 136,296"/>
+          <path class="realce" d="M156,276 L136,296 M244,276 L264,296 M170,282 L160,294 M230,282 L240,294"/>
+          <polygon class="nucleo-peito" points="200,281 206,285 206,292 200,296 194,292 194,285"/>
+
+          <!-- Pescoço com cabos -->
+          <path class="friso" d="M184,258 V280 M192,260 V283 M208,260 V283 M216,258 V280"/>
+          <path class="circ" d="M200,262 V281"/>
+
+          <!-- Turbinas laterais -->
+          <g>
+            <circle class="casco" cx="138" cy="182" r="17"/>
+            <circle class="turbina" cx="138" cy="182" r="12" fill="none" stroke="#2bff9a" stroke-width="3" stroke-dasharray="2 4"/>
+            <circle class="circ-no" cx="138" cy="182" r="3.5"/>
+            <circle class="casco" cx="262" cy="182" r="17"/>
+            <circle class="turbina" cx="262" cy="182" r="12" fill="none" stroke="#2bff9a" stroke-width="3" stroke-dasharray="2 4"/>
+            <circle class="circ-no" cx="262" cy="182" r="3.5"/>
+          </g>
+
+          <!-- Casco externo -->
+          <polygon class="casco" points="200,108 232,116 254,134 264,162 262,196 254,222 238,246 218,262 182,262 162,246 146,222 138,196 136,162 146,134 168,116"/>
+          <path class="realce" d="M168,116 L146,134 L136,162 M232,116 L254,134 L264,162"/>
+          <path class="friso" d="M146,134 L164,158 M254,134 L236,158 M138,196 L152,184 M262,196 L248,184"/>
+
+          <!-- Crista central -->
+          <polygon class="crista" points="200,100 211,116 207,150 200,160 193,150 189,116"/>
+          <path class="circ" d="M200,108 V150"/>
+
+          <!-- Placa facial -->
+          <polygon class="placa" points="200,152 236,160 248,184 242,214 226,236 210,248 190,248 174,236 158,214 152,184 164,160"/>
+
+          <!-- Circuitos da testa -->
+          <path class="circ" d="M186,166 L180,172 H168 M214,166 L220,172 H232"/>
+          <circle class="circ-no" cx="168" cy="172" r="1.8"/>
+          <circle class="circ-no" cx="232" cy="172" r="1.8"/>
+
+          <!-- Visor angular -->
+          <path class="visor" d="M156,180 L200,192 L244,180 L240,197 L200,208 L160,197 Z"/>
+          <g class="olhos">
+            <polygon class="olho" points="166,186 193,193 191,200 167,194"/>
+            <polygon class="olho" points="234,186 207,193 209,200 233,194"/>
+          </g>
+          <g clip-path="url(#db-clip-visor)"><rect class="reflexo" x="150" y="174" width="12" height="38" transform="skewX(-20)"/></g>
+
+          <!-- Respiros das bochechas -->
+          <path class="respiro" d="M162,212 L172,220 M166,205 L178,215 M170,224 L178,230 M238,212 L228,220 M234,205 L222,215 M230,224 L222,230"/>
+
+          <!-- Boca: grade de LEDs que "fala" -->
+          <rect class="friso" x="180" y="224" width="40" height="14" rx="3"/>
+          <g>
+            <line class="barra" x1="184" y1="227" x2="184" y2="235"/>
+            <line class="barra" x1="189" y1="227" x2="189" y2="235"/>
+            <line class="barra" x1="194.5" y1="227" x2="194.5" y2="235"/>
+            <line class="barra" x1="200" y1="227" x2="200" y2="235"/>
+            <line class="barra" x1="205.5" y1="227" x2="205.5" y2="235"/>
+            <line class="barra" x1="211" y1="227" x2="211" y2="235"/>
+            <line class="barra" x1="216" y1="227" x2="216" y2="235"/>
+          </g>
+
+          <!-- Queixo segmentado -->
+          <path class="realce" d="M186,248 L190,256 H210 L214,248 M194,256 V262 M206,256 V262"/>
+         </g>
+        </g>
+      </g>
+    </svg>
+
+    <h1 class="sigla" id="db-sigla" aria-label="D.I.E.G.O."></h1>
+    <p class="extenso" id="db-extenso"></p>
+    <p class="status" id="db-status" role="status" aria-live="polite">INICIALIZANDO · 0%</p>
+    <p class="tagline" id="db-tagline"></p>
+
+    <!-- Login -->
+    <form class="acesso" id="form" novalidate>
+      <div class="acesso-tit"><span id="tituloForm">// IDENTIFICAÇÃO DO OPERADOR</span><span>SEC-01</span></div>
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="email" placeholder="operador@dominio.com" required>
+      <label for="senha" id="lSenha">Senha</label>
+      <input id="senha" type="password" autocomplete="current-password" minlength="8" placeholder="••••••••" required>
+      <button type="submit" class="entrar" id="bEntrar">ACESSAR</button>
+      <div class="links">
+        <button type="button" id="lCriar">Criar conta</button>
+        <button type="button" id="lEsqueci">Esqueci a senha</button>
+      </div>
+      <div class="msg" id="msg" role="alert"></div>
+    </form>
+    <p class="assinatura">SISTEMA DE ENGENHARIA · ENG. CIVIL DIEGO LEAL · CREA-MT 37420</p>
   </div>
-  <form class="painel" id="form">
-    <label for="email">E-mail</label>
-    <input id="email" type="email" autocomplete="email" required>
-    <label for="senha">Senha</label>
-    <input id="senha" type="password" autocomplete="current-password" minlength="8" required>
-    <div class="acoes">
-      <button type="submit" id="bEntrar">Entrar</button>
-    </div>
-    <div class="links">
-      <a id="lCriar">Criar conta</a>
-      <a id="lEsqueci">Esqueci a senha</a>
-    </div>
-    <div class="msg" id="msg" role="status"></div>
-  </form>
+
+  <div class="rodape">SISTEMA DE ENGENHARIA · v1.0</div>
+  <button class="pular" id="db-pular" type="button">PULAR ▸</button>
 </div>
+<!-- ================= FIM D.I.E.G.O. ================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="comum/config.js"></script>
 <script src="comum/supabase.js"></script>
 <script>
+/* =====================================================================
+   1) ABERTURA D.I.E.G.O. — termina mostrando o formulário de login
+   ===================================================================== */
+const Diego = (() => {
+  const CONFIG = {
+    usuario: (window.SE_CONFIG && SE_CONFIG.NOME_OPERADOR) || 'Diego',
+    umaVezPorSessao: true,   // depois da 1ª vez na aba (ex.: ao sair do sistema), vai direto para o login
+    velocidade: 1.3          // 1 = normal · 1.3 = um pouco mais rápido (padrão do login) · 0.8 = mais lento
+  };
+  const etapas = [
+    'Inicializando núcleo D.I.E.G.O.',
+    'Verificando integridade do sistema',
+    'Carregando base normativa · ABNT NBR',
+    'Carregando módulo de orçamento · SINAPI/SICRO',
+    'Carregando módulo de fiscalização de obras',
+    'Carregando módulo de processos · SIGED',
+    'Carregando módulo de laudos e avaliações',
+    'Sincronizando banco de dados',
+    'Calibrando interface'
+  ];
+  const SIGLA = 'D.I.E.G.O.';
+  const EXTENSO = [['D','igital'], ['I','ntelligence'], ['','for'], ['E','ngineering,'], ['G','eoscience'], ['','&'], ['O','perations']];
+  const TAGLINE = 'Do impossível, eu gero opções.';
+
+  const $ = id => document.getElementById(id);
+  const raiz = $('diego-boot');
+  const NS = 'http://www.w3.org/2000/svg';
+  const reduzido = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const vel = CONFIG.velocidade > 0 ? CONFIG.velocidade : 1;
+  const timers = [];
+  let pulou = false, noLogin = false, fala = 0;
+  const esperar = ms => new Promise(r => setTimeout(r, reduzido ? Math.min(ms, 40) : ms / vel));
+
+  /* ---------- Desenhos de fundo gerados ---------- */
+  $('db-cargas').setAttribute('d', Array.from({ length: 9 }, (_, i) => {
+    const x = 1060 + i * 30;
+    return `M${x},122 V164 M${x - 5},157 L${x},164 L${x + 5},157`;
+  }).join(' '));
+  $('db-solo').setAttribute('d', Array.from({ length: 14 }, (_, i) => {
+    const x = 1284 + i * 20;
+    return `M${x},712 L${x + 12},700`;
+  }).join(' '));
+  $('db-agua').setAttribute('d', 'M30,848 ' + Array.from({ length: 15 }, (_, i) =>
+    `Q${50 + i * 40},${i % 2 ? 856 : 840} ${70 + i * 40},848`).join(' '));
+
+  /* ---------- Circuitos do cérebro (espelhados) ---------- */
+  const TRILHAS = [
+    [[196,150],[172,150],[162,160],[138,160]],
+    [[196,170],[180,170],[170,180],[132,180]],
+    [[196,192],[164,192],[154,202],[126,202]],
+    [[196,214],[174,214],[164,224],[136,224]],
+    [[196,236],[184,236],[176,244],[158,244]]
+  ];
+  const neuronios = [];
+  TRILHAS.forEach(pts => {
+    [pts, pts.map(([x, y]) => [400 - x, y])].forEach(p => {
+      const tr = document.createElementNS(NS, 'path');
+      tr.setAttribute('d', 'M' + p.map(q => q.join(',')).join(' L'));
+      tr.setAttribute('class', 'tr');
+      $('db-trilhas').appendChild(tr);
+      const [nx, ny] = p[p.length - 1];
+      const no = document.createElementNS(NS, 'circle');
+      no.setAttribute('cx', nx); no.setAttribute('cy', ny); no.setAttribute('r', 3.4);
+      no.setAttribute('class', 'no');
+      $('db-nos').appendChild(no);
+      neuronios.push([tr, no]);
+    });
+  });
+
+  /* ---------- Sigla e nome por extenso ---------- */
+  const letras = [...SIGLA].map(c => {
+    const s = document.createElement('span');
+    s.textContent = c;
+    if (c === '.') s.className = 'ponto';
+    $('db-sigla').appendChild(s);
+    return s;
+  });
+  const palavras = EXTENSO.map(([ini, resto]) => {
+    const s = document.createElement('span');
+    if (ini) { const b = document.createElement('b'); b.textContent = ini; s.appendChild(b); }
+    s.appendChild(document.createTextNode(resto));
+    $('db-extenso').appendChild(s);
+    return s;
+  });
+
+  /* ---------- Progresso: anel, status e neurônios ---------- */
+  const CIRC = 2 * Math.PI * 138;
+  const anelProg = $('db-prog'), st = $('db-status'), mod = $('db-mod');
+  let prog = 0;
+  function setProg(p) {
+    prog = p;
+    anelProg.style.strokeDashoffset = CIRC * (1 - p / 100);
+    if (!raiz.classList.contains('online')) st.textContent = 'INICIALIZANDO · ' + Math.round(p) + '%';
+    mod.textContent = Math.round(p / 100 * etapas.length) + '/' + etapas.length;
+    const acesos = Math.round(p / 100 * neuronios.length);
+    neuronios.forEach(([tr, no], i) => { tr.classList.toggle('aceso', i < acesos); no.classList.toggle('aceso', i < acesos); });
+  }
+  function irPara(alvo, dur = 400) {
+    return new Promise(res => {
+      const ini = prog, t0 = performance.now(), d = reduzido ? 1 : dur / vel;
+      const passo = t => {
+        const k = Math.min(1, (t - t0) / d);
+        setProg(ini + (alvo - ini) * (1 - Math.pow(1 - k, 3)));
+        if (k < 1 && !pulou) requestAnimationFrame(passo); else res();
+      };
+      requestAnimationFrame(passo);
+    });
+  }
+  async function digitar(el, txt, ms = 20) {
+    for (const c of txt) { if (pulou && !noLogin) return; el.textContent += c; await esperar(ms); }
+  }
+
+  /* ---------- Telemetria ---------- */
+  function relogio() {
+    const d = new Date();
+    $('db-data').textContent = d.toLocaleDateString('pt-BR');
+    $('db-hora').textContent = d.toLocaleTimeString('pt-BR');
+  }
+  function telemetria() {
+    $('db-nuc').textContent = (96 + Math.random() * 3.9).toFixed(1) + ' %';
+    $('db-lat').textContent = (8 + Math.floor(Math.random() * 9)) + ' ms';
+    $('db-sin').textContent = Math.round(prog * 1240 + Math.random() * 900).toLocaleString('pt-BR');
+  }
+  relogio(); telemetria(); setProg(0);
+  timers.push(setInterval(relogio, 1000), setInterval(telemetria, 450));
+
+  /* ---------- O robô "fala" uma linha de status ---------- */
+  async function falar(txt, tipo) {
+    const minha = ++fala;
+    raiz.classList.toggle('negado', tipo === 'erro');
+    raiz.classList.add('falando');
+    st.textContent = '';
+    for (const c of txt) { if (minha !== fala) return; st.textContent += c; await esperar(24); }
+    if (minha === fala) raiz.classList.remove('falando');
+  }
+
+  /* ---------- Estado final: login ---------- */
+  async function mostrarLogin() {
+    if (noLogin) return;
+    noLogin = true; pulou = true;
+    document.removeEventListener('keydown', aoTeclar);
+    try { sessionStorage.setItem('diegoBoot', '1'); } catch (e) {}
+    // completa tudo o que a abertura ainda não mostrou
+    letras.forEach(l => l.classList.add('on'));
+    palavras.forEach(p => p.classList.add('on'));
+    setProg(100);
+    raiz.classList.add('ativo', 'online', 'login');
+    if (!$('db-tagline').textContent) $('db-tagline').textContent = TAGLINE;
+    await esperar(500);
+    raiz.classList.add('form-on');
+    falar('AGUARDANDO IDENTIFICAÇÃO');
+    setTimeout(() => { if (!$('email').value) $('email').focus({ preventScroll: true }); else $('senha').focus({ preventScroll: true }); }, reduzido ? 0 : 700);
+  }
+
+  function aoTeclar(e) {
+    if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') { e.preventDefault(); mostrarLogin(); }
+  }
+  $('db-pular').addEventListener('click', mostrarLogin);
+  document.addEventListener('keydown', aoTeclar);
+
+  /* ---------- Sequência ---------- */
+  async function iniciar() {
+    let jaViu = false;
+    try { jaViu = CONFIG.umaVezPorSessao && sessionStorage.getItem('diegoBoot'); } catch (e) {}
+    if (jaViu) { raiz.classList.add('ativo'); return mostrarLogin(); }
+
+    await esperar(300);
+    raiz.classList.add('ativo');
+    await esperar(800);
+    for (const l of letras) { if (pulou) return; l.classList.add('on'); await esperar(90); }
+    await esperar(150);
+    for (const p of palavras) { if (pulou) return; p.classList.add('on'); await esperar(120); }
+
+    const lista = $('db-log');
+    for (let i = 0; i < etapas.length; i++) {
+      if (pulou) return;
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="seta">›</span><span class="txt"></span><span class="ok"></span>';
+      lista.appendChild(li);
+      await digitar(li.querySelector('.txt'), etapas[i], 12);
+      li.querySelector('.ok').textContent = '[ OK ]';
+      await irPara((i + 1) / etapas.length * 100, 380);
+    }
+    if (pulou) return;
+
+    // O cérebro dá lugar ao rosto: o D.I.E.G.O. "acorda" e fala
+    raiz.classList.add('online');
+    await esperar(900);
+    if (pulou) return;
+    raiz.classList.add('falando');
+    st.textContent = '';
+    await digitar(st, 'SISTEMA ONLINE', 32);
+    await esperar(250);
+    await digitar($('db-tagline'), TAGLINE, 45);
+    raiz.classList.remove('falando');
+    await esperar(400);
+    mostrarLogin();
+  }
+
+  // Sai da tela com o esmaecimento da abertura e abre o sistema
+  function sair(url) {
+    timers.forEach(clearInterval);
+    raiz.classList.add('saindo');
+    setTimeout(() => location.replace(url), reduzido ? 0 : 900);
+  }
+
+  iniciar();
+  return { falar, mostrarLogin, sair, usuario: CONFIG.usuario };
+})();
+
+/* =====================================================================
+   2) LOGIN (Supabase) — entrar, criar conta e recuperar senha
+   ===================================================================== */
 const { sb } = SE;
 const $ = id => document.getElementById(id);
 let modo = 'entrar';   // entrar | criar | recuperar
@@ -54,12 +790,16 @@ function destino() {
 }
 function trocarModo(m) {
   modo = m; msg('');
-  $('bEntrar').textContent = { entrar: 'Entrar', criar: 'Criar conta', recuperar: 'Enviar link de nova senha' }[m];
-  $('senha').closest('form').querySelector('label[for=senha]').style.display = m === 'recuperar' ? 'none' : '';
-  $('senha').style.display = m === 'recuperar' ? 'none' : '';
-  $('senha').required = m !== 'recuperar';
+  $('bEntrar').textContent = { entrar: 'ACESSAR', criar: 'CRIAR CONTA', recuperar: 'ENVIAR LINK' }[m];
+  $('tituloForm').textContent = { entrar: '// IDENTIFICAÇÃO DO OPERADOR', criar: '// NOVO OPERADOR', recuperar: '// RECUPERAR ACESSO' }[m];
+  const semSenha = m === 'recuperar';
+  $('lSenha').style.display = semSenha ? 'none' : '';
+  $('senha').style.display = semSenha ? 'none' : '';
+  $('senha').required = !semSenha;
   $('senha').autocomplete = m === 'criar' ? 'new-password' : 'current-password';
   $('lCriar').textContent = m === 'entrar' ? 'Criar conta' : 'Voltar para entrar';
+  $('lEsqueci').style.visibility = m === 'recuperar' ? 'hidden' : '';
+  Diego.falar({ entrar: 'AGUARDANDO IDENTIFICAÇÃO', criar: 'CADASTRO DE OPERADOR', recuperar: 'RECUPERAÇÃO DE ACESSO' }[m]);
 }
 $('lCriar').onclick = () => trocarModo(modo === 'entrar' ? 'criar' : 'entrar');
 $('lEsqueci').onclick = () => trocarModo('recuperar');
@@ -70,24 +810,30 @@ sb.auth.getSession().then(({ data }) => { if (data.session) location.replace(des
 $('form').onsubmit = async e => {
   e.preventDefault();
   const email = $('email').value.trim(), senha = $('senha').value;
-  $('bEntrar').disabled = true; msg('Aguarde…');
+  if (!email || !$('email').checkValidity()) { msg('Informe um e-mail válido.', 'erro'); $('email').focus(); return; }
+  if (modo !== 'recuperar' && senha.length < 8) { msg('A senha precisa ter pelo menos 8 caracteres.', 'erro'); $('senha').focus(); return; }
+  $('bEntrar').disabled = true; msg('');
+  Diego.falar(modo === 'recuperar' ? 'ENVIANDO LINK' : 'VERIFICANDO CREDENCIAIS');
   try {
     if (modo === 'entrar') {
       const { error } = await sb.auth.signInWithPassword({ email, password: senha });
       if (error) throw error;
-      location.replace(destino());
+      await Diego.falar('ACESSO LIBERADO · BEM-VINDO, ' + Diego.usuario.toUpperCase() + '.', 'ok');
+      return Diego.sair(destino());
     } else if (modo === 'criar') {
       const { data, error } = await sb.auth.signUp({
         email, password: senha,
         options: { emailRedirectTo: location.href.split('?')[0] }
       });
       if (error) throw error;
-      if (data.session) location.replace(destino());
-      else msg('Conta criada. Abra o e-mail de confirmação que enviamos e depois entre aqui.', 'ok');
+      if (data.session) { await Diego.falar('OPERADOR CADASTRADO · ACESSO LIBERADO.', 'ok'); return Diego.sair(destino()); }
+      msg('Conta criada. Abra o e-mail de confirmação que enviamos e depois entre aqui.', 'ok');
+      Diego.falar('CONFIRME O E-MAIL PARA ATIVAR O ACESSO');
     } else {
       const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('?')[0] });
       if (error) throw error;
       msg('Se o e-mail estiver cadastrado, chegará um link para criar nova senha.', 'ok');
+      Diego.falar('LINK ENVIADO');
     }
   } catch (err) {
     const t = String(err.message || err);
@@ -95,17 +841,19 @@ $('form').onsubmit = async e => {
       : /Email not confirmed/i.test(t) ? 'Confirme o e-mail antes de entrar (veja sua caixa de entrada).'
       : /Password should be/i.test(t) ? 'A senha precisa ter pelo menos 8 caracteres.'
       : 'Não foi possível concluir: ' + t, 'erro');
+    Diego.falar('ACESSO NEGADO', 'erro');
   } finally { $('bEntrar').disabled = false; }
 };
 
 // Volta do link "esqueci a senha": pede a nova senha.
 sb.auth.onAuthStateChange(async (ev) => {
   if (ev === 'PASSWORD_RECOVERY') {
+    Diego.mostrarLogin();
     const nova = prompt('Digite a nova senha (mínimo 8 caracteres):');
     if (nova) {
       const { error } = await sb.auth.updateUser({ password: nova });
       msg(error ? 'Erro ao trocar a senha: ' + error.message : 'Senha alterada. Entrando…', error ? 'erro' : 'ok');
-      if (!error) location.replace('index.html');
+      if (!error) Diego.sair('index.html');
     }
   }
 });

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Orçamento — Sistema de Engenharia</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap">
 <style>
 :root{
   --bg:#f3f4f6; --panel:#ffffff; --ink:#1f2933; --muted:#64748b; --line:#d5dbe3;
@@ -121,6 +122,66 @@ table.simple td.n,table.simple th.n{text-align:right;font-variant-numeric:tabula
 .toast.show{opacity:1}
 .hide{display:none!important}
 .bdiok{color:var(--ok)} .bdiwarn{color:var(--warn)} .bdibad{color:var(--bad)}
+/* ===== Tema D.I.E.G.O. (preto, roxo e verde) — a impressão e o PDF continuam em papel branco ===== */
+:root{
+  --bg:#05010b; --panel:#0e0719; --ink:#ece6ff; --muted:#a497c9; --line:#2a1d4a;
+  --navy:#7c3aed; --navy2:#8b5cf6; --etapa:#24104a; --etapa2:#1a0c36; --item:#120a22; --sel:#2c3a10;
+  --ok:#2bff9a; --warn:#fbbf24; --bad:#ff5c7a; --accent:#a78bfa; --verde:#2bff9a;
+  color-scheme:dark;
+}
+body{background:radial-gradient(ellipse 120% 60% at 50% -10%,#1a0838 0%,var(--bg) 60%) fixed,var(--bg)}
+::selection{background:rgba(139,92,246,.45);color:#fff}
+button{background:#0b0516;color:var(--ink);border-color:var(--line)}
+button:hover{border-color:var(--verde);color:var(--verde)}
+button.pri{background:#7c3aed;border-color:#8b5cf6;color:#fff}
+button.pri:hover{background:#8b5cf6;color:#fff;box-shadow:0 0 14px rgba(43,255,154,.25);border-color:var(--verde)}
+input,select,textarea{background:#07030f;color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--verde);box-shadow:0 0 0 1px var(--verde),0 0 12px rgba(43,255,154,.2)}
+input::placeholder,textarea::placeholder{color:#5f5283}
+select option{background:#0e0719;color:var(--ink)}
+header.top{background:linear-gradient(90deg,#000 0%,#12052a 55%,#000 100%);border-bottom:1px solid rgba(139,92,246,.45);box-shadow:0 1px 0 rgba(43,255,154,.12)}
+header.top h1{font-family:'Orbitron','Segoe UI',sans-serif;letter-spacing:.12em;text-transform:uppercase;font-size:13.5px;text-shadow:0 0 12px rgba(139,92,246,.7)}
+header.top button{border-color:rgba(139,92,246,.55);color:#c4b5fd}
+header.top button:hover{background:rgba(139,92,246,.18);color:var(--verde)}
+nav.tabs{background:#0a0414;border-bottom-color:var(--line)}
+nav.tabs button{background:transparent}
+nav.tabs button.on{color:var(--verde);border-bottom-color:var(--verde)}
+.card{border-top:2px solid rgba(139,92,246,.6)}
+details.meta>summary{color:#c4b5fd}
+.results{background:#0e0719;border-color:rgba(139,92,246,.5);box-shadow:0 0 30px rgba(139,92,246,.2),0 10px 30px rgba(0,0,0,.6)}
+.res{border-bottom-color:#1c1236}
+.res:hover,.res.on{background:rgba(139,92,246,.16)}
+.res mark{background:rgba(43,255,154,.3);color:#fff}
+.badge{background:#241a3d;color:#c4b5fd}
+.badge.c{background:rgba(139,92,246,.25);color:#d8ccff}
+.badge.i{background:rgba(43,255,154,.16);color:#7dffc2}
+.badge.p{background:rgba(232,121,249,.18);color:#f0abfc}
+.badge.warn{background:rgba(251,191,36,.16);color:#fcd34d}
+.badge.bad{background:rgba(255,92,122,.16);color:#ff8fa3}
+.tblwrap{background:var(--panel)}
+table.orc th{background:#0b0516;color:#c4b5fd;border-bottom-color:#7c3aed}
+table.orc td{border-bottom-color:#1c1236}
+table.orc tr.et.l3 td{background:#150a2b}
+table.orc tr.it td{background:var(--panel)}
+table.orc td input:hover,table.orc td textarea:hover{border-color:#3b2a66;background:#07030f}
+table.orc td input:focus{background:#07030f}
+table.orc tr.it td.val.ov{color:#fdba74}
+footer.tot{background:#07030f;border-top-color:#7c3aed}
+footer.tot .tg b{color:var(--verde)}
+#linksBtn{background:#2bff9a;color:#000;box-shadow:0 0 14px rgba(43,255,154,.35)}
+#linksBtn:hover{background:#7dffc2;color:#000}
+#linksPanel{background:#0e0719;border-color:rgba(139,92,246,.5)}
+#linksPanel h3{color:#c4b5fd}
+#linksPanel .lk{border-bottom-color:#1c1236}
+#linksPanel .note{background:rgba(251,191,36,.1);border-color:rgba(251,191,36,.4);color:#fcd34d}
+.modal{background:rgba(0,0,0,.72)}
+.modal .box{background:var(--panel);border:1px solid rgba(139,92,246,.45);box-shadow:0 0 40px rgba(139,92,246,.2),0 20px 60px rgba(0,0,0,.6)}
+.modal .box h2{color:#c4b5fd}
+.prev td,.prev th{border-color:#2a1d4a}
+.prev th{background:#140b28}
+table.simple th,table.simple td{border-bottom-color:#2a1d4a}
+.toast{background:#12052a;border:1px solid rgba(139,92,246,.6);color:#ece6ff}
+*{scrollbar-color:#3b2a66 transparent}
 /* impressão */
 #printArea{display:none}
 @media print{
@@ -141,7 +202,7 @@ table.simple td.n,table.simple th.n{text-align:right;font-variant-numeric:tabula
 <body>
 
 <header class="top">
-  <a href="../index.html" style="color:#dbe4f5;text-decoration:none;font-size:12px;white-space:nowrap">← Sistema</a>
+  <a href="../index.html" style="color:#c4b5fd;text-decoration:none;font-size:12px;white-space:nowrap">← Sistema</a>
   <h1>Orçamento</h1>
   <span class="proj" id="projName"></span>
   <span class="sp"></span>
@@ -216,7 +277,7 @@ table.simple td.n,table.simple th.n{text-align:right;font-variant-numeric:tabula
     <button id="bPrint">Imprimir / PDF</button>
     <button id="bXlsRef">Exportar Referência</button>
     <button id="bXlsCon" class="pri">Exportar Contrato</button>
-    <button id="bParaObra" class="pri" style="background:#1e7d4f;border-color:#1e7d4f" title="Gravar este orçamento como planilha original ou aditivo de uma obra">Virar planilha da obra</button>
+    <button id="bParaObra" class="pri" style="background:#2bff9a;border-color:#2bff9a;color:#000" title="Gravar este orçamento como planilha original ou aditivo de uma obra">Virar planilha da obra</button>
   </div>
 
   <div class="tblwrap" id="tblwrap">
@@ -250,7 +311,7 @@ table.simple td.n,table.simple th.n{text-align:right;font-variant-numeric:tabula
       <div><b>Bancos de dados importados</b> <span class="muted small" id="basesInfo"></span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
         <button id="bImport" class="pri">Importar planilha (.xlsx / .xls / .csv)</button>
-        <button id="bSinapiPronto" class="pri" style="background:#1e7d4f;border-color:#1e7d4f">Carregar SINAPI-MT pronto</button>
+        <button id="bSinapiPronto" class="pri" style="background:#2bff9a;border-color:#2bff9a;color:#000">Carregar SINAPI-MT pronto</button>
         <button id="bDemo">Carregar base de exemplo</button>
       </div>
     </div>
@@ -1012,7 +1073,7 @@ function renderImport() {
   const opts = (sel) => `<option value="-1">—</option>` + head.map((h, i) => `<option value="${i}" ${sel === i ? 'selected' : ''}>${XLSX.utils.encode_col(i)} · ${esc(String(h).slice(0, 40))}</option>`).join('');
   const prevRows = IMP.aoa.slice(IMP.hdr, IMP.hdr + 9);
   const ncol = Math.min(Math.max(...prevRows.map(r => r.length), 0), 40);
-  const mapCls = i => [IMP.map.cod, IMP.map.desc, IMP.map.und, IMP.map.preco].includes(i) ? ' style="background:#fef9c3"' : '';
+  const mapCls = i => [IMP.map.cod, IMP.map.desc, IMP.map.und, IMP.map.preco].includes(i) ? ' style="background:rgba(43,255,154,.16)"' : '';
   const others = IMP.wb.SheetNames.filter(n => n !== IMP.sheet);
   openModal(`<h2>Importar base — ${esc(IMP.fname)}</h2>
     <div class="grid">

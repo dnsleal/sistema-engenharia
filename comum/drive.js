@@ -207,7 +207,12 @@
 
   async function htmlDoc(cfg, titulo) {
     const partes = [];
-    for (const el of elementos(cfg.alvo)) { const c = await clonar(el, cfg, true); if (c) partes.push(c.outerHTML); }
+    // o tema do sistema é escuro: copia as cores com a paleta de "papel" (classe .drv-pdf do estilo.css)
+    const raiz = document.documentElement, tinha = raiz.classList.contains('drv-pdf');
+    raiz.classList.add('drv-pdf');
+    try {
+      for (const el of elementos(cfg.alvo)) { const c = await clonar(el, cfg, true); if (c) partes.push(c.outerHTML); }
+    } finally { if (!tinha) raiz.classList.remove('drv-pdf'); }
     if (!partes.length) throw new Error('Não há conteúdo para enviar.');
     return `<!doctype html><html><head><meta charset="utf-8"><title>${titulo.replace(/</g, '&lt;')}</title>
       <style>body{font-family:Arial,Helvetica,sans-serif;font-size:11pt} table{border-collapse:collapse} img{max-width:100%}</style></head>
@@ -334,15 +339,15 @@
   const css = document.createElement('style');
   css.textContent = `
     .drv-caixa{position:relative;display:inline-flex;gap:6px;align-items:center}
-    .drv-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:2000;background:#fff;color:#1f2937;border:1px solid #cbd5e1;border-radius:8px;
-      box-shadow:0 8px 24px rgba(0,0,0,.18);padding:4px;min-width:190px;font:13px "Segoe UI",Arial,sans-serif;display:none}
+    .drv-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:2000;background:#0e0719;color:#ece6ff;border:1px solid rgba(139,92,246,.55);border-radius:8px;
+      box-shadow:0 0 24px rgba(139,92,246,.25),0 8px 24px rgba(0,0,0,.5);padding:4px;min-width:190px;font:13px "Segoe UI",Arial,sans-serif;display:none}
     .drv-menu.aberto{display:block}
-    .drv-menu button{display:block;width:100%;text-align:left;background:none!important;border:none!important;color:#1f2937!important;padding:8px 10px!important;border-radius:6px;cursor:pointer;font:inherit!important}
-    .drv-menu button:hover{background:#eef2f8!important}
-    .drv-menu small{color:#64748b;display:block;font-size:11px}
-    #drvAviso{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:3000;background:#1f3864;color:#fff;padding:10px 16px;border-radius:8px;
+    .drv-menu button{display:block;width:100%;text-align:left;background:none!important;border:none!important;color:#ece6ff!important;padding:8px 10px!important;border-radius:6px;cursor:pointer;font:inherit!important}
+    .drv-menu button:hover{background:rgba(139,92,246,.2)!important;color:#2bff9a!important}
+    .drv-menu small{color:#a497c9;display:block;font-size:11px}
+    #drvAviso{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:3000;background:#12052a;color:#ece6ff;border:1px solid rgba(139,92,246,.6);padding:10px 16px;border-radius:8px;
       font:13px "Segoe UI",Arial,sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:min(560px,92vw);display:none}
-    #drvAviso.erro{background:#b42318} #drvAviso a{color:#cfe0ff;font-weight:600}
+    #drvAviso.erro{background:#3a0716;border-color:#ff5c7a} #drvAviso a{color:#2bff9a;font-weight:600}
     @media print{.drv-caixa,#drvAviso{display:none!important}}`;
   document.head.appendChild(css);
   let timerAviso = null;

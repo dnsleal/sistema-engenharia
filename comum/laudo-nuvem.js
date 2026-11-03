@@ -18,11 +18,11 @@
   const css = document.createElement('style');
   css.textContent = `
     .se-barra{position:sticky;top:0;z-index:1000;display:flex;gap:8px;align-items:center;flex-wrap:wrap;
-      background:#1f3864;color:#fff;padding:8px 14px;font:13px "Segoe UI",Arial,sans-serif;margin:0 0 12px}
-    .se-barra a{color:#dbe4f5;text-decoration:none}
+      background:linear-gradient(90deg,#000,#12052a 55%,#000);color:#ece6ff;border-bottom:1px solid rgba(139,92,246,.5);padding:8px 14px;font:13px "Segoe UI",Arial,sans-serif;margin:0 0 12px}
+    .se-barra a{color:#c4b5fd;text-decoration:none} .se-barra a:hover{color:#2bff9a}
     .se-barra b{font-weight:600}
-    .se-barra button{font:inherit;font-weight:600;padding:5px 12px;border-radius:5px;border:1px solid rgba(255,255,255,.5);background:transparent;color:#fff;cursor:pointer}
-    .se-barra button.pri{background:#fff;color:#1f3864;border-color:#fff}
+    .se-barra button{font:inherit;font-weight:600;padding:5px 12px;border-radius:5px;border:1px solid rgba(139,92,246,.6);background:transparent;color:#c4b5fd;cursor:pointer}
+    .se-barra button.pri{background:#7c3aed;color:#fff;border-color:#8b5cf6}
     .se-barra .st{opacity:.8;font-size:12px}
     .se-barra .sp{flex:1}
     body > .barra{top:44px!important}
