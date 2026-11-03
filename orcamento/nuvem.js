@@ -1,4 +1,4 @@
-// Liga o app de orçamento ao Sistema de Engenharia:
+// Liga o app de orçamento ao Sistema Integrado de Engenharia:
 // login, orçamentos salvos no banco, base SINAPI-MT pronta, composição analítica
 // e "virar planilha da obra". Roda depois do script do app e usa as funções dele
 // (P, save, render, fillMeta, saveBase, loadBases, numbering, itemCalc, computeAll…).
@@ -59,7 +59,7 @@
 
   document.getElementById('bAbrir').onclick = async () => {
     openModal('<h2>Orçamentos salvos no sistema</h2><div class="small muted">Carregando…</div>');
-    const { data, error } = await sb.from('orcamentos').select('id, titulo, total, updated_at, obra_id, obras(nome)').order('updated_at', { ascending: false });
+    const { data, error } = await sb.from('orcamentos').select('id, titulo, total, updated_at, obra_id, obras(nome)').eq('app', 'offline').order('updated_at', { ascending: false });
     if (error) { $('#modalBox').innerHTML = `<h2>Erro</h2><p>${esc(error.message)}</p><div class="acts"><button onclick="closeModal()">Fechar</button></div>`; return; }
     $('#modalBox').innerHTML = `<h2>Orçamentos salvos no sistema</h2>
       ${data.length ? `<table class="simple"><tr><th>Orçamento</th><th>Obra vinculada</th><th class="n">Total (R$)</th><th>Atualizado</th><th></th></tr>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Obra — Sistema de Engenharia</title>
+<title>Obra — Sistema Integrado de Engenharia</title>
 <link rel="stylesheet" href="../comum/estilo.css?v=diego1">
 <style>
   .ficha { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 18px; font-size: .88rem; margin-top: 8px; }
@@ -27,7 +27,7 @@
 </head>
 <body>
 <header class="topo">
-  <h1>Sistema de Engenharia</h1>
+  <h1>Sistema Integrado de Engenharia</h1>
   <nav><a href="../index.html">Central</a></nav>
   <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
 </header>
@@ -42,6 +42,7 @@
       <a class="botao sec" id="lEditar" href="#">Editar dados</a>
       <a class="botao sec" id="lNotif" href="#">Notificações</a>
       <a class="botao sec" id="lProcessos" href="#">Processos SIGED</a>
+      <a class="botao sec" id="lOrcamentos" href="#">Orçamentos</a>
       <a class="botao" id="lImportar" href="#">Importar planilha</a>
     </div>
   </div>
@@ -157,6 +158,7 @@ async function novoBM() {
   if (!obraId) { $('nome').textContent = 'Obra não informada'; return; }
   $('lEditar').href = '../index.html?editar=' + obraId;
   $('lImportar').href = 'importar.html?obra=' + obraId;
+  $('lOrcamentos').href = '../orcamento/index.html?obra=' + obraId;
   $('lProcessos').href = '../processos/index.html?obra=' + obraId;
   $('lNotif').href = 'notificacoes.html?obra=' + obraId;
   $('lAditivo').href = 'importar.html?obra=' + obraId + '&tipo=aditivo';
@@ -191,7 +193,7 @@ async function novoBM() {
 })();
 
 function desenharFicha(o, r) {
-  document.title = o.nome + ' — Sistema de Engenharia';
+  document.title = o.nome + ' — Sistema Integrado de Engenharia';
   $('nome').textContent = o.nome;
   $('sub').textContent = [o.contratada, o.num_contrato && 'Contrato ' + o.num_contrato, o.processo_siged && 'SIGED ' + o.processo_siged].filter(Boolean).join(' · ') || 'Complete os dados em "Editar dados".';
   const campo = (rot, v) => `<div><span>${rot}:</span> ${F.esc(v || '—')}</div>`;

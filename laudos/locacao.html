@@ -849,7 +849,7 @@ function resetar(){for(const k in DEF){document.getElementById(k).value=DEF[k];}
 sync();atualizaRodape();addFoto();addFoto();atualizaMapa();buscarPVG();
 </script>
 <script>
-// integração com o Sistema de Engenharia (salvar/abrir este laudo)
+// integração com o Sistema Integrado de Engenharia (salvar/abrir este laudo)
 window.LAUDO_CFG = {
   tipo: 'locacao', nome: 'Laudo de avaliação para locação',
   titulo: () => [gv('proprietario'), gv('local')].filter(s => s && s.trim()).join(' — ') || gv('interessado') || 'Laudo de locação',
