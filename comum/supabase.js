@@ -8,8 +8,8 @@
 
   // Caminho até a raiz do site, a partir da página atual (funciona em subpastas).
   function raiz() {
-    const s = document.querySelector('script[src$="comum/supabase.js"]');
-    return s ? s.getAttribute('src').replace('comum/supabase.js', '') : './';
+    const s = document.querySelector('script[src*="comum/supabase.js"]');
+    return s ? s.getAttribute('src').replace(/comum\/supabase\.js.*$/, '') : './';
   }
 
   // Exige login: se não houver sessão, manda para a tela de login.

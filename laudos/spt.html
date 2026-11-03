@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Boletim de sondagem SPT</title>
-<link rel="stylesheet" href="../comum/estilo.css">
+<link rel="stylesheet" href="../comum/estilo.css?v=diego1">
 <style>
   main { max-width: 1180px; }
   .grade4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 14px; }
@@ -108,9 +108,9 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../comum/config.js"></script>
-<script src="../comum/supabase.js"></script>
-<script src="../comum/formatos.js"></script>
+<script src="../comum/config.js?v=diego1"></script>
+<script src="../comum/supabase.js?v=diego1"></script>
+<script src="../comum/formatos.js?v=diego1"></script>
 <script>
 const $ = id => document.getElementById(id);
 let nM = 10, nC = 2;
@@ -300,8 +300,8 @@ window.LAUDO_CFG = {
   depois: () => calcular()
 };
 </script>
-<script src="../comum/laudo-nuvem.js"></script>
-<script src="../comum/drive.js"></script>
+<script src="../comum/laudo-nuvem.js?v=diego1"></script>
+<script src="../comum/drive.js?v=diego1"></script>
 <script>
 Drive.botoes({ barra: '.se-barra', antesDe: '#seSalvar', alvo: '#boletim', formatos: ['pdf', 'docx'], classe: '',
   nome: () => window.LAUDO_CFG.titulo(), pasta: () => ['Sondagens', document.getElementById('obra').value || 'Sem obra'] });
