@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Propostas SISMOB — Sistema Integrado de Engenharia</title>
+<link rel="stylesheet" href="../comum/estilo.css?v=diego1">
+<style>
+  .filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .filtros input, .filtros select { width: auto; min-width: 180px; }
+  .kpi[data-k] { cursor: pointer; }
+  .kpi.sel { outline: 2px solid var(--azul); }
+  .kpi.alerta .valor { color: var(--alerta); }
+  td.num { font-family: ui-monospace, Consolas, monospace; font-size: .82rem; white-space: nowrap; }
+  td.assunto { min-width: 220px; }
+  td.n { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .sub { color: var(--texto-2); font-size: .8rem; }
+  .dica { font-size: .82rem; color: var(--texto-2); margin: 4px 0 0; }
+  .sit { display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+  .barra-exec { height: 6px; background: var(--linha); border-radius: 3px; overflow: hidden; margin-top: 4px; min-width: 70px; }
+  .barra-exec span { display: block; height: 100%; background: var(--ok); }
+  .bloco { border-top: 1px solid var(--linha); margin-top: 12px; padding-top: 6px; }
+  .bloco h4 { margin: 4px 0 2px; font-size: .9rem; color: var(--azul); }
+  .movs { margin-top: 14px; border-top: 1px solid var(--linha); padding-top: 10px; }
+  .movs h4 { margin: 0 0 8px; font-size: .95rem; }
+  .mov { display: grid; grid-template-columns: 92px 1fr auto; gap: 8px; padding: 6px 0; border-bottom: 1px dashed var(--linha); font-size: .88rem; }
+  .mov .d { color: var(--texto-2); font-variant-numeric: tabular-nums; }
+  .mov button { padding: 2px 8px; font-size: .75rem; border-color: var(--critico); color: var(--critico); background: transparent; }
+  .novo-mov { display: grid; grid-template-columns: 140px 1fr 1fr; gap: 0 10px; margin-top: 8px; }
+  dialog { width: min(860px, 96vw); }
+  @media (max-width: 640px) { .novo-mov { grid-template-columns: 1fr; } .mov { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="topo">
+  <h1>Sistema Integrado de Engenharia</h1>
+  <nav>
+    <a href="../index.html">Central</a>
+    <a href="../processos/index.html">Processos</a><a href="index.html" class="ativo">SISMOB</a>
+    <a href="../orcamento/index.html">Orçamento</a><a href="../orcamento/auditoria.html">Auditoria</a>
+    <a href="../laudos/index.html">Documentos</a><a href="../backup.html">Backup</a>
+  </nav>
+  <div class="usuario"><span id="uEmail"></span><button class="discreto" id="bSair">Sair</button></div>
+</header>
+
+<main>
+  <div class="cabecalho">
+    <div>
+      <h2>Propostas SISMOB</h2>
+      <p id="subt">Etapas, atualizações periódicas e pendências das obras financiadas pelo Ministério da Saúde.</p>
+    </div>
+    <button id="bNovo">+ Nova proposta</button>
+  </div>
+
+  <section class="kpis" id="kpis"></section>
+
+  <section class="painel">
+    <div class="filtros">
+      <input id="busca" type="search" placeholder="Buscar nº da proposta, unidade, pendência ou documento">
+      <select id="fEtapa">
+        <option value="ativas">Em acompanhamento</option>
+        <option value="">Todas</option>
+        <option value="acao_preparatoria">Ação preparatória</option>
+        <option value="ordem_inicio">Ordem de início</option>
+        <option value="em_execucao">Em execução</option>
+        <option value="concluida">Concluída</option>
+        <option value="em_funcionamento">Em funcionamento</option>
+        <option value="cancelada">Cancelada</option>
+      </select>
+      <select id="fComp"><option value="">Todos os componentes</option></select>
+      <select id="fObra"><option value="">Todas as obras</option></select>
+    </div>
+    <div class="tabela-wrap">
+      <table>
+        <thead><tr><th>Nº da proposta</th><th>Unidade</th><th>Etapa</th><th>Executado</th><th>Próxima atualização</th><th>Pendência</th><th class="n">Recebido</th></tr></thead>
+        <tbody id="linhas"><tr><td colspan="7" class="vazio">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="dica">Próxima atualização = última atualização no SISMOB + intervalo (padrão 60 dias corridos; ajuste em cada proposta se o prazo for outro). Pendências seguem a regra do SIGED: não se conta o dia de entrada e o vencimento em dia não útil passa para o próximo dia útil.</p>
+  </section>
+  <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+</main>
+
+<dialog id="dProp">
+  <form method="dialog" id="fProp">
+    <header id="dTitulo">Nova proposta</header>
+    <div class="corpo">
+      <div class="grade2">
+        <div><label for="s_numero">Nº da proposta (SISMOB) *</label><input id="s_numero" required placeholder="Ex.: 11223.5150001/21-001"></div>
+        <div><label for="s_comp">Componente</label><input id="s_comp" list="comps" placeholder="UBS, Academia da Saúde, CAPS…">
+          <datalist id="comps"><option>UBS</option><option>Academia da Saúde</option><option>CAPS</option><option>UPA 24h</option><option>Policlínica</option><option>CER</option><option>Centro de Parto Normal</option><option>Hospital</option></datalist></div>
+      </div>
+      <label for="s_estab">Unidade / estabelecimento *</label><input id="s_estab" required placeholder="Ex.: UBS São João Del Rei">
+      <div class="grade3">
+        <div><label for="s_tipo">Tipo de obra</label><select id="s_tipo"><option value="">—</option><option value="construcao">Construção</option><option value="ampliacao">Ampliação</option><option value="reforma">Reforma</option></select></div>
+        <div><label for="s_mun">Município</label><input id="s_mun" placeholder="Cuiabá"></div>
+        <div><label for="s_obra">Obra vinculada</label><select id="s_obra"><option value="">— nenhuma —</option></select></div>
+      </div>
+      <div class="grade3">
+        <div><label for="s_vprop">Valor da proposta (R$)</label><input id="s_vprop" inputmode="decimal" placeholder="0,00"></div>
+        <div><label for="s_vrec">Valor já recebido (R$)</label><input id="s_vrec" inputmode="decimal" placeholder="0,00"></div>
+        <div><label>&nbsp;</label><p class="dica" id="infoValor" style="margin:8px 0 0"></p></div>
+      </div>
+
+      <div class="bloco"><h4>Etapa e atualização no SISMOB</h4>
+        <div class="grade3">
+          <div><label for="s_etapa">Etapa</label>
+            <select id="s_etapa"><option value="acao_preparatoria">Ação preparatória</option><option value="ordem_inicio">Ordem de início inserida</option><option value="em_execucao">Em execução</option><option value="concluida">Concluída</option><option value="em_funcionamento">Em funcionamento</option><option value="cancelada">Cancelada</option></select></div>
+          <div><label for="s_pct">% executado informado</label><input id="s_pct" type="number" min="0" max="100" step="0.01"></div>
+          <div><label for="s_ult">Última atualização</label><input id="s_ult" type="date"></div>
+        </div>
+        <div class="grade3">
+          <div><label for="s_int">Intervalo (dias corridos)</label><input id="s_int" type="number" min="1" value="60"></div>
+          <div><label for="s_prox">Próxima atualização</label><input id="s_prox" type="date"></div>
+          <div><label>&nbsp;</label><button type="button" class="sec" id="bAtualizei" style="width:100%">Atualizei hoje no SISMOB</button></div>
+        </div>
+        <p class="dica" id="infoAtual"></p>
+      </div>
+
+      <div class="bloco"><h4>Pendência / alerta / diligência</h4>
+        <label for="s_pend">Descrição</label><input id="s_pend" placeholder="Ex.: Alerta de obra atrasada — justificar; inserir fotos da etapa de cobertura">
+        <div class="grade3">
+          <div><label for="s_pend_ent">Data de ciência</label><input id="s_pend_ent" type="date"></div>
+          <div><label for="s_prazo">Prazo (dias)</label><input id="s_prazo" type="number" min="0" placeholder="Ex.: 30"></div>
+          <div><label for="s_contagem">Contagem</label><select id="s_contagem"><option value="corridos">Dias corridos</option><option value="uteis">Dias úteis</option></select></div>
+        </div>
+        <div class="grade3">
+          <div><label for="s_limite">Data-limite</label><input id="s_limite" type="date"></div>
+          <div><label for="s_pstatus">Situação</label><select id="s_pstatus"><option value="sem">Sem pendência</option><option value="pendente">Pendente</option><option value="respondida">Respondida</option></select></div>
+          <div><label for="s_resp">Respondida em</label><input id="s_resp" type="date"></div>
+        </div>
+        <label for="s_docresp">Nº do documento de resposta</label><input id="s_docresp" placeholder="Ex.: Ofício nº 45/2026/SMS, justificativa no SISMOB">
+        <p class="dica" id="infoLimite"></p>
+      </div>
+
+      <div class="grade2" style="margin-top:8px">
+        <div><label for="s_respons">Responsável</label><input id="s_respons"></div>
+        <div><label for="s_link">Link</label><input id="s_link" type="url" placeholder="https://…"></div>
+      </div>
+      <label for="s_obs">Observações</label><textarea id="s_obs" rows="2"></textarea>
+
+      <div class="movs" id="cxMovs" style="display:none">
+        <h4>Histórico</h4>
+        <div id="movs"></div>
+        <div class="novo-mov">
+          <div><label for="m_data">Data</label><input id="m_data" type="date"></div>
+          <div><label for="m_desc">O que aconteceu</label><input id="m_desc" placeholder="Ex.: Recebida 2ª parcela; alerta respondido; fotos inseridas"></div>
+          <div><label for="m_doc">Documento</label><input id="m_doc" placeholder="Ofício, nota técnica, comprovante"></div>
+        </div>
+        <button type="button" class="sec" id="bAddMov" style="margin-top:8px">+ Registrar no histórico</button>
+      </div>
+      <div class="msg" id="sMsg"></div>
+    </div>
+    <footer>
+      <button type="button" class="sec" id="bExcluir" style="margin-right:auto;border-color:var(--critico);color:var(--critico);display:none">Excluir</button>
+      <button type="button" class="sec" id="bCancelar">Fechar</button>
+      <button type="submit" id="bSalvar">Salvar</button>
+    </footer>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js?v=diego1"></script>
+<script src="../comum/supabase.js?v=diego1"></script>
+<script src="../comum/formatos.js?v=diego1"></script>
+<script src="../comum/prazos.js?v=diego1"></script>
+<script src="../comum/drive.js?v=diego1"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const ETAPA = { acao_preparatoria: 'Ação preparatória', ordem_inicio: 'Ordem de início', em_execucao: 'Em execução', concluida: 'Concluída', em_funcionamento: 'Em funcionamento', cancelada: 'Cancelada' };
+const ENCERRADAS = ['em_funcionamento', 'cancelada'];
+const ATUALIZA = ['ordem_inicio', 'em_execucao'];          // etapas com atualização periódica
+let lista = [], obras = [], editando = null, filtroKpi = null, limiteManual = false, proxManual = false;
+
+(async function iniciar() {
+  const u = await SE.exigirLogin(); if (!u) return;
+  $('uEmail').textContent = u.email; $('bSair').onclick = SE.sair;
+  const P = new URLSearchParams(location.search);
+  const { data: ob } = await sb.from('obras').select('id, nome').order('nome');
+  obras = ob || [];
+  const opts = obras.map(o => `<option value="${o.id}">${F.esc(o.nome)}</option>`).join('');
+  $('fObra').innerHTML += opts; $('s_obra').innerHTML += opts;
+  if (P.get('obra')) { $('fObra').value = P.get('obra'); $('fEtapa').value = ''; }
+  $('busca').oninput = desenhar;
+  for (const id of ['fEtapa', 'fObra', 'fComp']) $(id).onchange = () => { filtroKpi = null; desenhar(); };
+  $('bNovo').onclick = () => abrir(null);
+  Drive.botoes({ barra: '.cabecalho', antesDe: '#bNovo', salvar: 'planilha', paisagem: true,
+    alvo: () => [$('kpis'), document.querySelector('.tabela-wrap table')],
+    nome: () => 'Propostas SISMOB - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'), pasta: () => ['SISMOB'] });
+  $('bCancelar').onclick = () => $('dProp').close();
+  $('fProp').onsubmit = salvar;
+  for (const id of ['s_ult', 's_int', 's_etapa']) $(id).addEventListener('input', () => { proxManual = false; recalcAtual(); });
+  $('s_prox').oninput = () => { proxManual = true; recalcAtual(); };
+  for (const id of ['s_pend_ent', 's_prazo', 's_contagem']) $(id).oninput = () => { limiteManual = false; recalcLimite(); };
+  $('s_limite').oninput = () => { limiteManual = true; recalcLimite(); };
+  $('s_pend').oninput = () => { if ($('s_pend').value.trim() && $('s_pstatus').value === 'sem') $('s_pstatus').value = 'pendente'; if (!$('s_pend_ent').value) $('s_pend_ent').value = Prazos.hoje(); recalcLimite(); };
+  $('s_pstatus').onchange = () => { if ($('s_pstatus').value === 'respondida' && !$('s_resp').value) $('s_resp').value = Prazos.hoje(); recalcLimite(); };
+  for (const id of ['s_vprop', 's_vrec']) $(id).oninput = infoValor;
+  $('bAtualizei').onclick = atualizeiHoje;
+  $('bAddMov').onclick = () => addMov();
+  $('bExcluir').onclick = excluir;
+  await carregar();
+  if (P.get('id')) abrir(P.get('id'));
+})();
+
+async function carregar() {
+  const { data, error } = await sb.from('sismob_propostas').select('*, obras(nome)').order('proxima_atualizacao', { ascending: true, nullsFirst: false });
+  if (error) { $('linhas').innerHTML = `<tr><td colspan="7" class="vazio">Erro: ${F.esc(error.message)}</td></tr>`; return; }
+  lista = data;
+  const atual = $('fComp').value, comps = [...new Set(lista.map(p => p.componente).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  $('fComp').innerHTML = '<option value="">Todos os componentes</option>' + comps.map(c => `<option>${F.esc(c)}</option>`).join('');
+  if (comps.includes(atual)) $('fComp').value = atual;
+  desenhar();
+}
+
+const num = v => { const t = String(v ?? '').trim(); if (!t) return null; const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t); return Number.isFinite(n) ? n : null; };
+const fmtNum = v => v == null ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const dAte = d => d ? Prazos.diasAte(d) : null;
+const precisaAtualizar = p => ATUALIZA.includes(p.etapa) && !!p.proxima_atualizacao;
+const pendAberta = p => p.pendencia_status === 'pendente';
+
+// [texto, classe, ordem]
+function sitAtual(p) {
+  if (!ATUALIZA.includes(p.etapa)) return [p.etapa === 'concluida' ? 'Registrar funcionamento' : '—', p.etapa === 'concluida' ? 'alerta' : 'neutro', 6];
+  if (!p.proxima_atualizacao) return ['Sem data', 'alerta', 4];
+  const d = dAte(p.proxima_atualizacao);
+  if (d < 0) return [`Vencida há ${-d} dia(s)`, 'critico', 0];
+  if (d === 0) return ['Vence hoje', 'critico', 1];
+  if (d <= 7) return [`Em ${d} dia(s)`, 'alerta', 2];
+  return [`${d} dias`, 'ok', 3];
+}
+function sitPend(p) {
+  if (p.pendencia_status === 'sem') return ['Sem pendência', 'neutro', 6];
+  if (p.pendencia_status === 'respondida') {
+    if (p.respondido_em && p.data_limite) return p.respondido_em <= p.data_limite ? ['Respondida no prazo', 'ok', 5] : [`Respondida com ${Prazos.diasAte(p.respondido_em, p.data_limite)} dia(s) de atraso`, 'alerta', 5];
+    return ['Respondida', 'ok', 5];
+  }
+  if (!p.data_limite) return ['Pendente, sem prazo', 'alerta', 4];
+  const d = dAte(p.data_limite);
+  if (d < 0) return [`Vencida há ${-d} dia(s)`, 'critico', 0];
+  if (d === 0) return ['Vence hoje', 'critico', 1];
+  if (d <= 3) return [`Vence em ${d} dia(s)`, 'alerta', 2];
+  return [`${d} dias`, 'ok', 3];
+}
+
+const fK = {
+  atual_venc: p => precisaAtualizar(p) && dAte(p.proxima_atualizacao) < 0,
+  atual_7: p => precisaAtualizar(p) && dAte(p.proxima_atualizacao) >= 0 && dAte(p.proxima_atualizacao) <= 7,
+  pend_venc: p => pendAberta(p) && p.data_limite && dAte(p.data_limite) < 0,
+  pend: p => pendAberta(p),
+  exec: p => p.etapa === 'em_execucao',
+  func: p => p.etapa === 'concluida'
+};
+function desenharKpis() {
+  const conta = f => lista.filter(f).length;
+  const ativas = lista.filter(p => p.etapa !== 'cancelada');
+  const vp = ativas.reduce((s, p) => s + Number(p.valor_proposta || 0), 0), vr = ativas.reduce((s, p) => s + Number(p.valor_recebido || 0), 0);
+  const K = [
+    ['atual_venc', 'Atualização vencida', conta(fK.atual_venc), 'critico'],
+    ['atual_7', 'Atualizar em 7 dias', conta(fK.atual_7), 'alerta'],
+    ['pend_venc', 'Pendências vencidas', conta(fK.pend_venc), 'critico'],
+    ['pend', 'Pendências em aberto', conta(fK.pend), 'alerta'],
+    ['exec', 'Em execução', conta(fK.exec), ''],
+    ['func', 'Concluídas sem funcionamento', conta(fK.func), 'alerta']
+  ];
+  $('kpis').innerHTML = K.map(([k, rot, n, cls]) =>
+    `<div class="kpi ${n && cls ? cls : ''} ${filtroKpi === k ? 'sel' : ''}" data-k="${k}"><div class="rotulo">${rot}</div><div class="valor">${n}</div><div class="det">${filtroKpi === k ? 'filtro ativo — clique para limpar' : 'clique para filtrar'}</div></div>`).join('') +
+    `<div class="kpi"><div class="rotulo">Recebido do FNS</div><div class="valor">${F.rs(vr)}</div><div class="det">${vp ? F.pct(vr / vp * 100) + ' de ' + F.rs(vp) : 'informe os valores das propostas'}</div></div>`;
+  document.querySelectorAll('.kpi[data-k]').forEach(el => el.onclick = () => { filtroKpi = filtroKpi === el.dataset.k ? null : el.dataset.k; desenhar(); });
+}
+
+function desenhar() {
+  desenharKpis();
+  const q = $('busca').value.trim().toUpperCase(), et = $('fEtapa').value, ob = $('fObra').value, cp = $('fComp').value;
+  let l = lista.filter(p =>
+    (filtroKpi ? fK[filtroKpi](p) : (!et || (et === 'ativas' ? !ENCERRADAS.includes(p.etapa) : p.etapa === et))) &&
+    (!ob || p.obra_id === ob) && (!cp || p.componente === cp) &&
+    (!q || [p.numero_proposta, p.estabelecimento, p.componente, p.municipio, p.pendencia, p.documento_resposta].some(x => (x || '').toUpperCase().includes(q))));
+  l = l.map(p => ({ p, a: sitAtual(p), s: sitPend(p) }))
+    .sort((x, y) => Math.min(x.a[2], x.s[2]) - Math.min(y.a[2], y.s[2]) || (x.p.proxima_atualizacao || '9').localeCompare(y.p.proxima_atualizacao || '9'));
+  if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="7" class="vazio">${lista.length ? 'Nenhuma proposta com estes filtros.' : 'Nenhuma proposta cadastrada. Clique em <b>+ Nova proposta</b>.'}</td></tr>`; return; }
+  $('linhas').innerHTML = l.map(({ p, a, s }) => {
+    const pct = p.percentual_executado != null ? Number(p.percentual_executado) : null;
+    return `<tr data-id="${p.id}" style="cursor:pointer">
+    <td class="num">${F.esc(p.numero_proposta)}</td>
+    <td class="assunto"><b>${F.esc(p.estabelecimento)}</b><div class="sub">${F.esc([p.componente, { construcao: 'Construção', ampliacao: 'Ampliação', reforma: 'Reforma' }[p.tipo_obra], p.obras ? p.obras.nome : null].filter(Boolean).join(' · '))}</div></td>
+    <td>${ETAPA[p.etapa]}</td>
+    <td>${pct != null ? `${F.num(pct, 1)}%<div class="barra-exec"><span style="width:${Math.min(100, pct)}%"></span></div>` : '<span class="sub">—</span>'}</td>
+    <td><div class="sit"><span class="etiqueta ${a[1]}">${a[0]}</span>${precisaAtualizar(p) ? `<span class="sub">${F.data(p.proxima_atualizacao)}${p.ultima_atualizacao ? ' · última ' + F.data(p.ultima_atualizacao) : ''}</span>` : ''}</div></td>
+    <td><div class="sit"><span class="etiqueta ${s[1]}">${s[0]}</span>${p.pendencia_status !== 'sem' && p.pendencia ? `<span class="sub">${F.esc(p.pendencia.length > 70 ? p.pendencia.slice(0, 70) + '…' : p.pendencia)}</span>` : ''}${p.pendencia_status === 'pendente' && p.data_limite ? `<span class="sub">até ${F.data(p.data_limite)}</span>` : ''}</div></td>
+    <td class="n">${p.valor_recebido != null ? F.rs(p.valor_recebido) : '—'}${p.valor_proposta ? `<div class="sub">de ${F.rs(p.valor_proposta)}</div>` : ''}</td></tr>`;
+  }).join('');
+  document.querySelectorAll('#linhas tr[data-id]').forEach(tr => tr.onclick = () => abrir(tr.dataset.id));
+}
+
+function recalcAtual() {
+  const ult = $('s_ult').value, n = parseInt($('s_int').value, 10);
+  if (!proxManual && ult && n > 0) $('s_prox').value = Prazos.soma(ult, n);
+  const prox = $('s_prox').value;
+  let info = '';
+  if (!ATUALIZA.includes($('s_etapa').value)) info = $('s_etapa').value === 'concluida' ? 'Obra concluída: falta registrar o início do funcionamento.' : 'Esta etapa não tem atualização periódica.';
+  else if (prox) {
+    const d = Prazos.diasAte(prox);
+    info = `Próxima atualização ${F.data(prox)} (${new Date(prox + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long' })})` +
+      (d < 0 ? ` — vencida há ${-d} dia(s).` : d === 0 ? ' — vence hoje.' : ` — faltam ${d} dia(s).`) + (proxManual ? ' Data digitada à mão.' : '');
+  } else info = 'Informe a data da última atualização no SISMOB.';
+  $('infoAtual').textContent = info;
+}
+
+function recalcLimite() {
+  const ini = $('s_pend_ent').value, n = $('s_prazo').value, c = $('s_contagem').value;
+  if (!limiteManual && ini && n !== '') $('s_limite').value = Prazos.limite(ini, parseInt(n, 10), c) || '';
+  const lim = $('s_limite').value;
+  let info = '';
+  if (lim && $('s_pstatus').value === 'pendente') {
+    const dd = Prazos.diasAte(lim);
+    info = `Data-limite ${F.data(lim)} (${new Date(lim + 'T12:00').toLocaleDateString('pt-BR', { weekday: 'long' })})` +
+      (dd < 0 ? ` — vencida há ${-dd} dia(s).` : dd === 0 ? ' — vence hoje.' : ` — faltam ${dd} dia(s).`) + (limiteManual ? ' Data-limite digitada à mão.' : '');
+  }
+  $('infoLimite').textContent = info;
+}
+
+function infoValor() {
+  const vp = num($('s_vprop').value), vr = num($('s_vrec').value);
+  $('infoValor').textContent = vp ? `Recebido ${F.pct((vr || 0) / vp * 100)} · falta ${F.rs(vp - (vr || 0))}` : '';
+}
+
+function abrir(id) {
+  editando = id; limiteManual = false; proxManual = false;
+  $('fProp').reset(); $('sMsg').textContent = ''; $('movs').innerHTML = '';
+  $('cxMovs').style.display = id ? '' : 'none';
+  $('bExcluir').style.display = id ? '' : 'none';
+  $('m_data').value = Prazos.hoje();
+  if (id) {
+    const p = lista.find(x => x.id === id); if (!p) return;
+    const v = { s_numero: p.numero_proposta, s_comp: p.componente, s_estab: p.estabelecimento, s_tipo: p.tipo_obra, s_mun: p.municipio, s_obra: p.obra_id,
+      s_vprop: fmtNum(p.valor_proposta), s_vrec: fmtNum(p.valor_recebido), s_etapa: p.etapa, s_pct: p.percentual_executado, s_ult: p.ultima_atualizacao,
+      s_int: p.intervalo_atualizacao, s_prox: p.proxima_atualizacao, s_pend: p.pendencia, s_pend_ent: p.pendencia_entrada, s_prazo: p.prazo_dias,
+      s_contagem: p.contagem, s_limite: p.data_limite, s_pstatus: p.pendencia_status, s_resp: p.respondido_em, s_docresp: p.documento_resposta,
+      s_respons: p.responsavel, s_link: p.link, s_obs: p.observacoes };
+    for (const [k, val] of Object.entries(v)) $(k).value = val ?? '';
+    proxManual = !!(p.proxima_atualizacao && p.ultima_atualizacao && Prazos.soma(p.ultima_atualizacao, p.intervalo_atualizacao) !== p.proxima_atualizacao);
+    limiteManual = !!(p.data_limite && p.prazo_dias != null && p.pendencia_entrada && Prazos.limite(p.pendencia_entrada, p.prazo_dias, p.contagem) !== p.data_limite) || !!(p.data_limite && p.prazo_dias == null);
+    $('dTitulo').textContent = p.estabelecimento + ' — ' + p.numero_proposta;
+    carregarMovs();
+  } else {
+    $('dTitulo').textContent = 'Nova proposta';
+    $('s_int').value = 60;
+    const ob = $('fObra').value; if (ob) $('s_obra').value = ob;
+  }
+  recalcAtual(); recalcLimite(); infoValor();
+  $('dProp').showModal();
+}
+
+function registro() {
+  const txt = id => $(id).value.trim() || null;
+  const int = id => $(id).value === '' ? null : parseInt($(id).value, 10);
+  return {
+    numero_proposta: txt('s_numero'), componente: txt('s_comp'), estabelecimento: txt('s_estab'), tipo_obra: $('s_tipo').value || null,
+    municipio: txt('s_mun'), obra_id: $('s_obra').value || null, valor_proposta: num($('s_vprop').value), valor_recebido: num($('s_vrec').value),
+    etapa: $('s_etapa').value, percentual_executado: $('s_pct').value === '' ? null : Number($('s_pct').value),
+    ultima_atualizacao: $('s_ult').value || null, intervalo_atualizacao: int('s_int') || 60, proxima_atualizacao: $('s_prox').value || null,
+    pendencia: txt('s_pend'), pendencia_entrada: $('s_pend_ent').value || null, prazo_dias: int('s_prazo'), contagem: $('s_contagem').value,
+    data_limite: $('s_limite').value || null, pendencia_status: $('s_pstatus').value, respondido_em: $('s_resp').value || null,
+    documento_resposta: txt('s_docresp'), responsavel: txt('s_respons'), link: txt('s_link'), observacoes: txt('s_obs')
+  };
+}
+
+async function salvar(e) {
+  if (e) e.preventDefault();
+  const reg = registro();
+  const erro = t => { $('sMsg').className = 'msg erro'; $('sMsg').textContent = t; return false; };
+  if (!reg.numero_proposta || !reg.estabelecimento) return erro('Preencha o nº da proposta e a unidade.');
+  if (reg.percentual_executado != null && (reg.percentual_executado < 0 || reg.percentual_executado > 100)) return erro('O % executado deve ficar entre 0 e 100.');
+  if (reg.pendencia_status === 'pendente' && !reg.pendencia) return erro('Descreva a pendência (ou marque "Sem pendência").');
+  if (reg.pendencia_status === 'respondida' && !reg.respondido_em) reg.respondido_em = Prazos.hoje();
+  $('bSalvar').disabled = true;
+  try {
+    const r = editando ? await sb.from('sismob_propostas').update(reg).eq('id', editando).select('id').single()
+                       : await sb.from('sismob_propostas').insert(reg).select('id').single();
+    if (r.error) throw r.error;
+    const novo = !editando;
+    await carregar();
+    if (novo) { abrir(r.data.id); $('sMsg').className = 'msg ok'; $('sMsg').textContent = 'Proposta cadastrada. Registre o histórico abaixo, se quiser.'; }
+    else if (e) $('dProp').close();
+    return true;
+  } catch (err) { return erro('Erro ao salvar: ' + err.message); }
+  finally { $('bSalvar').disabled = false; }
+}
+
+// atalho: registra a atualização de hoje, recalcula a próxima e anota no histórico
+async function atualizeiHoje() {
+  if (!ATUALIZA.includes($('s_etapa').value)) $('s_etapa').value = 'em_execucao';
+  $('s_ult').value = Prazos.hoje(); proxManual = false; recalcAtual();
+  if (!editando) { $('sMsg').className = 'msg'; $('sMsg').textContent = 'Datas preenchidas. Clique em Salvar.'; return; }
+  if (!(await salvar(null))) return;
+  const pct = $('s_pct').value;
+  await addMov(`Atualização inserida no SISMOB${pct !== '' ? ` (${F.num(Number(pct), 1)}% executado)` : ''}`);
+  $('sMsg').className = 'msg ok'; $('sMsg').textContent = `Atualização registrada. Próxima: ${F.data($('s_prox').value)}.`;
+}
+
+async function carregarMovs() {
+  const { data, error } = await sb.from('sismob_movimentos').select('*').eq('proposta_id', editando).order('data', { ascending: false }).order('created_at', { ascending: false });
+  if (error) { $('movs').innerHTML = `<p class="dica">Erro: ${F.esc(error.message)}</p>`; return; }
+  $('movs').innerHTML = data.length ? data.map(m => `<div class="mov"><span class="d">${F.data(m.data)}</span>
+      <span>${F.esc(m.descricao)}${m.documento ? ` <span class="sub">· ${F.esc(m.documento)}</span>` : ''}</span>
+      <button type="button" data-mov="${m.id}">excluir</button></div>`).join('')
+    : '<p class="dica">Nenhum registro no histórico.</p>';
+  document.querySelectorAll('[data-mov]').forEach(b => b.onclick = async () => {
+    if (!confirm('Excluir este registro do histórico?')) return;
+    await sb.from('sismob_movimentos').delete().eq('id', b.dataset.mov); carregarMovs();
+  });
+}
+
+async function addMov(texto) {
+  const desc = texto || $('m_desc').value.trim();
+  if (!desc) { $('m_desc').focus(); return; }
+  const { error } = await sb.from('sismob_movimentos').insert({
+    proposta_id: editando, data: texto ? Prazos.hoje() : ($('m_data').value || Prazos.hoje()), descricao: desc,
+    documento: texto ? null : ($('m_doc').value.trim() || null)
+  });
+  if (error) { $('sMsg').className = 'msg erro'; $('sMsg').textContent = 'Erro no histórico: ' + error.message; return; }
+  if (!texto) { $('m_desc').value = ''; $('m_doc').value = ''; }
+  carregarMovs();
+}
+
+async function excluir() {
+  if (!confirm('Excluir esta proposta e todo o histórico dela? Não dá para desfazer.')) return;
+  const { error } = await sb.from('sismob_propostas').delete().eq('id', editando);
+  if (error) { $('sMsg').className = 'msg erro'; $('sMsg').textContent = 'Erro: ' + error.message; return; }
+  $('dProp').close(); await carregar();
+}
+</script>
+</body>
+</html>

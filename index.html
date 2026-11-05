@@ -30,7 +30,7 @@
   <h1>Sistema Integrado de Engenharia</h1>
   <nav>
     <a href="index.html" class="ativo">Central</a>
-    <a href="processos/index.html">Processos</a>
+    <a href="processos/index.html">Processos</a><a href="sismob/index.html">SISMOB</a>
     <a href="orcamento/index.html">Orçamento</a>
     <a href="orcamento/auditoria.html">Auditoria</a>
     <a href="laudos/index.html">Documentos</a>
@@ -215,8 +215,9 @@ function desenharKpis() {
     <div class="kpi"><div class="rotulo">Saldo a executar</div><div class="valor">${F.rs(total - exec)}</div></div>
     <div class="kpi ${vencidas ? 'critico' : ''}"><div class="rotulo">Prazo vencido</div><div class="valor">${vencidas}</div><div class="det">obras após o término vigente</div></div>
     <div class="kpi ${acimaLimite ? 'critico' : ''}"><div class="rotulo">Aditivo acima do limite</div><div class="valor">${acimaLimite}</div><div class="det">25% obra · 50% reforma</div></div>
-    <a class="kpi" id="kpiProc" href="processos/index.html" style="text-decoration:none;color:inherit"><div class="rotulo">Processos SIGED</div><div class="valor">…</div><div class="det">vencidos / em aberto</div></a>`;
-  kpiProcessos();
+    <a class="kpi" id="kpiProc" href="processos/index.html" style="text-decoration:none;color:inherit"><div class="rotulo">Processos SIGED</div><div class="valor">…</div><div class="det">vencidos / em aberto</div></a>
+    <a class="kpi" id="kpiSismob" href="sismob/index.html" style="text-decoration:none;color:inherit"><div class="rotulo">SISMOB</div><div class="valor">…</div><div class="det">atualizações e pendências vencidas</div></a>`;
+  kpiProcessos(); kpiSismob();
 }
 
 // prazos dos processos do SIGED (a data-limite já vem calculada e gravada)
@@ -236,6 +237,21 @@ async function kpiProcessos() {
   el.classList.toggle('critico', venc + hj > 0);
   el.querySelector('.valor').textContent = `${venc} / ${data.length}`;
   el.querySelector('.det').textContent = hj ? `vencidos / em aberto · ${hj} vence(m) hoje` : 'vencidos / em aberto';
+}
+
+// SISMOB: atualizações periódicas vencidas + pendências vencidas (datas já gravadas)
+async function kpiSismob() {
+  const el = document.getElementById('kpiSismob'); if (!el) return;
+  let data, error;
+  try { ({ data, error } = await sb.from('sismob_propostas').select('etapa, proxima_atualizacao, pendencia_status, data_limite').neq('etapa', 'cancelada')); }
+  catch (e) { error = e; }
+  if (error) { el.querySelector('.valor').textContent = '—'; el.querySelector('.det').textContent = 'não foi possível carregar o SISMOB'; el.title = 'Erro: ' + (error.message || error); return; }
+  const d = new Date(), hoje = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const atual = data.filter(p => ['ordem_inicio', 'em_execucao'].includes(p.etapa) && p.proxima_atualizacao && p.proxima_atualizacao < hoje).length;
+  const pend = data.filter(p => p.pendencia_status === 'pendente' && p.data_limite && p.data_limite < hoje).length;
+  el.classList.toggle('critico', atual + pend > 0);
+  el.querySelector('.valor').textContent = `${atual} / ${pend}`;
+  el.querySelector('.det').textContent = `atualizações / pendências vencidas · ${data.filter(p => p.etapa !== 'em_funcionamento').length} em acompanhamento`;
 }
 
 const ATIVA = o => !['concluida', 'encerrada'].includes(o.status);
