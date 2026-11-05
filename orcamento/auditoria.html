@@ -74,7 +74,9 @@
 
   <section class="painel params-box" style="margin-top:16px">
     <div class="params">
-      <div><label for="base">Base de referência</label><select id="base"></select></div>
+      <div><label for="base">Base de referência</label><select id="base"></select>
+        <input type="file" id="arqSinapi" accept=".xlsx" style="display:none">
+        <div class="dica" style="margin-top:4px"><a href="#" id="lSinapi">Carregar SINAPI de outro mês</a><span id="cxRemover" style="display:none"> · <a href="#" id="lRemover">remover esta</a></span></div></div>
       <div><label for="regime">Regime</label><select id="regime"><option>Não desonerado</option><option>Desonerado</option></select></div>
       <div><label for="tol">Tolerância de preço (%)</label><input id="tol" type="number" step="0.1" min="0" value="0.5"></div>
       <div><label for="tipologia">Tipologia (faixa de BDI)</label><select id="tipologia"></select></div>
@@ -110,6 +112,7 @@
 <script src="../comum/supabase.js?v=diego1"></script>
 <script src="../comum/formatos.js?v=diego1"></script>
 <script src="../comum/importar.js?v=diego1"></script>
+<script src="../comum/sinapi.js?v=diego1"></script>
 <script src="../comum/drive.js?v=diego1"></script>
 <script>
 const { sb } = SE;
@@ -129,10 +132,11 @@ const TIPOS = {
   bdi: ['BDI fora da faixa', 'alerta'], banco: ['Base não SINAPI/SICRO', 'alerta'], propria: ['Composição própria / cotação', 'neutro'],
   af: ['Descrição/AF diferente', 'neutro'], semcod: ['Sem código', 'alerta'], sicro: ['SICRO — conferir à parte', 'neutro']
 };
-let base = null, baseInfo = null, itens = null, origem = null, wb = null, resultado = [], filtroKpi = null;
+let usuario = null, base = null, baseInfo = null, itens = null, origem = null, wb = null, resultado = [], filtroKpi = null;
 
 (async function iniciar() {
   const u = await SE.exigirLogin(); if (!u) return;
+  usuario = u;
   $('uEmail').textContent = u.email; $('bSair').onclick = SE.sair;
   $('tipologia').innerHTML = TIPOLOGIAS.map((t, i) => `<option value="${i}">${t[0]} (${F.num(t[1], 2)}–${F.num(t[2], 2)}%)</option>`).join('');
   aplicaTipologia();
@@ -153,16 +157,57 @@ let base = null, baseInfo = null, itens = null, origem = null, wb = null, result
     fetch('bases/index.json').then(r => r.json()).catch(() => [])
   ]);
   $('obra').innerHTML += (obras || []).map(o => `<option value="${o.id}">${F.esc(o.nome)}</option>`).join('');
-  $('base').innerHTML = idx.map(b => `<option value="${b.arquivo}">${F.esc(b.rotulo)}</option>`).join('');
+  publicadas = idx;
+  $('lSinapi').onclick = e => { e.preventDefault(); $('arqSinapi').click(); };
+  $('arqSinapi').onchange = importarSinapi;
+  $('lRemover').onclick = e => { e.preventDefault(); removerReferencia(); };
+  await montarBases();
   await carregarBase();
 })();
 
 function aplicaTipologia() { const t = TIPOLOGIAS[$('tipologia').value]; $('bdiMin').value = t[1]; $('bdiMax').value = t[2]; }
 
-async function carregarBase() {
+// referências: as publicadas no site + as que você carregou (guardadas no seu espaço do Supabase)
+let publicadas = [];
+async function montarBases(selecionar) {
+  const minhas = await Sinapi.listar(sb, usuario.id);
+  const todas = [...publicadas.map(b => ({ v: 'pub:' + b.arquivo, mes: b.mes, rot: b.rotulo })),
+                 ...minhas.filter(m => !publicadas.some(p => p.mes === m.mes && p.uf === m.uf)).map(m => ({ v: 'nuvem:' + m.caminho, mes: m.mes, rot: m.rotulo + ' (carregada por você)' }))];
+  const chave = m => m.slice(3) + m.slice(0, 2);                      // AAAAMM, para ordenar do mais novo
+  todas.sort((a, b) => chave(b.mes).localeCompare(chave(a.mes)));
+  $('base').innerHTML = todas.map(b => `<option value="${F.esc(b.v)}">${F.esc(b.rot)}</option>`).join('');
+  if (selecionar) $('base').value = selecionar;
+}
+
+async function importarSinapi() {
+  const f = $('arqSinapi').files[0]; $('arqSinapi').value = '';
+  if (!f) return;
+  try {
+    const d = await Sinapi.lerReferencia(await f.arrayBuffer(), 'MT', t => msg(t));
+    msg(`Guardando a referência ${d.mes} no sistema…`);
+    const nome = await Sinapi.guardar(sb, usuario.id, d);
+    const jaPublicada = publicadas.find(p => p.mes === d.mes);
+    await montarBases(jaPublicada ? 'pub:' + jaPublicada.arquivo : `nuvem:${usuario.id}/sinapi/${nome}`);
+    await carregarBase(d);
+    const n = d.bases.reduce((s, b) => s + b.itens.length, 0);
+    msg(`SINAPI-MT ${d.mes} carregado: ${n.toLocaleString('pt-BR')} preços (insumos e composições, com e sem desoneração). Fica guardado para as próximas auditorias.`);
+  } catch (e) { msg('Não consegui ler o SINAPI: ' + e.message, true); }
+}
+
+async function removerReferencia() {
+  const v = $('base').value; if (!v.startsWith('nuvem:')) return;
+  if (!confirm('Remover esta referência do sistema? Você pode carregá-la de novo depois.')) return;
+  try { await Sinapi.excluir(sb, v.slice(6)); await montarBases(); await carregarBase(); msg('Referência removida.'); }
+  catch (e) { msg('Erro ao remover: ' + e.message, true); }
+}
+
+async function carregarBase(pronta) {
+  const v = $('base').value;
+  $('cxRemover').style.display = v.startsWith('nuvem:') ? '' : 'none';
+  if (!v) { msg('Nenhuma referência disponível. Carregue o arquivo SINAPI_Referência.', true); return; }
   msg('Carregando a base SINAPI-MT…');
   try {
-    const d = await (await fetch('bases/' + $('base').value)).json();
+    const d = pronta && pronta.mes ? pronta : v.startsWith('nuvem:') ? await Sinapi.abrir(sb, v.slice(6)) : await (await fetch('bases/' + v.slice(4))).json();
     baseInfo = { mes: d.mes, uf: d.uf, banco: d.banco };
     base = {};
     for (const b of d.bases) {
