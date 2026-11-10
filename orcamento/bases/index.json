@@ -1,3 +1,4 @@
 [
-  { "arquivo": "sinapi-mt-2026-09.json", "rotulo": "SINAPI-MT 09/2026", "mes": "09/2026", "uf": "MT" }
+  { "arquivo": "sinapi-mt-2026-09.json", "rotulo": "SINAPI-MT 09/2026", "mes": "09/2026", "uf": "MT" },
+  { "arquivo": "sinapi-mt-2026-06.json", "rotulo": "SINAPI-MT 06/2026", "mes": "06/2026", "uf": "MT" }
 ]

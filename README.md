@@ -77,7 +77,7 @@ Nunca coloque no código a chave secreta (`service_role` / `sb_secret_…`).
 
 ## Bases SINAPI prontas
 
-O app de orçamento usa os arquivos listados em `orcamento/bases/obracerta.json` (ex.: `sinapi-mt-2026-09.obracerta.json.gz`, JSON comprimido com insumos, composições nos dois regimes e analítico). A base mais recente de cada fonte é a usada nos orçamentos novos. Para um mês novo, acrescente o arquivo e uma linha no `obracerta.json`; ou importe a planilha em Bancos de preços (fica no banco, para todos os usuários).
+O app de orçamento usa os arquivos listados em `orcamento/bases/obracerta.json` (ex.: `sinapi-mt-2026-09.obracerta.json.gz`, JSON comprimido com insumos, composições nos dois regimes e analítico). A base mais recente de cada fonte é a usada nos orçamentos novos. Para um mês novo, gere os arquivos com `ferramentas/sinapi_orcamento.py` e `ferramentas/sinapi_auditoria.py` e acrescente uma linha no `obracerta.json` e no `index.json`; ou importe a planilha em Bancos de preços (fica no banco, para todos os usuários).
 
 Os padrões dos orçamentos novos (órgão, município, responsável técnico, taxa de administração) ficam em `comum/config.js`, no bloco `ORCAMENTO`.
 
