@@ -94,5 +94,10 @@
     return P;
   }
 
-  window.Checklist = { MODELO, ITENS, DOCS, ROT, GLOSA, montar, herdar, pendencias };
+  // documentos extras, fora do modelo: chk.O1, chk.O2… { desc, anexo, obs }
+  const outros = chk => Object.entries(chk || {}).filter(([k, v]) => /^O\d+$/.test(k) && v && !v.removido)
+    .sort((a, b) => +a[0].slice(1) - +b[0].slice(1)).map(([cod, v], i) => ({ cod, num: i + 1, desc: v.desc || '', anexo: v.anexo || null, obs: v.obs || '' }));
+  const novoOutro = chk => 'O' + (Math.max(0, ...Object.keys(chk || {}).filter(k => /^O\d+$/.test(k)).map(k => +k.slice(1))) + 1);
+
+  window.Checklist = { MODELO, ITENS, DOCS, ROT, GLOSA, montar, herdar, pendencias, outros, novoOutro };
 })();

@@ -75,7 +75,7 @@ let D = null;   // { obra, bm, linhas, cab }
   const obra = o.data;
   const mesAno = c => c ? `${c.slice(5, 7)}/${c.slice(0, 4)}` : '';
   D = {
-    obra, bm, linhas: Checklist.montar(obra, bm, chk),
+    obra, bm, linhas: Checklist.montar(obra, bm, chk), outros: Checklist.outros(chk),
     cab: {
       processo: bm.processo_pagamento || obra.processo_siged || '',
       credor: obra.codigo_credor || '',
@@ -127,6 +127,8 @@ function desenhar() {
   h += `<tr class="sec"><td class="cod">6</td><td class="tit">DEMOSTRATIVO DE PAGAMENTO</td><td colspan="3">Retenção</td><td colspan="2">Valor (R$)</td></tr>
       <tr><td class="cod">6.1</td><td class="txt">VALOR BRUTO NF</td><td colspan="3"></td><td colspan="2" style="text-align:right">${D.cab.valor != null ? F.num(D.cab.valor, 2) : ''}</td></tr>
       <tr class="total"><td colspan="5" style="text-align:right">VALOR TOTAL</td><td colspan="2" style="text-align:right">${D.cab.valor != null ? F.num(D.cab.valor, 2) : ''}</td></tr>
+      ${D.outros.length ? `<tr class="sec"><td class="cod">7</td><td class="tit">OUTROS DOCUMENTOS</td><td class="x">Sim</td><td class="x">Não</td><td class="x">N/A</td><td class="fls">Fls.</td><td>Observações</td></tr>` +
+        D.outros.map(o => `<tr><td class="cod">7.${o.num}</td><td class="txt">${E(o.desc)}</td><td class="x">${o.anexo ? 'X' : ''}</td><td class="x"></td><td class="x"></td><td class="fls"></td><td class="obs">${E(o.obs)}</td></tr>`).join('') : ''}
     </table>
     <div class="rodape">PROCESSO COM CONFORMIDADE<div class="linha">DATA: ${D.bm.data_relatorio ? F.data(D.bm.data_relatorio) : '____/____/________'}</div></div>
     <div class="assinatura-sistema">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</div></div>`;
@@ -160,6 +162,10 @@ function montarWb() {
   merges.push({ s: { r: A.length - 1, c: 5 }, e: { r: A.length - 1, c: 6 } });
   A.push(['', 'VALOR TOTAL', '', '', '', cab.valor ?? '', '']);
   merges.push({ s: { r: A.length - 1, c: 5 }, e: { r: A.length - 1, c: 6 } });
+  if (D.outros.length) {
+    A.push([7, 'OUTROS DOCUMENTOS', 'Sim', 'Não', 'N/A', 'Fls.', 'Observações']);
+    for (const o of D.outros) A.push([`7.${o.num}`, o.desc, o.anexo ? 'X' : '', '', '', '', o.obs]);
+  }
   A.push([]); A.push(['PROCESSO COM CONFORMIDADE']); A.push([`DATA: ${D.bm.data_relatorio ? F.data(D.bm.data_relatorio) : ''}`]);
   const ws = XLSX.utils.aoa_to_sheet(A);
   ws['!merges'] = merges;

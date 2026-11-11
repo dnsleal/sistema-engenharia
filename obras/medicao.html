@@ -182,6 +182,12 @@
         </table>
       </div>
       <input type="file" id="arqDoc" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" style="display:none">
+      <h3 style="margin:18px 0 6px">Outros documentos</h3>
+      <p class="nota" style="margin-top:0">Para o que não está no checklist (ofício, justificativa, termo, laudo…). Entram no fim do checklist e da medição completa.</p>
+      <div class="tabela-wrap">
+        <table><thead><tr><th>Nº</th><th>Descrição do documento</th><th>Arquivo</th><th>Observação</th><th></th></tr></thead><tbody id="outrosCorpo"></tbody></table>
+      </div>
+      <button type="button" class="sec" id="bOutro" style="margin-top:8px">+ Adicionar outro documento</button>
     </section>
   </section>
 
@@ -350,6 +356,7 @@ const CAMPOS_DOC = ['comp', 'drel', 'proc', 'nfNum', 'nfData', 'nfValor', 'glosa
   $('pCancelar').onclick = () => $('dPlan').close();
   $('fPlan').onsubmit = aplicarPlanilha;
   $('arqDoc').onchange = anexarDoc;
+  $('bOutro').onclick = () => { const k = Checklist.novoOutro(chk); chk[k] = { desc: '' }; sujo = true; desenharDocs(); desenharChk(); const i = document.querySelector(`[data-odesc="${k}"]`); if (i) i.focus(); };
   $('bChkDoc').onclick = async () => { if (sujo && !await salvar(true)) return; window.open(`checklist.html?obra=${obraId}&bm=${bmId}`, '_blank'); };
   $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
   $('lObraTopo').href = 'obra.html?id=' + obraId + '#medicoes';
@@ -546,10 +553,10 @@ function pendencias(linhas, lancados, excedem) {
   falta(!o.fiscal_id, 'Fiscal técnico não definido na obra.', 'alerta', editar);
   falta(!o.gestor_id, 'Gestor do contrato não definido na obra.', 'alerta', editar);
   // BM
-  falta(!$('ini').value || !$('fim').value, 'Informe o período (início e fim) do BM.', 'bloq');
+  falta(!$('ini').value || !$('fim').value, 'Informe o período (início e fim) do BM.');
   falta(!$('comp').value, 'Informe a competência (mês de referência).');
   falta(!$('proc').value.trim() && !o.processo_siged, 'Informe o nº do processo de pagamento.');
-  falta(!lancados, 'Nenhuma quantidade lançada neste BM.', 'bloq', '<a href="#" data-aba="qtd">lançar</a>');
+  falta(!lancados, 'Nenhuma quantidade lançada neste BM.', 'alerta', '<a href="#" data-aba="qtd">lançar</a>');
   falta(excedem > 0, `${excedem} item(ns) acima do contratado.`, 'alerta', '<a href="#" data-aba="qtd">ver</a>');
   falta(!extra.fotos, 'BM sem fotos no relatório fotográfico.', 'alerta', `<a href="fotos.html?obra=${obraId}&bm=${bmId}">incluir</a>`);
   // nota fiscal
@@ -629,10 +636,8 @@ async function salvar(silencioso = false) {
 }
 
 async function fechar() {
-  if (!$('ini').value || !$('fim').value) { alert('Informe o período (início e fim) antes de fechar o BM.'); return; }
-  const bloq = listaPend.filter(p => p[0] === 'bloq');
-  if (bloq.length) { alert('Antes de fechar:\n\n• ' + bloq.map(p => p[1]).join('\n• ')); abrirAba('inicio'); return; }
-  const alertas = listaPend.filter(p => p[0] === 'alerta').map(p => '• ' + p[1].replace(/<[^>]+>/g, ''));
+  // nada impede fechar: o que falta é mostrado para você decidir
+  const alertas = listaPend.map(p => '• ' + p[1].replace(/<[^>]+>/g, ''));
   const msg = (alertas.length ? `Pendências em aberto:\n${alertas.join('\n')}\n\n` : '') +
     'Depois de fechado, as quantidades deste BM ficam protegidas contra alteração. Fechar o BM?';
   if (!confirm(msg)) return;
@@ -842,6 +847,28 @@ function desenharDocs() {
   $('docsCorpo').querySelectorAll('[data-ver]').forEach(a => a.onclick = e => { e.preventDefault(); verDoc(chk[a.dataset.ver].anexo); });
   $('docsCorpo').querySelectorAll('[data-val]').forEach(i => i.onchange = () => { item(i.dataset.val).validade = i.value || null; sujo = true; desenharDocs(); desenharChk(); resumo(); });
   $('docsCorpo').querySelectorAll('[data-dobs]').forEach(i => i.onchange = () => { item(i.dataset.dobs).obs = i.value.trim(); sujo = true; desenharChk(); });
+  // outros documentos
+  const O = Checklist.outros(chk);
+  $('outrosCorpo').innerHTML = O.length ? O.map(o => `<tr>
+    <td>${o.num}</td>
+    <td><input data-odesc="${o.cod}" value="${F.esc(o.desc)}" placeholder="Ex.: Ofício nº 12/2026 da contratada"></td>
+    <td>${o.anexo ? `<a href="#" data-ver="${o.cod}">${F.esc(o.anexo.nome)}</a>` : '<span class="nota">nenhum</span>'}</td>
+    <td><input data-oobs="${o.cod}" value="${F.esc(o.obs)}"></td>
+    <td style="white-space:nowrap"><button type="button" class="sec" data-anexar="${o.cod}">${o.anexo ? 'Trocar' : 'Anexar'}</button>
+      <button type="button" class="sec" data-oexc="${o.cod}" title="Excluir esta linha">✕</button></td></tr>`).join('')
+    : '<tr><td colspan="5" class="vazio">Nenhum outro documento.</td></tr>';
+  $('outrosCorpo').querySelectorAll('[data-anexar]').forEach(b => b.onclick = () => { docAlvo = b.dataset.anexar; $('arqDoc').click(); });
+  $('outrosCorpo').querySelectorAll('[data-ver]').forEach(a => a.onclick = e => { e.preventDefault(); verDoc(chk[a.dataset.ver].anexo); });
+  $('outrosCorpo').querySelectorAll('[data-odesc]').forEach(i => i.onchange = () => { item(i.dataset.odesc).desc = i.value.trim(); sujo = true; desenharChk(); });
+  $('outrosCorpo').querySelectorAll('[data-oobs]').forEach(i => i.onchange = () => { item(i.dataset.oobs).obs = i.value.trim(); sujo = true; desenharChk(); });
+  $('outrosCorpo').querySelectorAll('[data-oexc]').forEach(b => b.onclick = async () => {
+    const o = chk[b.dataset.oexc];
+    if (!confirm(`Excluir "${o.desc || 'documento sem descrição'}"${o.anexo ? ' e o arquivo anexado' : ''}?`)) return;
+    delete chk[b.dataset.oexc];
+    try { await gravarChecklist(); if (o.anexo && o.anexo.caminho.includes(`/${bmId}/`)) await sb.storage.from('fotos').remove([o.anexo.caminho]); }
+    catch (e) { alert('Erro ao excluir: ' + e.message); }
+    desenharDocs(); desenharChk(); resumo();
+  });
 }
 
 function desenharChk() {
@@ -860,6 +887,10 @@ function desenharChk() {
       <td><input data-obs="${l.cod}" value="${F.esc((chk[l.cod] && chk[l.cod].obs) || '')}" placeholder="${F.esc(l.obs)}"></td>
       <td style="white-space:nowrap">${st}</td></tr>`;
   }).join('');
+  const O = Checklist.outros(chk);
+  if (O.length) $('chkCorpo').insertAdjacentHTML('beforeend', `<tr class="etapa"><td>7</td><td colspan="7">OUTROS DOCUMENTOS</td></tr>` +
+    O.map(o => `<tr class="${o.anexo ? '' : 'pendente'}"><td>7.${o.num}</td><td class="desc">${F.esc(o.desc || '(sem descrição)')}${o.anexo ? '' : ' <a href="#" data-aba="docs" class="nota">anexar</a>'}</td>
+      <td class="c">${o.anexo ? '✓' : ''}</td><td class="c"></td><td class="c"></td><td></td><td class="nota">${F.esc(o.obs)}</td><td></td></tr>`).join(''));
   const item = cod => (chk[cod] = chk[cod] || {});
   $('chkCorpo').querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => { const it = item(r.name.slice(1)); it.r = r.value; it.manual = true; sujo = true; desenharChk(); resumo(); });
   $('chkCorpo').querySelectorAll('[data-auto]').forEach(b => b.onclick = () => { const it = item(b.dataset.auto); delete it.r; delete it.manual; sujo = true; desenharChk(); resumo(); });
@@ -888,7 +919,8 @@ async function anexarDoc() {
     if (up.error) throw up.error;
     const antigo = chk[cod] && chk[cod].anexo;
     chk[cod] = { ...(chk[cod] || {}), anexo: { caminho, nome: f.name, em: new Date().toISOString() }, herdado: false };
-    if (Checklist.ITENS.find(i => i.cod === cod).certidao) chk[cod].validade = null;    // certidão nova: informar a nova validade
+    const it = Checklist.ITENS.find(i => i.cod === cod);
+    if (it && it.certidao) chk[cod].validade = null;    // certidão nova: informar a nova validade    // certidão nova: informar a nova validade
     await gravarChecklist();
     if (antigo && antigo.caminho.includes(`/${bmId}/`)) sb.storage.from('fotos').remove([antigo.caminho]);
     $('info').textContent = `${f.name} anexado.`;
@@ -991,7 +1023,7 @@ let pkFora = new Set();       // partes desmarcadas
 
 function partesPacote() {
   const L = Object.fromEntries(Checklist.montar(M.obra, bmAtual(), chk).map(l => [l.cod, l]));
-  let ids = [...ORDEM];
+  let ids = [...ORDEM, ...Checklist.outros(chk).map(o => o.cod)];
   const pos = $('pkChk').value;
   if (pos === 'inicio') ids.unshift('checklist'); else if (pos === 'fim') ids.push('checklist');
   return ids.map(id => {
@@ -999,6 +1031,11 @@ function partesPacote() {
       const g = GERADOS[id];
       const vazio = id === 'fotos' && !extra.fotos;
       return { id, rot: g.rot, gerado: true, ok: !vazio, sit: vazio ? 'BM sem fotos' : 'gerado agora' };
+    }
+    if (/^O\d+$/.test(id)) {
+      const o = Checklist.outros(chk).find(x => x.cod === id), a = o.anexo;
+      const ext = a ? (a.nome.split('.').pop() || '').toLowerCase() : '', cabe = ['pdf', 'jpg', 'jpeg', 'png'].includes(ext);
+      return { id, rot: `7.${o.num} — ${o.desc || 'Outro documento'}`, anexo: a, ok: !!a && cabe, sit: !a ? 'sem anexo' : cabe ? a.nome : `${a.nome} (formato não entra no PDF)` };
     }
     const l = L[id], a = l && l.anexo;
     const ext = a ? (a.nome.split('.').pop() || '').toLowerCase() : '';
