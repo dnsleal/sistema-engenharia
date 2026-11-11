@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Checklist</title>
+<style>
+  @page { size: A4 portrait; margin: 10mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #e9edf2; color: #111; font-family: Arial, Helvetica, sans-serif; font-size: 9.5px; }
+  .ferramentas { position: sticky; top: 0; z-index: 2; background: #1f3864; color: #fff; padding: 10px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font: 13px "Segoe UI", Arial, sans-serif; }
+  .ferramentas button { font: inherit; font-weight: 600; padding: 7px 14px; border-radius: 6px; border: 1px solid #fff; background: #fff; color: #1f3864; cursor: pointer; }
+  .ferramentas button.sec { background: transparent; color: #fff; }
+  .ferramentas a { color: #dbe4f5; margin-left: auto; }
+  .folha { width: 210mm; min-height: 297mm; margin: 16px auto; background: #fff; padding: 10mm; box-shadow: 0 2px 10px rgba(0,0,0,.15); }
+  h1 { text-align: center; font-size: 14px; margin: 0 0 8px; letter-spacing: 1px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { border: 1px solid #555; padding: 3px 5px; vertical-align: middle; }
+  .id td { font-size: 9.5px; }
+  .id b { font-weight: 700; }
+  .sec td { background: #d9d9d9; font-weight: 700; text-align: center; }
+  .sec td.tit { text-align: center; }
+  td.cod { width: 6%; text-align: center; }
+  td.txt { width: 47%; }
+  td.x { width: 5.5%; text-align: center; font-weight: 700; font-size: 11px; }
+  td.fls { width: 7%; text-align: center; }
+  td.obs { width: 23.5%; font-size: 8.5px; }
+  .glosa div { margin: 1px 0; }
+  .total td { font-weight: 700; }
+  .rodape { margin-top: 14px; font-weight: 700; }
+  .rodape .linha { margin-top: 4px; }
+  .assinatura-sistema { margin-top: 18px; font-size: 7.5px; color: #777; text-align: right; }
+  .msg { padding: 40px; text-align: center; font-size: 14px; }
+  @media print {
+    body { background: #fff; }
+    .ferramentas { display: none; }
+    .folha { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="ferramentas">
+  <button id="bImprimir">Imprimir / salvar em PDF</button>
+  <button class="sec" id="bExcel">Baixar Excel</button>
+  <button class="sec" id="bWord">Baixar Word</button>
+  <a id="lVoltar" href="#">← Voltar ao BM</a>
+</div>
+<div id="doc"><div class="msg">Carregando…</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js?v=diego1"></script>
+<script src="../comum/supabase.js?v=diego1"></script>
+<script src="../comum/formatos.js?v=diego1"></script>
+<script src="../comum/checklist.js?v=diego1"></script>
+<script src="../comum/drive.js?v=diego1"></script>
+<script>
+const { sb } = SE;
+const $ = id => document.getElementById(id);
+const P = new URLSearchParams(location.search), obraId = P.get('obra'), bmId = P.get('bm');
+let D = null;   // { obra, bm, linhas, cab }
+
+(async function () {
+  const u = await SE.exigirLogin(); if (!u) return;
+  $('lVoltar').href = `medicao.html?obra=${obraId}&bm=${bmId}`;
+  const [o, ms] = await Promise.all([
+    sb.from('obras').select('*').eq('id', obraId).single(),
+    sb.from('medicoes').select('*').eq('obra_id', obraId).order('numero')
+  ]);
+  if (o.error || ms.error) { $('doc').innerHTML = '<div class="msg">Não foi possível carregar o checklist.</div>'; return; }
+  const bm = ms.data.find(m => m.id === bmId);
+  if (!bm) { $('doc').innerHTML = '<div class="msg">BM não encontrado.</div>'; return; }
+  const ant = ms.data.filter(m => m.numero < bm.numero).sort((a, b) => b.numero - a.numero)[0];
+  const chk = Checklist.herdar((bm.dados && bm.dados.checklist) || {}, ant && ant.dados && ant.dados.checklist, bm.nf_data || new Date().toISOString().slice(0, 10));
+  const obra = o.data;
+  const mesAno = c => c ? `${c.slice(5, 7)}/${c.slice(0, 4)}` : '';
+  D = {
+    obra, bm, linhas: Checklist.montar(obra, bm, chk),
+    cab: {
+      processo: bm.processo_pagamento || obra.processo_siged || '',
+      credor: obra.codigo_credor || '',
+      contrato: obra.num_contrato ? `Nº ${obra.num_contrato}${obra.termo_aditivo ? ' - ' + obra.termo_aditivo.toUpperCase() : ''}` : '',
+      objeto: obra.objeto || obra.nome,
+      periodo: mesAno(bm.competencia || (bm.periodo_fim || '').slice(0, 7)),
+      valor: bm.nf_valor
+    }
+  };
+  document.title = `Checklist BM ${String(bm.numero).padStart(2, '0')} - ${obra.nome}`;
+  document.body.dataset.obra = obra.nome;
+  desenhar();
+  $('bImprimir').onclick = () => window.print();
+  $('bExcel').onclick = () => XLSX.writeFile(montarWb(), limpa(document.title) + '.xlsx');
+  $('bWord').onclick = baixarWord;
+  Drive.botoes({ barra: '.ferramentas', antesDe: '#lVoltar', alvo: '.folha', formatos: ['pdf', 'docx', 'xlsx'], classe: 'sec',
+    xlsx: () => montarWb(), pasta: () => ['Obras', obra.nome, 'Medições'] });
+})();
+
+const limpa = s => s.replace(/[\\/:*?"<>|]+/g, '-');
+const E = s => F.esc(s ?? '');
+const marca = (l, v) => l.r === v ? 'X' : '';
+
+function desenhar() {
+  const { cab, linhas } = D;
+  let h = `<div class="folha"><h1>CHECK-LIST</h1>
+    <table class="id">
+      <tr><td colspan="7"><b>Processo nº:</b> ${E(cab.processo)}</td></tr>
+      <tr><td colspan="7"><b>Código/Credor:</b> ${E(cab.credor)}</td></tr>
+      <tr><td colspan="7"><b>Contrato:</b> ${E(cab.contrato)}</td></tr>
+      <tr><td colspan="7"><b>Objeto Contratual:</b> ${E(cab.objeto)}</td></tr>
+      <tr><td colspan="4"><b>Período de Avaliação:</b> ${E(cab.periodo)}</td><td colspan="3"><b>Valor Total da Nota Fiscal R$</b> ${cab.valor != null ? F.num(cab.valor, 2) : ''}</td></tr>`;
+  let sec = '';
+  for (const l of linhas) {
+    if (l.sec !== sec) {
+      sec = l.sec;
+      h += `<tr class="sec"><td class="cod">${l.sec}</td><td class="tit">${E(l.secTitulo)}</td><td class="x">Sim</td><td class="x">Não</td><td class="x">N/A</td><td class="fls">Fls.</td><td>Observações</td></tr>`;
+    }
+    if (l.tipo === 'glosa') {
+      h += `<tr><td class="cod">${l.cod}</td><td class="txt">${E(l.txt)}</td><td colspan="4" class="glosa">
+        ${Object.entries(Checklist.GLOSA).map(([k, t]) => `<div>( ${l.glosa === k ? 'X' : '&nbsp;&nbsp;'} ) ${E(t)}</div>`).join('')}</td><td class="obs">${E(l.obs)}</td></tr>`;
+      continue;
+    }
+    h += `<tr><td class="cod">${l.cod}</td><td class="txt">${E(l.txt).replace(/\n/g, '<br>')}</td>
+      <td class="x">${marca(l, 'sim')}</td><td class="x">${marca(l, 'nao')}</td><td class="x">${marca(l, 'na')}</td>
+      <td class="fls">${E(l.fls)}</td><td class="obs">${E(l.obs)}</td></tr>`;
+  }
+  h += `<tr class="sec"><td class="cod">6</td><td class="tit">DEMOSTRATIVO DE PAGAMENTO</td><td colspan="3">Retenção</td><td colspan="2">Valor (R$)</td></tr>
+      <tr><td class="cod">6.1</td><td class="txt">VALOR BRUTO NF</td><td colspan="3"></td><td colspan="2" style="text-align:right">${D.cab.valor != null ? F.num(D.cab.valor, 2) : ''}</td></tr>
+      <tr class="total"><td colspan="5" style="text-align:right">VALOR TOTAL</td><td colspan="2" style="text-align:right">${D.cab.valor != null ? F.num(D.cab.valor, 2) : ''}</td></tr>
+    </table>
+    <div class="rodape">PROCESSO COM CONFORMIDADE<div class="linha">DATA: ${D.bm.data_relatorio ? F.data(D.bm.data_relatorio) : '____/____/________'}</div></div>
+    <div class="assinatura-sistema">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</div></div>`;
+  $('doc').innerHTML = h;
+}
+
+// Excel no mesmo desenho: 7 colunas (A item, B verificação, C Sim, D Não, E N/A, F Fls., G Observações)
+function montarWb() {
+  const { cab, linhas } = D, A = [], merges = [];
+  const linha = (vals, mergeAte) => { A.push(vals); if (mergeAte != null) merges.push({ s: { r: A.length - 1, c: mergeAte[0] }, e: { r: A.length - 1, c: mergeAte[1] } }); };
+  linha(['CHECK-LIST'], [0, 6]);
+  linha([`Processo nº: ${cab.processo}`], [0, 6]);
+  linha([`Código/Credor: ${cab.credor}`], [0, 6]);
+  linha([`Contrato: ${cab.contrato}`], [0, 6]);
+  linha([`Objeto Contratual: ${cab.objeto}`], [0, 6]);
+  A.push([`Período de Avaliação: ${cab.periodo}`, '', '', `Valor Total da Nota Fiscal R$`, '', '', cab.valor ?? '']);
+  merges.push({ s: { r: A.length - 1, c: 0 }, e: { r: A.length - 1, c: 2 } }, { s: { r: A.length - 1, c: 3 }, e: { r: A.length - 1, c: 5 } });
+  let sec = '';
+  for (const l of linhas) {
+    if (l.sec !== sec) { sec = l.sec; A.push([Number(l.sec), l.secTitulo, 'Sim', 'Não', 'N/A', 'Fls.', 'Observações']); }
+    if (l.tipo === 'glosa') {
+      A.push([l.cod, l.txt, Object.entries(Checklist.GLOSA).map(([k, t]) => `( ${l.glosa === k ? 'X' : ' '} ) ${t}`).join('\n'), '', '', '', l.obs]);
+      merges.push({ s: { r: A.length - 1, c: 2 }, e: { r: A.length - 1, c: 5 } });
+      continue;
+    }
+    A.push([l.cod, l.txt, marca(l, 'sim'), marca(l, 'nao'), marca(l, 'na'), l.fls, l.obs]);
+  }
+  A.push([6, 'DEMOSTRATIVO DE PAGAMENTO', 'Retenção', '', '', 'Valor (R$)', '']);
+  merges.push({ s: { r: A.length - 1, c: 2 }, e: { r: A.length - 1, c: 4 } }, { s: { r: A.length - 1, c: 5 }, e: { r: A.length - 1, c: 6 } });
+  A.push(['6.1', 'VALOR BRUTO NF', '', '', '', cab.valor ?? '', '']);
+  merges.push({ s: { r: A.length - 1, c: 5 }, e: { r: A.length - 1, c: 6 } });
+  A.push(['', 'VALOR TOTAL', '', '', '', cab.valor ?? '', '']);
+  merges.push({ s: { r: A.length - 1, c: 5 }, e: { r: A.length - 1, c: 6 } });
+  A.push([]); A.push(['PROCESSO COM CONFORMIDADE']); A.push([`DATA: ${D.bm.data_relatorio ? F.data(D.bm.data_relatorio) : ''}`]);
+  const ws = XLSX.utils.aoa_to_sheet(A);
+  ws['!merges'] = merges;
+  ws['!cols'] = [{ wch: 6 }, { wch: 70 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 9 }, { wch: 34 }];
+  // valores em reais com formato
+  for (let r = 0; r < A.length; r++) for (let c = 0; c < 7; c++) {
+    const cel = ws[XLSX.utils.encode_cell({ r, c })];
+    if (cel && typeof cel.v === 'number' && c >= 5) cel.z = '#,##0.00';
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Checklist');
+  return wb;
+}
+
+// Word: o próprio documento em HTML, que o Word abre e salva como .docx
+function baixarWord() {
+  const estilo = [...document.querySelectorAll('style')].map(s => s.textContent).join('\n');
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8">
+    <style>${estilo} @page WordSection1 { size: 21cm 29.7cm; margin: 1.5cm; } div.WordSection1 { page: WordSection1; } .folha { width: auto; padding: 0; box-shadow: none; margin: 0; }</style></head>
+    <body><div class="WordSection1">${document.querySelector('.folha').innerHTML}</div></body></html>`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿', html], { type: 'application/msword' }));
+  a.download = limpa(document.title) + '.doc';
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+</script>
+</body>
+</html>

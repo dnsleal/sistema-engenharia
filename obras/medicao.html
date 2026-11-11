@@ -44,6 +44,12 @@
   .pend li a { margin-left: 4px; }
   .anexo-plan { margin-top: 10px; font-size: .88rem; }
   #dPlan { width: min(980px, 96vw); }
+  table.chk td.c, table.chk th.c { text-align: center; width: 44px; }
+  table.chk input[type=radio] { width: auto; transform: scale(1.15); }
+  table.chk td.desc { max-width: 520px; }
+  tr.pendente td { background: color-mix(in srgb, var(--alerta) 8%, transparent); }
+  button.mini { padding: 2px 7px; font-size: .75rem; }
+  #aba-docs td input { padding: 5px 8px; }
   .barra-acoes.painel { position: sticky; bottom: 0; z-index: 5; margin: 16px 0 0; border-radius: 10px; }
 </style>
 </head>
@@ -70,6 +76,8 @@
     <button type="button" class="ativa" data-aba="inicio">1. Início</button>
     <button type="button" data-aba="qtd">2. Quantidades</button>
     <a class="aba-link" id="lFotosAba" href="#">3. Fotos ↗</a>
+    <button type="button" data-aba="docs">4. Documentos</button>
+    <button type="button" data-aba="chk">5. Checklist</button>
   </nav>
 
   <section class="aba ativa" id="aba-inicio">
@@ -151,6 +159,36 @@
   </section>
   </section>
 
+  <section class="aba" id="aba-docs">
+    <section class="painel">
+      <h3>Documentos para anexar</h3>
+      <p class="nota" style="margin-top:0">Os itens do checklist que pedem documento. Ao anexar, o item fica como <b>Sim</b> no checklist. Certidões, empenho, extrato e dados bancários vêm do BM anterior enquanto estiverem válidos; anexe a nova versão quando renovar. Os arquivos ficam guardados no seu espaço privado do Supabase.</p>
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Documento</th><th>Arquivo</th><th>Validade</th><th>Observação</th><th></th></tr></thead>
+          <tbody id="docsCorpo"></tbody>
+        </table>
+      </div>
+      <input type="file" id="arqDoc" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" style="display:none">
+    </section>
+  </section>
+
+  <section class="aba" id="aba-chk">
+    <section class="painel">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <h3 style="margin:0;margin-right:auto">Checklist</h3>
+        <button type="button" id="bChkDoc">Abrir checklist para imprimir / exportar</button>
+      </div>
+      <p class="nota" style="margin-top:0">Itens com <span class="etiqueta neutro">auto</span> são respondidos com os dados da obra e do BM. Se mudar a resposta, ela passa a ser sua (<span class="etiqueta alerta">manual</span>); o ↺ volta ao automático. A coluna Fls. é opcional.</p>
+      <div class="tabela-wrap">
+        <table class="chk">
+          <thead><tr><th>Item</th><th>Verificação</th><th class="c">Sim</th><th class="c">Não</th><th class="c">N/A</th><th>Fls.</th><th>Observações</th><th></th></tr></thead>
+          <tbody id="chkCorpo"></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+
   <div class="barra-acoes painel">
     <span class="info" id="info"></span>
     <button class="sec" id="bReabrir" style="display:none">Reabrir BM</button>
@@ -202,6 +240,7 @@
 <script src="../comum/formatos.js?v=diego1"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../comum/medicao.js?v=diego1"></script>
+<script src="../comum/checklist.js?v=diego1"></script>
 <script src="../comum/drive.js?v=diego1"></script>
 <script>
 const { sb } = SE;
@@ -212,6 +251,8 @@ let M = null;            // dados montados
 let editado = {};        // item_id -> quantidade digitada neste BM
 let sujo = false;
 let usuarioId = null;
+let chk = {};            // respostas do checklist deste BM (medicoes.dados.checklist)
+let docAlvo = null;      // item do checklist recebendo anexo
 let plan = { wb: null, arquivo: null, linhas: [], resultado: [] };   // importação da planilha da medição
 let extra = { pessoas: {}, fotos: 0 };   // responsáveis da obra e nº de fotos do BM
 let totalAtual = 0;                     // total deste BM (líquido + reajuste), recalculado ao digitar
@@ -227,6 +268,8 @@ const CAMPOS_DOC = ['comp', 'drel', 'proc', 'nfNum', 'nfData', 'nfValor', 'glosa
   for (const id of ['pColItem', 'pColVal', 'pTipo', 'pPl']) $(id).onchange = previa;
   $('pCancelar').onclick = () => $('dPlan').close();
   $('fPlan').onsubmit = aplicarPlanilha;
+  $('arqDoc').onchange = anexarDoc;
+  $('bChkDoc').onclick = async () => { if (sujo && !await salvar(true)) return; window.open(`checklist.html?obra=${obraId}&bm=${bmId}`, '_blank'); };
   $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
   $('lObraTopo').href = 'obra.html?id=' + obraId + '#medicoes';
   $('lBoletim').href = `boletim.html?obra=${obraId}&bm=${bmId}`;
@@ -282,6 +325,12 @@ async function carregar() {
     M.planilhas.map(p => `<option value="${p.id}">${M.nomePl(p)}</option>`).join('');
   travar(b.fechada);
   mostrarPlanilha();
+  // checklist: respostas salvas + documentos válidos do BM anterior
+  const ant = M.medicoes.filter(m => m.numero < b.numero).sort((x, y) => y.numero - x.numero)[0];
+  const salvo = (b.dados && b.dados.checklist) || {};
+  chk = Checklist.herdar(salvo, ant && ant.dados && ant.dados.checklist, b.nf_data || new Date().toISOString().slice(0, 10));
+  if (JSON.stringify(chk) !== JSON.stringify(salvo)) sujo = true;      // herdou algo: grava no próximo Salvar
+  desenharDocs(); desenharChk();
   desenhar(); resumo();
 }
 
@@ -371,6 +420,7 @@ function abrirAba(nome) {
   document.querySelectorAll('#abas button').forEach(x => x.classList.toggle('ativa', x.dataset.aba === nome));
   document.querySelectorAll('.aba').forEach(a => a.classList.toggle('ativa', a.id === 'aba-' + nome));
   history.replaceState(null, '', nome === 'qtd' ? '#quantidades' : location.pathname + location.search);
+  if (nome === 'chk') desenharChk(); if (nome === 'docs') desenharDocs();
 }
 
 // ---------- cabeçalho do checklist (vem do contrato + BM; nada é digitado de novo) ----------
@@ -428,6 +478,11 @@ function pendencias(linhas, lancados, excedem) {
   if (nf != null && o.empenho_saldo != null && nf > Number(o.empenho_saldo) + 0.009) P.push(['alerta', `Valor da NF acima do saldo do empenho (${F.rs(o.empenho_saldo)}).`, editar]);
   if (o.termino_vigente && $('nfData').value && $('nfData').value > o.termino_vigente) P.push(['alerta', `NF emitida após o término da vigência (${F.data(o.termino_vigente)}).`, editar]);
   if (o.termino_vigente && $('fim').value && $('fim').value > o.termino_vigente) P.push(['alerta', `Período do BM passa do término da vigência (${F.data(o.termino_vigente)}).`, editar]);
+  if (M.bm && Object.keys(chk).length + 1) {
+    const linhasChk = Checklist.montar(M.obra, bmAtual(), chk);
+    const pc = Checklist.pendencias(linhasChk);
+    if (pc.length) P.push(['alerta', `Checklist: ${pc.length} item(ns) pendente(s) — ${pc.slice(0, 3).join(' ')}${pc.length > 3 ? ' …' : ''}`, '<a href="#" data-aba="chk">ver</a>']);
+  }
   listaPend = P;
   $('pend').innerHTML = P.length ? P.map(([n, t, l]) => `<li class="${n}">${t}${l ? ' ' + l : ''}</li>`).join('')
     : '<li class="ok">Tudo certo nesta etapa.</li>';
@@ -440,7 +495,8 @@ function dadosDoc() {
     competencia: $('comp').value || null, data_relatorio: $('drel').value || null, processo_pagamento: t('proc'),
     nf_numero: t('nfNum'), nf_data: $('nfData').value || null, nf_valor: n('nfValor'),
     glosa: $('glosa').value, glosa_valor: $('glosa').value === 'nao' ? null : n('glosaValor'), imr_pct: n('imr'),
-    retencao_vinculada: t('retVinc'), retencao_terceirizado: t('retTerc'), outras_retencoes: t('retOutras'), observacoes: t('obs')
+    retencao_vinculada: t('retVinc'), retencao_terceirizado: t('retTerc'), outras_retencoes: t('retOutras'), observacoes: t('obs'),
+    dados: { ...(M.bm.dados || {}), checklist: chk }
   };
 }
 
@@ -673,6 +729,100 @@ function mostrarPlanilha() {
     if (error) { alert('Não consegui abrir o arquivo: ' + error.message); return; }
     location.href = data.signedUrl;
   };
+}
+// ================= documentos e checklist =================
+// o BM "como está na tela" (NF e glosa digitadas ainda sem salvar contam)
+function bmAtual() {
+  return { ...M.bm, nf_numero: $('nfNum').value.trim() || null, nf_data: $('nfData').value || null, glosa: $('glosa').value };
+}
+const nomeCurto = t => t.replace(/\n.*/s, '').replace(/,? com autenticidade e vigente\.?/i, '').replace(/\{empenho\}/, '').slice(0, 110);
+
+function desenharDocs() {
+  const L = Checklist.montar(M.obra, bmAtual(), chk).filter(l => l.doc);
+  $('docsCorpo').innerHTML = L.map(l => `<tr>
+    <td>${l.cod}</td>
+    <td class="desc">${F.esc(nomeCurto(l.txt))}</td>
+    <td>${l.anexo ? `<a href="#" data-ver="${l.cod}">${F.esc(l.anexo.nome)}</a>${l.herdado ? ' <span class="etiqueta neutro" title="Veio do BM anterior">BM anterior</span>' : ''}` : '<span class="nota">nenhum</span>'}
+      ${l.alerta ? `<div><span class="etiqueta critico">${F.esc(l.alerta)}</span></div>` : ''}</td>
+    <td>${l.certidao ? `<input type="date" data-val="${l.cod}" value="${l.validade || ''}" style="width:150px">` : ''}</td>
+    <td><input data-dobs="${l.cod}" value="${F.esc(chk[l.cod] && chk[l.cod].obs || '')}" placeholder="${F.esc(l.obs || '')}"></td>
+    <td style="white-space:nowrap"><button type="button" class="sec" data-anexar="${l.cod}">${l.anexo ? 'Trocar' : 'Anexar'}</button>
+      ${l.anexo ? `<button type="button" class="sec" data-tirar="${l.cod}" title="Remover anexo">✕</button>` : ''}</td></tr>`).join('');
+  const item = cod => (chk[cod] = chk[cod] || {});
+  $('docsCorpo').querySelectorAll('[data-anexar]').forEach(b => b.onclick = () => { docAlvo = b.dataset.anexar; $('arqDoc').click(); });
+  $('docsCorpo').querySelectorAll('[data-tirar]').forEach(b => b.onclick = () => tirarDoc(b.dataset.tirar));
+  $('docsCorpo').querySelectorAll('[data-ver]').forEach(a => a.onclick = e => { e.preventDefault(); verDoc(chk[a.dataset.ver].anexo); });
+  $('docsCorpo').querySelectorAll('[data-val]').forEach(i => i.onchange = () => { item(i.dataset.val).validade = i.value || null; sujo = true; desenharDocs(); desenharChk(); resumo(); });
+  $('docsCorpo').querySelectorAll('[data-dobs]').forEach(i => i.onchange = () => { item(i.dataset.dobs).obs = i.value.trim(); sujo = true; desenharChk(); });
+}
+
+function desenharChk() {
+  const L = Checklist.montar(M.obra, bmAtual(), chk);
+  let sec = '';
+  $('chkCorpo').innerHTML = L.map(l => {
+    const cab = l.sec !== sec ? (sec = l.sec, `<tr class="etapa"><td>${l.sec}</td><td colspan="7">${F.esc(l.secTitulo)}</td></tr>`) : '';
+    const radio = v => l.tipo === 'glosa' ? '' : `<input type="radio" name="r${l.cod}" value="${v}" ${l.r === v ? 'checked' : ''} aria-label="${Checklist.ROT[v]}">`;
+    const st = l.manual ? `<span class="etiqueta alerta" title="Resposta sua">manual</span> <button type="button" class="sec mini" data-auto="${l.cod}" title="Voltar ao automático">↺</button>`
+      : l.auto ? `<span class="etiqueta neutro" title="${F.esc(l.auto)}">auto</span>` : '';
+    const glosa = l.tipo === 'glosa' ? `<td colspan="3" class="nota">${F.esc(Checklist.GLOSA[l.glosa] || '')}<br><a href="#" data-aba="inicio">alterar na aba Início</a></td>` : `<td class="c">${radio('sim')}</td><td class="c">${radio('nao')}</td><td class="c">${radio('na')}</td>`;
+    return cab + `<tr class="${l.alerta || (!l.r && l.tipo !== 'glosa') ? 'pendente' : ''}">
+      <td>${l.cod}</td><td class="desc">${F.esc(l.txt).replace(/\n/g, '<br>')}${l.alerta ? ` <span class="etiqueta critico">${F.esc(l.alerta)}</span>` : ''}${l.doc && !l.anexo ? ' <a href="#" data-aba="docs" class="nota">anexar</a>' : ''}</td>
+      ${glosa}
+      <td><input data-fls="${l.cod}" value="${F.esc(l.fls)}" style="width:70px"></td>
+      <td><input data-obs="${l.cod}" value="${F.esc((chk[l.cod] && chk[l.cod].obs) || '')}" placeholder="${F.esc(l.obs)}"></td>
+      <td style="white-space:nowrap">${st}</td></tr>`;
+  }).join('');
+  const item = cod => (chk[cod] = chk[cod] || {});
+  $('chkCorpo').querySelectorAll('input[type=radio]').forEach(r => r.onchange = () => { const it = item(r.name.slice(1)); it.r = r.value; it.manual = true; sujo = true; desenharChk(); resumo(); });
+  $('chkCorpo').querySelectorAll('[data-auto]').forEach(b => b.onclick = () => { const it = item(b.dataset.auto); delete it.r; delete it.manual; sujo = true; desenharChk(); resumo(); });
+  $('chkCorpo').querySelectorAll('[data-fls]').forEach(i => i.onchange = () => { item(i.dataset.fls).fls = i.value.trim(); sujo = true; });
+  $('chkCorpo').querySelectorAll('[data-obs]').forEach(i => i.onchange = () => { item(i.dataset.obs).obs = i.value.trim(); sujo = true; desenharDocs(); });
+  $('chkCorpo').querySelectorAll('a[data-aba]').forEach(a => a.onclick = e => { e.preventDefault(); abrirAba(a.dataset.aba); });
+}
+
+// grava só o checklist (anexos não podem esperar o "Salvar": o arquivo já subiu)
+async function gravarChecklist() {
+  const dados = { ...(M.bm.dados || {}), checklist: chk };
+  const { error } = await sb.from('medicoes').update({ dados }).eq('id', bmId);
+  if (error) throw error;
+  M.bm.dados = dados;
+}
+
+async function anexarDoc() {
+  const f = $('arqDoc').files[0]; $('arqDoc').value = '';
+  if (!f || !docAlvo) return;
+  if (f.size > 20 * 1024 * 1024) { alert('Arquivo maior que 20 MB. Reduza o PDF antes de anexar.'); return; }
+  const cod = docAlvo; $('info').textContent = `Enviando ${f.name}…`;
+  try {
+    const nome = f.name.replace(/[^\w.\- ]+/g, '_');
+    const caminho = `${usuarioId}/${obraId}/${bmId}/docs/${cod}-${Date.now()}-${nome}`;
+    const up = await sb.storage.from('fotos').upload(caminho, f, { contentType: f.type || 'application/octet-stream' });
+    if (up.error) throw up.error;
+    const antigo = chk[cod] && chk[cod].anexo;
+    chk[cod] = { ...(chk[cod] || {}), anexo: { caminho, nome: f.name, em: new Date().toISOString() }, herdado: false };
+    if (Checklist.ITENS.find(i => i.cod === cod).certidao) chk[cod].validade = null;    // certidão nova: informar a nova validade
+    await gravarChecklist();
+    if (antigo && antigo.caminho.includes(`/${bmId}/`)) sb.storage.from('fotos').remove([antigo.caminho]);
+    $('info').textContent = `${f.name} anexado.`;
+  } catch (e) { alert('Não consegui anexar: ' + e.message); $('info').textContent = ''; }
+  desenharDocs(); desenharChk(); resumo();
+}
+
+async function tirarDoc(cod) {
+  const a = chk[cod] && chk[cod].anexo; if (!a) return;
+  if (!confirm(`Remover o anexo "${a.nome}" do item ${cod}?`)) return;
+  chk[cod] = { ...chk[cod], anexo: null, herdado: false, validade: null };
+  try {
+    await gravarChecklist();
+    if (a.caminho.includes(`/${bmId}/`)) await sb.storage.from('fotos').remove([a.caminho]);   // arquivo de outro BM fica
+  } catch (e) { alert('Erro ao remover: ' + e.message); }
+  desenharDocs(); desenharChk(); resumo();
+}
+
+async function verDoc(a) {
+  const { data, error } = await sb.storage.from('fotos').createSignedUrl(a.caminho, 600);
+  if (error) { alert('Não consegui abrir: ' + error.message); return; }
+  window.open(data.signedUrl, '_blank');
 }
 </script>
 </body>
