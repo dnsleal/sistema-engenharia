@@ -23,6 +23,9 @@
   .confirma { margin-top: 12px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--critico) 55%, transparent); border-radius: 6px; background: color-mix(in srgb, var(--critico) 8%, transparent); font-size: .88rem; }
   .dica-campo { font-size: .76rem; color: var(--texto-2); margin-top: 3px; }
   #pgMsg { margin: 0 0 12px; }
+  .grupo-proc { border: 1px solid var(--linha); border-radius: 8px; padding: 6px 12px 10px; margin: 12px 0 4px; }
+  .grupo-proc legend { font-weight: 600; font-size: .9rem; padding: 0 6px; color: var(--azul); }
+  .sel-pessoa { display: flex; gap: 6px; } .sel-pessoa select { flex: 1; min-width: 0; } .sel-pessoa button { padding: 6px 10px; }
 </style>
 </head>
 <body>
@@ -124,6 +127,21 @@
             <option value="concluida">Concluída</option><option value="encerrada">Encerrada</option>
           </select></div>
       </div>
+      <fieldset class="grupo-proc">
+        <legend>Processo de pagamento e responsáveis</legend>
+        <div class="grade2">
+          <div><label for="o_credor">Código / credor</label><input id="o_credor" placeholder="Ex.: 6999"></div>
+          <div><label for="o_aditivo">Termo aditivo vigente</label><input id="o_aditivo" placeholder="Ex.: 3º Termo Aditivo"></div>
+          <div><label for="o_empenho">Nº da nota de empenho</label><input id="o_empenho" placeholder="Ex.: 16601001529/2026"></div>
+          <div><label for="o_saldo_emp">Saldo do empenho (R$)</label><input id="o_saldo_emp" inputmode="decimal"></div>
+        </div>
+        <div class="grade3">
+          <div><label for="o_fiscal">Fiscal técnico</label><div class="sel-pessoa"><select id="o_fiscal" data-pessoa></select><button type="button" class="sec" data-nova="o_fiscal" title="Cadastrar ou editar">✎</button></div></div>
+          <div><label for="o_gestor">Gestor do contrato</label><div class="sel-pessoa"><select id="o_gestor" data-pessoa></select><button type="button" class="sec" data-nova="o_gestor" title="Cadastrar ou editar">✎</button></div></div>
+          <div><label for="o_fiscal_adm">Fiscal administrativo</label><div class="sel-pessoa"><select id="o_fiscal_adm" data-pessoa></select><button type="button" class="sec" data-nova="o_fiscal_adm" title="Cadastrar ou editar">✎</button></div></div>
+        </div>
+        <p class="dica-campo">Esses dados vão para o checklist, o relatório do fiscal e o do gestor de todos os BMs desta obra.</p>
+      </fieldset>
       <label for="o_obs">Observações</label>
       <textarea id="o_obs" rows="2"></textarea>
       <div class="confirma" id="oExcluir" hidden></div>
@@ -133,6 +151,28 @@
       <button type="button" class="perigo" id="bExcluir" hidden>Excluir obra</button>
       <button type="button" class="sec" id="bCancelar">Cancelar</button>
       <button type="submit" id="bSalvar">Salvar</button>
+    </footer>
+  </form>
+</dialog>
+
+<dialog id="dPessoa">
+  <form method="dialog" id="fPessoa">
+    <header id="pTitulo">Responsável</header>
+    <div class="corpo">
+      <label for="p_nome">Nome completo *</label><input id="p_nome" required>
+      <div class="grade2">
+        <div><label for="p_cargo">Função no contrato</label><input id="p_cargo" list="cargos" placeholder="Ex.: Fiscal Técnico do Contrato">
+          <datalist id="cargos"><option>Fiscal Técnico do Contrato</option><option>Gestor do Contrato</option><option>Fiscal Administrativo do Contrato</option></datalist></div>
+        <div><label for="p_matricula">Matrícula</label><input id="p_matricula"></div>
+      </div>
+      <label for="p_unidade">Unidade / setor</label><input id="p_unidade" placeholder="Ex.: Coordenadoria Técnica de Obras">
+      <label for="p_portaria">Portaria de designação</label><input id="p_portaria" placeholder="Ex.: Portaria nº 260/DAC/2026/SMS de 28/09/2026">
+      <p class="dica-campo">Se a mesma pessoa tiver portarias diferentes em cada contrato, cadastre uma vez por portaria.</p>
+      <div class="msg" id="pMsg" role="alert"></div>
+    </div>
+    <footer>
+      <button type="button" class="sec" id="pCancelar">Cancelar</button>
+      <button type="submit" id="pSalvar">Salvar</button>
     </footer>
   </form>
 </dialog>
@@ -175,8 +215,12 @@ const SITUACAO = {
   Drive.botoes({ barra: '.cabecalho', antesDe: '#bNova', salvar: 'planilha', paisagem: true,
     alvo: () => [$('kpis'), document.querySelector('.tabela-wrap table')],
     nome: () => 'Central de obras - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'), pasta: () => [] });
-  $('bCancelar').onclick = () => { $('dObra').close(); if (voltarParaObra) location.href = 'obras/obra.html?id=' + editando; };
+  $('bCancelar').onclick = () => { $('dObra').close(); if (voltarParaObra) location.href = destinoVolta(editando); };
   $('fObra').onsubmit = salvar;
+  $('fPessoa').onsubmit = salvarPessoa;
+  $('pCancelar').onclick = () => { if ($(pessoaAlvo).value === '__nova') $(pessoaAlvo).value = ''; $('dPessoa').close(); };
+  document.querySelectorAll('[data-nova]').forEach(b => b.onclick = () => abrirPessoa(b.dataset.nova));
+  document.querySelectorAll('select[data-pessoa]').forEach(sel => sel.addEventListener('change', () => { if (sel.value === '__nova') { sel.value = ''; abrirPessoa(sel.id); } }));
   $('bExcluir').onclick = excluir;
   $('o_inicio').oninput = $('o_prazo').oninput = sugerirTermino;
   $('o_termino').oninput = () => { $('o_termino').dataset.auto = ''; $('dTermino').textContent = ''; };
@@ -190,7 +234,9 @@ const SITUACAO = {
   });
   await carregar();
   // vindo da página da obra: "Editar dados"
-  const ed = new URLSearchParams(location.search).get('editar');
+  const qs = new URLSearchParams(location.search), ed = qs.get('editar');
+  // ?voltar= leva de volta à tela de origem (ex.: o BM); só caminhos internos de obras/
+  const v = qs.get('voltar'); voltarUrl = v && /^obras\/[\w.-]+\.html(\?[\w=&%.-]*)?(#[\w-]*)?$/.test(v) ? v : null;
   if (ed) { history.replaceState(null, '', 'index.html'); abrir(ed, true); }
 })();
 
@@ -329,15 +375,54 @@ const CAMPOS = {
   o_nome: 'nome', o_objeto: 'objeto', o_contratante: 'contratante', o_contratada: 'contratada',
   o_cnpj: 'cnpj_contratada', o_contrato: 'num_contrato', o_siged: 'processo_siged', o_tipo: 'tipo_obra',
   o_endereco: 'endereco', o_inicio: 'data_inicio', o_prazo: 'prazo_dias', o_termino: 'termino_vigente',
-  o_status: 'status', o_obs: 'observacoes'
+  o_status: 'status', o_obs: 'observacoes',
+  o_credor: 'codigo_credor', o_aditivo: 'termo_aditivo', o_empenho: 'empenho_numero',
+  o_fiscal: 'fiscal_id', o_gestor: 'gestor_id', o_fiscal_adm: 'fiscal_adm_id'
 };
-const NUMEROS = { o_valor: 'valor_contrato', o_desc: 'desconto_pct', o_bdi: 'bdi_pct', o_reaj: 'reajuste_pct' };
+const NUMEROS = { o_valor: 'valor_contrato', o_desc: 'desconto_pct', o_bdi: 'bdi_pct', o_reaj: 'reajuste_pct', o_saldo_emp: 'empenho_saldo' };
+
+// ---------- responsáveis (fiscal, gestor…) ----------
+let pessoas = [], pessoaAlvo = null, pessoaEdit = null;
+async function carregarPessoas() {
+  const { data, error } = await sb.from('pessoas').select('*').order('nome');
+  pessoas = error ? [] : data;
+  for (const sel of document.querySelectorAll('select[data-pessoa]')) {
+    const v = sel.value;
+    sel.innerHTML = '<option value="">— escolha —</option>' + pessoas.map(p => `<option value="${p.id}">${F.esc(p.nome)}${p.portaria ? ' · ' + F.esc(p.portaria.replace(/^Portaria\s*/i, 'Port. ')) : ''}</option>`).join('') +
+      '<option value="__nova">+ Cadastrar nova pessoa…</option>';
+    sel.value = pessoas.some(p => p.id === v) ? v : '';
+  }
+}
+function abrirPessoa(selId) {
+  pessoaAlvo = selId;
+  const atual = pessoas.find(p => p.id === $(selId).value);
+  pessoaEdit = atual ? atual.id : null;
+  $('fPessoa').reset(); $('pMsg').textContent = '';
+  $('pTitulo').textContent = atual ? 'Editar responsável' : 'Novo responsável';
+  const sugestao = { o_fiscal: 'Fiscal Técnico do Contrato', o_gestor: 'Gestor do Contrato', o_fiscal_adm: 'Fiscal Administrativo do Contrato' }[selId];
+  if (atual) { $('p_nome').value = atual.nome; $('p_cargo').value = atual.cargo || ''; $('p_matricula').value = atual.matricula || ''; $('p_unidade').value = atual.unidade || ''; $('p_portaria').value = atual.portaria || ''; }
+  else $('p_cargo').value = sugestao || '';
+  $('dPessoa').showModal(); $('p_nome').focus();
+}
+async function salvarPessoa(e) {
+  e.preventDefault();
+  const t = id => $(id).value.trim() || null;
+  const reg = { nome: t('p_nome'), cargo: t('p_cargo'), matricula: t('p_matricula'), unidade: t('p_unidade'), portaria: t('p_portaria') };
+  if (!reg.nome) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'Informe o nome.'; return; }
+  const r = pessoaEdit ? await sb.from('pessoas').update(reg).eq('id', pessoaEdit).select('id').single()
+                       : await sb.from('pessoas').insert(reg).select('id').single();
+  if (r.error) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'Erro: ' + r.error.message; return; }
+  await carregarPessoas();
+  $(pessoaAlvo).value = r.data.id;
+  $('dPessoa').close();
+}
 
 // percentuais guardam até 4 casas no banco: mostrar só 2 arredondava o valor ao salvar de novo
-const casasNum = (col, v) => col === 'valor_contrato' ? F.num(v, 2)
+const casasNum = (col, v) => ['valor_contrato', 'empenho_saldo'].includes(col) ? F.num(v, 2)
   : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 
-let voltarParaObra = false;
+let voltarParaObra = false, voltarUrl = null;
+const destinoVolta = id => voltarUrl || 'obras/obra.html?id=' + id;
 async function abrir(id, daObra = false) {
   avisoPagina('');
   editando = id; voltarParaObra = daObra;
@@ -346,6 +431,7 @@ async function abrir(id, daObra = false) {
   $('o_termino').dataset.auto = ''; $('dTermino').textContent = '';
   $('dTitulo').textContent = id ? 'Editar obra' : 'Nova obra';
   $('bExcluir').hidden = !id; $('bExcluir').disabled = false; $('bExcluir').textContent = 'Excluir obra';
+  await carregarPessoas();
   if (id) {
     const { data, error } = await sb.from('obras').select('*').eq('id', id).maybeSingle();
     if (error || !data) { avisoPagina('Não foi possível abrir a obra: ' + (error ? error.message : 'ela não existe mais ou é de outro usuário.')); return; }
@@ -401,7 +487,7 @@ async function salvar(e) {
     if (editando) {
       const { error } = await sb.from('obras').update(reg).eq('id', editando);
       if (error) throw error;
-      if (voltarParaObra) { location.href = 'obras/obra.html?id=' + editando; return; }
+      if (voltarParaObra) { location.href = destinoVolta(editando); return; }
     } else {
       const { data, error } = await sb.from('obras').insert(reg).select('id').single();
       if (error) throw error;

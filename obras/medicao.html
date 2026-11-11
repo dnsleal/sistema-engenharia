@@ -23,6 +23,26 @@
     padding: 12px 16px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin: 16px -16px -16px; }
   .barra-acoes .info { margin-right: auto; font-size: .88rem; color: var(--texto-2); }
   .nota { font-size: .82rem; color: var(--texto-2); }
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--linha); margin: 6px 0 0; flex-wrap: wrap; align-items: center; }
+  .abas button, .abas .aba-link { background: none; border: none; border-bottom: 2px solid transparent; color: var(--texto-2); border-radius: 0; padding: 10px 14px; text-decoration: none; font: inherit; }
+  .abas button.ativa { color: var(--azul); border-bottom-color: var(--azul); }
+  .aba { display: none; padding-top: 16px; }
+  .aba.ativa { display: block; }
+  .grade-inicio { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+  .grade-inicio .painel { margin-bottom: 16px; }
+  .grade-inicio h3, .aba h3 { margin: 0 0 10px; font-size: 1rem; }
+  @media (max-width: 960px) { .grade-inicio { grid-template-columns: 1fr; } }
+  .sel-pessoa { display: flex; gap: 6px; } .sel-pessoa input { flex: 1; min-width: 0; } .sel-pessoa button { padding: 6px 10px; white-space: nowrap; }
+  .ficha { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: .88rem; }
+  .ficha dt { color: var(--texto-2); } .ficha dd { margin: 0; } .ficha dd.falta { color: var(--alerta); font-style: italic; }
+  .pend { list-style: none; margin: 0; padding: 0; font-size: .88rem; }
+  .pend li { padding: 6px 0 6px 26px; border-bottom: 1px dashed var(--linha); position: relative; }
+  .pend li::before { position: absolute; left: 2px; top: 5px; font-weight: 700; }
+  .pend li.bloq::before { content: "✕"; color: var(--critico); }
+  .pend li.alerta::before { content: "!"; color: var(--alerta); left: 7px; }
+  .pend li.ok::before { content: "✓"; color: var(--ok); }
+  .pend li a { margin-left: 4px; }
+  .barra-acoes.painel { position: sticky; bottom: 0; z-index: 5; margin: 16px 0 0; border-radius: 10px; }
 </style>
 </head>
 <body>
@@ -44,17 +64,64 @@
     </div>
   </div>
 
-  <section class="painel">
-    <div class="dados-bm">
-      <div><label for="ini">Período — início</label><input id="ini" type="date"></div>
-      <div><label for="fim">Período — fim</label><input id="fim" type="date"></div>
-      <div><label for="reaj">Reajuste deste BM (%)</label><input id="reaj" inputmode="decimal"></div>
-      <div><label>Situação</label><div id="situacao" style="padding-top:8px"></div></div>
+  <nav class="abas" id="abas">
+    <button type="button" class="ativa" data-aba="inicio">1. Início</button>
+    <button type="button" data-aba="qtd">2. Quantidades</button>
+    <a class="aba-link" id="lFotosAba" href="#">3. Fotos ↗</a>
+  </nav>
+
+  <section class="aba ativa" id="aba-inicio">
+    <div class="grade-inicio">
+      <div>
+        <section class="painel">
+          <h3>Dados do BM</h3>
+          <div class="dados-bm">
+            <div><label for="ini">Período — início</label><input id="ini" type="date"></div>
+            <div><label for="fim">Período — fim</label><input id="fim" type="date"></div>
+            <div><label for="comp">Competência</label><input id="comp" type="month"></div>
+            <div><label for="drel">Data dos relatórios</label><input id="drel" type="date"></div>
+            <div><label for="proc">Processo de pagamento (SIGED)</label><input id="proc" placeholder="Ex.: 00000.0.144456/2026"></div>
+            <div><label for="reaj">Reajuste deste BM (%)</label><input id="reaj" inputmode="decimal"></div>
+            <div><label>Situação</label><div id="situacao" style="padding-top:8px"></div></div>
+          </div>
+          <label for="obs">Observações do BM</label>
+          <textarea id="obs" rows="2"></textarea>
+        </section>
+
+        <section class="painel">
+          <h3>Nota fiscal, glosa e retenções</h3>
+          <div class="dados-bm">
+            <div><label for="nfNum">Nº da nota fiscal</label><input id="nfNum"></div>
+            <div><label for="nfData">Data de emissão</label><input id="nfData" type="date"></div>
+            <div><label for="nfValor">Valor da NF (R$)</label><div class="sel-pessoa"><input id="nfValor" inputmode="decimal"><button type="button" class="sec" id="bNfTotal" title="Usar o total deste BM">= BM</button></div></div>
+            <div><label for="glosa">Houve glosa?</label>
+              <select id="glosa"><option value="nao">Não</option><option value="sim_ajustada">Sim — NF já ajustada com a glosa</option><option value="sim_nao_ajustada">Sim — NF NÃO ajustada com a glosa</option></select></div>
+            <div id="cxGlosa"><label for="glosaValor">Valor da glosa (R$)</label><input id="glosaValor" inputmode="decimal"></div>
+            <div><label for="imr">Aferição do IMR (%)</label><input id="imr" inputmode="decimal" placeholder="não se aplica"></div>
+          </div>
+          <div class="dados-bm">
+            <div><label for="retVinc">Retenção p/ conta vinculada</label><input id="retVinc" placeholder="não se aplica"></div>
+            <div><label for="retTerc">Retido p/ direito do terceirizado</label><input id="retTerc" placeholder="não se aplica"></div>
+            <div><label for="retOutras">Outros valores a reter</label><input id="retOutras" placeholder="não se aplica"></div>
+          </div>
+        </section>
+      </div>
+
+      <div>
+        <section class="painel">
+          <h3>Pendências</h3>
+          <ul class="pend" id="pend"><li>Carregando…</li></ul>
+        </section>
+        <section class="painel">
+          <h3>Cabeçalho do checklist</h3>
+          <dl class="ficha" id="cab"></dl>
+          <a class="botao sec" id="lEditarObra" href="#" style="margin-top:8px">Editar dados do contrato e responsáveis</a>
+        </section>
+      </div>
     </div>
-    <label for="obs">Observações do BM</label>
-    <textarea id="obs" rows="2"></textarea>
   </section>
 
+  <section class="aba" id="aba-qtd">
   <section class="kpis" id="kpis" style="margin-top:16px"></section>
 
   <section class="painel">
@@ -76,13 +143,15 @@
     </div>
     <p class="nota">Lance a quantidade executada <b>neste período</b>. O botão <b>saldo</b> preenche o que falta para completar o item.
       Linhas em vermelho passaram do contratado. Valores dos itens sem o desconto do contrato, que é aplicado sobre o total.</p>
-    <div class="barra-acoes">
-      <span class="info" id="info"></span>
-      <button class="sec" id="bReabrir" style="display:none">Reabrir BM</button>
-      <button class="sec" id="bFechar">Fechar BM</button>
-      <button id="bSalvar">Salvar</button>
-    </div>
   </section>
+  </section>
+
+  <div class="barra-acoes painel">
+    <span class="info" id="info"></span>
+    <button class="sec" id="bReabrir" style="display:none">Reabrir BM</button>
+    <button class="sec" id="bFechar">Fechar BM</button>
+    <button id="bSalvar">Salvar</button>
+  </div>
   <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
 </main>
 
@@ -100,6 +169,9 @@ const obraId = P.get('obra'), bmId = P.get('bm');
 let M = null;            // dados montados
 let editado = {};        // item_id -> quantidade digitada neste BM
 let sujo = false;
+let extra = { pessoas: {}, fotos: 0 };   // responsáveis da obra e nº de fotos do BM
+let totalAtual = 0;                     // total deste BM (líquido + reajuste), recalculado ao digitar
+const CAMPOS_DOC = ['comp', 'drel', 'proc', 'nfNum', 'nfData', 'nfValor', 'glosa', 'glosaValor', 'imr', 'retVinc', 'retTerc', 'retOutras'];
 
 (async function iniciar() {
   const user = await SE.exigirLogin(); if (!user) return;
@@ -109,7 +181,15 @@ let sujo = false;
   $('lFotos').href = `fotos.html?obra=${obraId}&bm=${bmId}`;
   for (const id of ['selPl', 'fComQtd', 'fLancados']) $(id).onchange = desenhar;
   $('busca').oninput = desenhar;
-  for (const id of ['ini', 'fim', 'reaj', 'obs']) $(id).oninput = () => { sujo = true; resumo(); };
+  for (const id of ['ini', 'fim', 'reaj', 'obs', ...CAMPOS_DOC]) $(id).addEventListener('input', () => { sujo = true; resumo(); });
+  $('fim').addEventListener('change', () => { if (!$('comp').value && $('fim').value) { $('comp').value = $('fim').value.slice(0, 7); resumo(); } });
+  $('glosa').addEventListener('change', () => { $('cxGlosa').style.visibility = $('glosa').value === 'nao' ? 'hidden' : ''; sujo = true; resumo(); });
+  $('bNfTotal').onclick = () => { $('nfValor').value = F.num(totalAtual, 2); sujo = true; resumo(); };
+  $('lFotosAba').href = `fotos.html?obra=${obraId}&bm=${bmId}`;
+  const voltaBM = encodeURIComponent(`obras/medicao.html?obra=${obraId}&bm=${bmId}`);
+  $('lEditarObra').href = `../index.html?editar=${obraId}&voltar=${voltaBM}`;
+  document.querySelectorAll('#abas button').forEach(b => b.onclick = () => abrirAba(b.dataset.aba));
+  if (location.hash === '#quantidades') abrirAba('qtd');
   $('bSalvar').onclick = () => salvar();
   Drive.botoes({ barra: () => $('lBoletim').parentElement, salvar: 'planilha', paisagem: true,
     alvo: () => [$('titulo'), $('sub'), document.querySelector('.tabela-wrap table')],
@@ -121,7 +201,16 @@ let sujo = false;
 })();
 
 async function carregar() {
-  try { M = await Medicao.carregar(sb, obraId, bmId); }
+  try {
+    const [m, fotos] = await Promise.all([
+      Medicao.carregar(sb, obraId, bmId),
+      sb.from('fotos').select('id', { count: 'exact', head: true }).eq('medicao_id', bmId)
+    ]);
+    M = m; extra.fotos = fotos.count || 0;
+    const ids = [M.obra.fiscal_id, M.obra.gestor_id, M.obra.fiscal_adm_id].filter(Boolean);
+    extra.pessoas = {};
+    if (ids.length) { const { data } = await sb.from('pessoas').select('*').in('id', ids); for (const p of data || []) extra.pessoas[p.id] = p; }
+  }
   catch (e) { $('sub').textContent = 'Erro: ' + e.message; return; }
   editado = {}; sujo = false;
   const b = M.bm;
@@ -130,6 +219,13 @@ async function carregar() {
   $('sub').textContent = M.obra.nome;
   $('ini').value = b.periodo_inicio || ''; $('fim').value = b.periodo_fim || '';
   $('reaj').value = F.num(b.reajuste_pct, 2); $('obs').value = b.observacoes || '';
+  $('comp').value = b.competencia || (b.periodo_fim ? b.periodo_fim.slice(0, 7) : '');
+  $('drel').value = b.data_relatorio || ''; $('proc').value = b.processo_pagamento || '';
+  $('nfNum').value = b.nf_numero || ''; $('nfData').value = b.nf_data || ''; $('nfValor').value = b.nf_valor == null ? '' : F.num(b.nf_valor, 2);
+  $('glosa').value = b.glosa || 'nao'; $('glosaValor').value = b.glosa_valor == null ? '' : F.num(b.glosa_valor, 2);
+  $('cxGlosa').style.visibility = $('glosa').value === 'nao' ? 'hidden' : '';
+  $('imr').value = b.imr_pct == null ? '' : F.num(b.imr_pct, 2);
+  $('retVinc').value = b.retencao_vinculada || ''; $('retTerc').value = b.retencao_terceirizado || ''; $('retOutras').value = b.outras_retencoes || '';
   $('selPl').innerHTML = '<option value="">Todas as planilhas</option>' +
     M.planilhas.map(p => `<option value="${p.id}">${M.nomePl(p)}</option>`).join('');
   travar(b.fechada);
@@ -140,8 +236,7 @@ function travar(fechada) {
   $('situacao').innerHTML = fechada
     ? `<span class="etiqueta neutro">Fechado em ${F.data(M.bm.fechada_em)}</span>`
     : '<span class="etiqueta ok">Aberto para lançamento</span>';
-  for (const id of ['ini', 'fim', 'reaj', 'obs']) $(id).disabled = fechada;
-  $('bSalvar').style.display = fechada ? 'none' : '';
+  for (const id of ['ini', 'fim', 'reaj']) $(id).disabled = fechada;   // NF, processo e textos seguem editáveis
   $('bFechar').style.display = fechada ? 'none' : '';
   // só o último BM pode ser reaberto
   const ultimo = Math.max(...M.medicoes.map(m => m.numero));
@@ -214,17 +309,104 @@ function resumo() {
     <div class="kpi"><div class="rotulo">Reajuste ${F.pct(reajPct)}</div><div class="valor">${F.rs(reaj)}</div></div>
     <div class="kpi"><div class="rotulo">Total deste BM</div><div class="valor">${F.rs(liq + reaj)}</div><div class="det">líquido ${F.rs(liq)} + reajuste</div></div>
     <div class="kpi ${excedem ? 'critico' : ''}"><div class="rotulo">Acumulado da obra</div><div class="valor">${F.pct(contr ? acumBruto / contr * 100 : 0)}</div><div class="det">${excedem ? excedem + ' item(ns) acima do contratado' : 'do valor contratado'}</div></div>`;
+  totalAtual = Medicao.r2(liq + reaj);
   $('info').textContent = sujo ? 'Há alterações não salvas.' : '';
+  cabecalho(); pendencias(linhas, lancados, excedem);
+}
+
+function abrirAba(nome) {
+  document.querySelectorAll('#abas button').forEach(x => x.classList.toggle('ativa', x.dataset.aba === nome));
+  document.querySelectorAll('.aba').forEach(a => a.classList.toggle('ativa', a.id === 'aba-' + nome));
+  history.replaceState(null, '', nome === 'qtd' ? '#quantidades' : location.pathname + location.search);
+}
+
+// ---------- cabeçalho do checklist (vem do contrato + BM; nada é digitado de novo) ----------
+const mesAno = c => c ? `${c.slice(5, 7)}/${c.slice(0, 4)}` : '';
+function cabecalho() {
+  const o = M.obra, v = (x, falta = 'não informado') => x ? F.esc(x) : `<span class="falta">${falta}</span>`;
+  const nf = F.lerNum($('nfValor').value);
+  const linhas = [
+    ['Processo nº', $('proc').value.trim() || o.processo_siged],
+    ['Código/Credor', o.codigo_credor],
+    ['Contrato', o.num_contrato ? `Nº ${o.num_contrato}${o.termo_aditivo ? ' - ' + o.termo_aditivo : ''}` : null],
+    ['Contratada', o.contratada ? o.contratada + (o.cnpj_contratada ? ' — CNPJ ' + o.cnpj_contratada : '') : null],
+    ['Objeto', o.objeto],
+    ['Período de avaliação', mesAno($('comp').value)],
+    ['Valor total da NF', nf != null ? F.rs(nf) : null],
+    ['Fiscal técnico', pessoaTxt(o.fiscal_id)],
+    ['Gestor', pessoaTxt(o.gestor_id)]
+  ];
+  $('cab').innerHTML = linhas.map(([k, x]) => `<dt>${k}</dt><dd class="${x ? '' : 'falta'}">${x ? F.esc(x.length > 220 ? x.slice(0, 220) + '…' : x) : 'não informado'}</dd>`).join('');
+}
+function pessoaTxt(id) { const p = id && extra.pessoas[id]; return p ? p.nome + (p.portaria ? ' — ' + p.portaria : '') : null; }
+
+// ---------- pendências: ✕ impede fechar, ! é alerta ----------
+let listaPend = [];
+function pendencias(linhas, lancados, excedem) {
+  const o = M.obra, P = [];
+  const falta = (cond, txt, nivel = 'alerta', link) => { if (cond) P.push([nivel, txt, link]); };
+  const editar = `<a href="${$('lEditarObra').getAttribute('href')}">corrigir</a>`;
+  // contrato
+  falta(!o.num_contrato, 'Nº do contrato não cadastrado.', 'alerta', editar);
+  falta(!o.contratada || !o.cnpj_contratada, 'Contratada ou CNPJ não cadastrados.', 'alerta', editar);
+  falta(!o.objeto, 'Objeto do contrato não cadastrado.', 'alerta', editar);
+  falta(!o.codigo_credor, 'Código/credor não cadastrado.', 'alerta', editar);
+  falta(!o.empenho_numero, 'Nota de empenho não cadastrada.', 'alerta', editar);
+  falta(!o.fiscal_id, 'Fiscal técnico não definido na obra.', 'alerta', editar);
+  falta(!o.gestor_id, 'Gestor do contrato não definido na obra.', 'alerta', editar);
+  // BM
+  falta(!$('ini').value || !$('fim').value, 'Informe o período (início e fim) do BM.', 'bloq');
+  falta(!$('comp').value, 'Informe a competência (mês de referência).');
+  falta(!$('proc').value.trim() && !o.processo_siged, 'Informe o nº do processo de pagamento.');
+  falta(!lancados, 'Nenhuma quantidade lançada neste BM.', 'bloq', '<a href="#" data-aba="qtd">lançar</a>');
+  falta(excedem > 0, `${excedem} item(ns) acima do contratado.`, 'alerta', '<a href="#" data-aba="qtd">ver</a>');
+  falta(!extra.fotos, 'BM sem fotos no relatório fotográfico.', 'alerta', `<a href="fotos.html?obra=${obraId}&bm=${bmId}">incluir</a>`);
+  // nota fiscal
+  const nf = F.lerNum($('nfValor').value);
+  falta(!$('nfNum').value.trim() || !$('nfData').value || nf == null, 'Dados da nota fiscal incompletos (nº, data e valor).');
+  if (nf != null && Math.abs(nf - totalAtual) > 0.009 && $('glosa').value === 'nao')
+    P.push(['alerta', `Valor da NF (${F.rs(nf)}) diferente do total do BM (${F.rs(totalAtual)}): diferença de ${F.rs(nf - totalAtual)}.`]);
+  if (nf != null && $('glosa').value !== 'nao') {
+    const g = F.lerNum($('glosaValor').value);
+    falta(g == null, 'Informe o valor da glosa.');
+    if (g != null && $('glosa').value === 'sim_ajustada' && Math.abs(nf - (totalAtual - g)) > 0.009)
+      P.push(['alerta', `NF marcada como ajustada, mas ${F.rs(nf)} ≠ BM ${F.rs(totalAtual)} − glosa ${F.rs(g)}.`]);
+  }
+  if (nf != null && o.empenho_saldo != null && nf > Number(o.empenho_saldo) + 0.009) P.push(['alerta', `Valor da NF acima do saldo do empenho (${F.rs(o.empenho_saldo)}).`, editar]);
+  if (o.termino_vigente && $('nfData').value && $('nfData').value > o.termino_vigente) P.push(['alerta', `NF emitida após o término da vigência (${F.data(o.termino_vigente)}).`, editar]);
+  if (o.termino_vigente && $('fim').value && $('fim').value > o.termino_vigente) P.push(['alerta', `Período do BM passa do término da vigência (${F.data(o.termino_vigente)}).`, editar]);
+  listaPend = P;
+  $('pend').innerHTML = P.length ? P.map(([n, t, l]) => `<li class="${n}">${t}${l ? ' ' + l : ''}</li>`).join('')
+    : '<li class="ok">Tudo certo nesta etapa.</li>';
+  $('pend').querySelectorAll('a[data-aba]').forEach(a => a.onclick = e => { e.preventDefault(); abrirAba(a.dataset.aba); });
+}
+
+function dadosDoc() {
+  const t = id => $(id).value.trim() || null, n = id => F.lerNum($(id).value);
+  return {
+    competencia: $('comp').value || null, data_relatorio: $('drel').value || null, processo_pagamento: t('proc'),
+    nf_numero: t('nfNum'), nf_data: $('nfData').value || null, nf_valor: n('nfValor'),
+    glosa: $('glosa').value, glosa_valor: $('glosa').value === 'nao' ? null : n('glosaValor'), imr_pct: n('imr'),
+    retencao_vinculada: t('retVinc'), retencao_terceirizado: t('retTerc'), outras_retencoes: t('retOutras'), observacoes: t('obs')
+  };
 }
 
 async function salvar(silencioso = false) {
-  if (M.bm.fechada) return true;
+  for (const [id, nome] of [['nfValor', 'valor da NF'], ['glosaValor', 'valor da glosa'], ['imr', 'IMR']])
+    if ($(id).value.trim() && F.lerNum($(id).value) == null) { alert(`Valor inválido no campo ${nome}. Use, por exemplo, 1.234,56.`); return false; }
+  if (M.bm.fechada) {          // BM fechado: só os dados do processo (NF, glosa…) podem mudar
+    const { error } = await sb.from('medicoes').update(dadosDoc()).eq('id', bmId);
+    if (error) { alert('Erro ao salvar: ' + error.message); return false; }
+    sujo = false; await carregar();
+    if (!silencioso) { $('info').textContent = 'Salvo.'; setTimeout(() => { if (!sujo) $('info').textContent = ''; }, 2500); }
+    return true;
+  }
   const ini = $('ini').value || null, fim = $('fim').value || null;
   if (ini && fim && fim < ini) { alert('O fim do período está antes do início.'); return false; }
   $('bSalvar').disabled = true; $('info').textContent = 'Salvando…';
   try {
     const { error: e1 } = await sb.from('medicoes').update({
-      periodo_inicio: ini, periodo_fim: fim, reajuste_pct: F.lerNum($('reaj').value) || 0, observacoes: $('obs').value.trim() || null
+      periodo_inicio: ini, periodo_fim: fim, reajuste_pct: F.lerNum($('reaj').value) || 0, ...dadosDoc()
     }).eq('id', bmId);
     if (e1) throw e1;
     const gravar = [], apagar = [];
@@ -251,8 +433,10 @@ async function salvar(silencioso = false) {
 
 async function fechar() {
   if (!$('ini').value || !$('fim').value) { alert('Informe o período (início e fim) antes de fechar o BM.'); return; }
-  const excedem = M.linhas.filter(l => l.tipo === 'servico' && l.qa + qtdEste(l) - l.qc > 1e-9).length;
-  const msg = (excedem ? `Atenção: ${excedem} item(ns) passaram do contratado.\n\n` : '') +
+  const bloq = listaPend.filter(p => p[0] === 'bloq');
+  if (bloq.length) { alert('Antes de fechar:\n\n• ' + bloq.map(p => p[1]).join('\n• ')); abrirAba('inicio'); return; }
+  const alertas = listaPend.filter(p => p[0] === 'alerta').map(p => '• ' + p[1].replace(/<[^>]+>/g, ''));
+  const msg = (alertas.length ? `Pendências em aberto:\n${alertas.join('\n')}\n\n` : '') +
     'Depois de fechado, as quantidades deste BM ficam protegidas contra alteração. Fechar o BM?';
   if (!confirm(msg)) return;
   if (!await salvar(true)) return;
