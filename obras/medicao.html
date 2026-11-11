@@ -519,8 +519,18 @@ async function abrirPlanilha() {
   $('pAba').innerHTML = plan.wb.SheetNames.map(n => `<option>${F.esc(n)}</option>`).join('');
   $('pPl').innerHTML = M.planilhas.map(p => `<option value="${p.id}">${F.esc(M.nomePl(p))}</option>`).join('');
   if ($('selPl').value) $('pPl').value = $('selPl').value;
-  // aba provável: a que tiver "MEDI" no nome ou a primeira com coluna de item
-  const prov = plan.wb.SheetNames.find(n => /MEDI|BM|BOLETIM/i.test(n)) || plan.wb.SheetNames[0];
+  // aba provável: a que tem mais nºs de item desta obra nas primeiras colunas (desempate: nome com MEDI/BM)
+  const chaves = new Set(M.linhas.filter(l => l.tipo === 'servico').map(l => normItem(l.item)));
+  let prov = plan.wb.SheetNames[0], melhor = -1;
+  for (const n of plan.wb.SheetNames) {
+    const ws = plan.wb.Sheets[n]; if (!ws['!ref']) continue;
+    const r = XLSX.utils.decode_range(ws['!ref']); let k = 0;
+    for (let i = r.s.r; i <= Math.min(r.e.r, r.s.r + 3000); i++) for (let c = r.s.c; c <= r.s.c + 2; c++) {
+      const cel = ws[XLSX.utils.encode_cell({ r: i, c })]; if (cel && chaves.has(normItem(cel.w ?? cel.v))) { k++; break; }
+    }
+    const pontos = k * 10 + (/MEDI|BM|BOLETIM/i.test(n) ? 1 : 0);
+    if (pontos > melhor) { melhor = pontos; prov = n; }
+  }
   $('pAba').value = prov;
   $('pMsg').textContent = ''; $('pMsg').className = 'msg';
   lerAba(true);
@@ -543,8 +553,19 @@ function lerAba(adivinharLinha) {
     $('pLin').value = (h >= 0 ? h : 0) + 1;
   }
   const h = Math.max(0, (parseInt($('pLin').value, 10) || 1) - 1);
-  // cabeçalho pode ter 2 linhas (ex.: "MEDIÇÃO ATUAL" em cima e "%" embaixo): junta a linha seguinte
-  const cab = (plan.linhas[h] || []).map((c, j) => [c && c.w, plan.linhas[h + 1] && plan.linhas[h + 1][j] && plan.linhas[h + 1][j].w].filter(Boolean).join(' ').trim());
+  // células mescladas (ex.: "Medição 1" sobre Quant. / % / Total): o texto vale para todas as colunas da mescla
+  const txt = (i, j) => { const c = plan.linhas[i] && plan.linhas[i][j]; return c && c.w ? String(c.w).trim() : ''; };
+  for (const mg of ws['!merges'] || []) {
+    const t = ws[XLSX.utils.encode_cell(mg.s)];
+    if (!t) continue;
+    for (let i = mg.s.r; i <= mg.e.r; i++) for (let c = mg.s.c; c <= mg.e.c; c++) {
+      const li = i - r.s.r, cj = c - r.s.c;
+      if (plan.linhas[li] && !plan.linhas[li][cj]) plan.linhas[li][cj] = { v: null, w: String(t.w ?? t.v ?? ''), z: '' };
+    }
+  }
+  // o cabeçalho pode ocupar várias linhas: junta a de cima, a do "Item" e a de baixo
+  const ncol = Math.max(...[h - 1, h, h + 1].map(i => (plan.linhas[i] || []).length));
+  const cab = Array.from({ length: ncol }, (_, j) => [txt(h - 1, j), txt(h, j), txt(h + 1, j)].filter((x, k, a) => x && a.indexOf(x) === k).join(' · '));
   const letra = j => XLSX.utils.encode_col(j + r.s.c);
   const opts = cab.map((t, j) => `<option value="${j}">${letra(j)} — ${F.esc((t || '(sem título)').slice(0, 50))}</option>`).join('');
   $('pColItem').innerHTML = opts; $('pColVal').innerHTML = opts;
@@ -554,18 +575,23 @@ function lerAba(adivinharLinha) {
   const acha = (re, re2) => C.findIndex(t => re.test(t) && (!re2 || re2.test(t)));
   let iVal = -1, tipo = 'pct_acum';
   const tent = [[/%|PERC/, /ACUM/, 'pct_acum'], [/%|PERC/, /ATUAL|PERIODO|MES|MEDI|EXEC|ESTE/, 'pct_bm'], [/ACUM/, /QU?A?N?T|QTD/, 'qtd_acum'], [/QU?A?N?T|QTD/, /ATUAL|PERIODO|MES|MEDI|EXEC/, 'qtd_bm'], [/%/, null, 'pct_bm']];
-  for (const [a, b, t] of tent) { const i = acha(a, b); if (i >= 0 && i !== iItem) { iVal = i; tipo = t; break; } }
+  // planilha com uma coluna por medição ("Medição 1 · Quant.", "1ª MEDIÇÃO"…): pega a do nº deste BM
+  const n = M.bm.numero, reN = new RegExp(`(MEDICAO\\s*0?${n}\\b|\\b0?${n}\\s*[ªA°O]?\\s*MEDICAO|BM\\s*0?${n}\\b)`);
+  const daMed = C.map((t, j) => [t, j]).filter(([t, j]) => j !== iItem && reN.test(t));
+  const qtdMed = daMed.find(([t]) => /QU?A?N?T|QTD/.test(t)), pctMed = daMed.find(([t]) => /%|PERC/.test(t));
+  if (qtdMed) { iVal = qtdMed[1]; tipo = 'qtd_bm'; } else if (pctMed) { iVal = pctMed[1]; tipo = 'pct_bm'; }
+  if (iVal < 0) for (const [a, b, t] of tent) { const i = acha(a, b); if (i >= 0 && i !== iItem) { iVal = i; tipo = t; break; } }
   if (iItem >= 0) $('pColItem').value = iItem;
   if (iVal >= 0) { $('pColVal').value = iVal; $('pTipo').value = tipo; }
   previa();
 }
 
 // número da célula: percentuais formatados com % no Excel vêm como fração (0,35 = 35%)
-function valorCel(c, ehPct) {
+function valorCel(c, ehPct, fracao) {
   if (!c || c.v == null || c.v === '') return null;
   let n = typeof c.v === 'number' ? c.v : F.lerNum(String(c.v).replace('%', ''));
   if (n == null || !Number.isFinite(n)) return null;
-  if (ehPct && typeof c.v === 'number' && (/%/.test(c.z) || /%\s*$/.test(c.w))) n *= 100;
+  if (ehPct && typeof c.v === 'number' && (fracao || /%/.test(c.z) || /%\s*$/.test(c.w))) n *= 100;
   return n;
 }
 
@@ -575,16 +601,20 @@ function previa() {
   const pl = $('pPl').value;
   const servs = new Map(M.linhas.filter(l => l.tipo === 'servico' && l.planilha_id === pl).map(l => [normItem(l.item), l]));
   const res = [], vistos = new Set();
-  let semMatch = 0;
+  let semMatch = 0, repetidos = 0;
+  // coluna de % com todos os valores entre 0 e 1: está em fração (0,35 = 35%)
+  const nums = plan.linhas.slice(h + 1).map(l => l && l[cv] && typeof l[cv].v === 'number' ? l[cv].v : null).filter(x => x != null);
+  const fracao = ehPct && nums.length > 0 && Math.max(...nums) <= 1.0001;
   for (const lin of plan.linhas.slice(h + 1)) {
     if (!lin) continue;
     const it = lin[ci] && normItem(lin[ci].w || lin[ci].v);
     if (!it || !/^\d+(\.\d+)*$/.test(it)) continue;
     const l = servs.get(it);
-    const val = valorCel(lin[cv], ehPct);
+    const val = valorCel(lin[cv], ehPct, fracao);
     if (!l) { if (val) semMatch++; continue; }       // linha de etapa/título ou item fora da planilha
-    if (vistos.has(it)) continue; vistos.add(it);
-    if (val == null) continue;
+    if (val == null) continue;                       // linha repetida sem valor (ex.: versão antiga do item)
+    if (vistos.has(it)) { repetidos++; continue; }
+    vistos.add(it);
     let qb = tipo === 'pct_acum' ? l.qc * val / 100 - l.qa : tipo === 'pct_bm' ? l.qc * val / 100 : tipo === 'qtd_acum' ? val - l.qa : val;
     qb = Math.round(qb * 1e4) / 1e4;
     const aviso = qb < -1e-9 ? 'menor que o já medido' : l.qa + qb - l.qc > 1e-6 ? 'passa do contratado' : '';
@@ -595,7 +625,7 @@ function previa() {
   const valor = Medicao.r2(comQtd.reduce((s, r) => s + Medicao.r2(r.qb * r.l.pu), 0));
   const avisos = res.filter(r => r.aviso).length;
   $('pKpis').innerHTML = `
-    <div class="kpi"><div class="rotulo">Itens reconhecidos</div><div class="valor">${res.length}</div><div class="det">${semMatch ? semMatch + ' linha(s) com valor sem item correspondente' : 'pelo nº do item'}</div></div>
+    <div class="kpi"><div class="rotulo">Itens reconhecidos</div><div class="valor">${res.length}</div><div class="det">${[semMatch ? semMatch + ' linha(s) com valor sem item correspondente' : '', repetidos ? repetidos + ' item(ns) repetido(s): valeu a 1ª linha' : ''].filter(Boolean).join(' · ') || 'pelo nº do item'}</div></div>
     <div class="kpi"><div class="rotulo">Com quantidade neste BM</div><div class="valor">${comQtd.length}</div><div class="det">${muda.length} mudam o que está lançado</div></div>
     <div class="kpi"><div class="rotulo">Valor deste BM</div><div class="valor">${F.rs(valor)}</div><div class="det">sem desconto, sem reajuste</div></div>
     <div class="kpi ${avisos ? 'critico' : ''}"><div class="rotulo">Avisos</div><div class="valor">${avisos}</div><div class="det">acima do contratado ou abaixo do já medido</div></div>`;
