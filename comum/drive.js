@@ -247,8 +247,8 @@
     window.scrollTo(0, 0);
     try {
       return await html2pdf().set({
-        margin: m4, image: { type: 'jpeg', quality: 0.93 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false, scrollX: 0, scrollY: 0 },
+        margin: m4, image: { type: 'jpeg', quality: cfg.qualidade || 0.93 },
+        html2canvas: { scale: cfg.escala || 2, useCORS: true, backgroundColor: '#ffffff', logging: false, scrollX: 0, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: cfg.paisagem ? 'landscape' : 'portrait' },
         pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'img', '.foto', '.assin'] }
       }).from(caixa).outputPdf('blob');

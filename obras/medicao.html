@@ -89,6 +89,7 @@
     <button type="button" data-aba="chk">5. Checklist</button>
     <button type="button" data-aba="fiscal">6. Relatório do fiscal</button>
     <button type="button" data-aba="gestor">7. Relatório do gestor</button>
+    <button type="button" data-aba="pacote">8. Medição completa</button>
   </nav>
 
   <section class="aba ativa" id="aba-inicio">
@@ -241,6 +242,31 @@
     </div>
   </section>
 
+  <section class="aba" id="aba-pacote">
+    <div class="grade-inicio">
+      <section class="painel">
+        <h3>Medição completa em PDF único</h3>
+        <p class="nota" style="margin-top:0">Junta os documentos na ordem do checklist: os gerados pelo sistema e os anexados na aba Documentos. Desmarque o que não quiser incluir. Anexos em Word ou Excel não entram no PDF (anexe em PDF ou imagem).</p>
+        <div class="dados-bm">
+          <div><label for="pkChk">Checklist</label>
+            <select id="pkChk"><option value="fim">No final</option><option value="inicio">No início</option><option value="nao">Não incluir</option></select></div>
+          <div><label>&nbsp;</label><label class="chk-linha" style="margin:8px 0 0"><input type="checkbox" id="pkDrive"> Enviar também para o Google Drive</label></div>
+        </div>
+        <div class="tabela-wrap" style="margin-top:8px">
+          <table><thead><tr><th></th><th>Ordem</th><th>Documento</th><th>Situação</th></tr></thead><tbody id="pkCorpo"></tbody></table>
+        </div>
+        <div class="botoes-rel"><button type="button" id="pkGerar">Gerar PDF da medição completa</button></div>
+        <ul class="pend" id="pkLog"></ul>
+      </section>
+      <section class="painel">
+        <h3>Antes de gerar</h3>
+        <ul class="pend" id="pkPend"></ul>
+        <p class="nota" id="pkUltimo"></p>
+        <iframe id="pkFrame" title="geração do PDF" style="position:fixed;left:-12000px;top:0;width:1250px;height:1000px;border:0" aria-hidden="true"></iframe>
+      </section>
+    </div>
+  </section>
+
   <div class="barra-acoes painel">
     <span class="info" id="info"></span>
     <button class="sec" id="bReabrir" style="display:none">Reabrir BM</button>
@@ -387,7 +413,8 @@ async function carregar() {
   desenharDocs(); desenharChk();
   relF = { ...((b.dados && b.dados.rel_fiscal) || {}) }; relG = { ...((b.dados && b.dados.rel_gestor) || {}) };
   prepararRel();
-  const aba = { '#quantidades': 'qtd', '#documentos': 'docs', '#checklist': 'chk', '#fiscal': 'fiscal', '#gestor': 'gestor' }[location.hash];
+  $('pkGerar').onclick = gerarPacote; $('pkChk').onchange = desenharPacote;
+  const aba = { '#quantidades': 'qtd', '#documentos': 'docs', '#checklist': 'chk', '#fiscal': 'fiscal', '#gestor': 'gestor', '#completa': 'pacote' }[location.hash];
   if (aba && !document.querySelector('#abas button.ativa[data-aba="' + aba + '"]')) abrirAba(aba);
   desenhar(); resumo();
 }
@@ -477,9 +504,10 @@ function resumo() {
 function abrirAba(nome) {
   document.querySelectorAll('#abas button').forEach(x => x.classList.toggle('ativa', x.dataset.aba === nome));
   document.querySelectorAll('.aba').forEach(a => a.classList.toggle('ativa', a.id === 'aba-' + nome));
-  const H = { qtd: '#quantidades', docs: '#documentos', chk: '#checklist', fiscal: '#fiscal', gestor: '#gestor' };
+  const H = { qtd: '#quantidades', docs: '#documentos', chk: '#checklist', fiscal: '#fiscal', gestor: '#gestor', pacote: '#completa' };
   history.replaceState(null, '', location.pathname + location.search + (H[nome] || ''));
   if (nome === 'fiscal' || nome === 'gestor') desenharRel();
+  if (nome === 'pacote') desenharPacote();
   if (nome === 'chk') desenharChk(); if (nome === 'docs') desenharDocs();
 }
 
@@ -947,6 +975,140 @@ function desenharRel(textos = true) {
 async function abrirRel(tipo) {
   if (sujo && !await salvar(true)) return;
   window.open(`relatorio-medicao.html?obra=${obraId}&bm=${bmId}&tipo=${tipo}`, '_blank');
+}
+// ================= medição completa: PDF único na ordem do checklist =================
+const PDFLIB = 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js';
+const GERADOS = {
+  gestor:  { rot: 'Relatório final do gestor (2.4)', url: () => `relatorio-medicao.html?obra=${obraId}&bm=${bmId}&tipo=gestor`, cfg: { alvo: '#doc .folha', margemPdf: 0, cssPdf: '.drv-pdf .folha{min-height:0!important}' } },
+  fiscal:  { rot: 'Relatório de fiscalização (2.5)', url: () => `relatorio-medicao.html?obra=${obraId}&bm=${bmId}&tipo=fiscal`, cfg: { alvo: '#doc .folha', margemPdf: 0, cssPdf: '.drv-pdf .folha{min-height:0!important}' } },
+  boletim: { rot: 'Boletim de medição', url: () => `boletim.html?obra=${obraId}&bm=${bmId}`, cfg: { alvo: '#folha', paisagem: true, margemPdf: [10, 8, 10, 8] } },
+  fotos:   { rot: 'Relatório fotográfico', url: () => `relatorio-fotos.html?obra=${obraId}&bm=${bmId}`, cfg: { alvo: '.pagina', margemPdf: 0, cssPdf: '.drv-pdf .pagina{height:296mm!important}' } },
+  checklist: { rot: 'Checklist', url: () => `checklist.html?obra=${obraId}&bm=${bmId}`, cfg: { alvo: '.folha', margemPdf: 10, cssPdf: '.drv-pdf .folha{min-height:0!important}' } }
+};
+// ordem do processo = ordem do checklist (os relatórios entram no lugar dos itens 2.4 e 2.5)
+const ORDEM = ['1.1', '1.3', '2.1', '2.2', '2.3', 'gestor', 'fiscal', 'boletim', 'fotos', '2.9', '3.1', '3.2', '3.3', '3.4', '3.5', '4.1', '5.1'];
+let pkFora = new Set();       // partes desmarcadas
+
+function partesPacote() {
+  const L = Object.fromEntries(Checklist.montar(M.obra, bmAtual(), chk).map(l => [l.cod, l]));
+  let ids = [...ORDEM];
+  const pos = $('pkChk').value;
+  if (pos === 'inicio') ids.unshift('checklist'); else if (pos === 'fim') ids.push('checklist');
+  return ids.map(id => {
+    if (GERADOS[id]) {
+      const g = GERADOS[id];
+      const vazio = id === 'fotos' && !extra.fotos;
+      return { id, rot: g.rot, gerado: true, ok: !vazio, sit: vazio ? 'BM sem fotos' : 'gerado agora' };
+    }
+    const l = L[id], a = l && l.anexo;
+    const ext = a ? (a.nome.split('.').pop() || '').toLowerCase() : '';
+    const cabe = ['pdf', 'jpg', 'jpeg', 'png'].includes(ext);
+    return { id, rot: `${id} — ${nomeCurto(l.txt)}`, anexo: a, ok: !!a && cabe,
+      sit: !a ? (l.r === 'na' ? 'não se aplica' : 'sem anexo') : cabe ? a.nome : `${a.nome} (formato não entra no PDF)` };
+  });
+}
+
+function desenharPacote() {
+  if (!M) return;
+  const P = partesPacote();
+  $('pkCorpo').innerHTML = P.map((p, k) => `<tr class="${p.ok ? '' : 'pendente'}">
+    <td><input type="checkbox" data-pk="${p.id}" ${p.ok && !pkFora.has(p.id) ? 'checked' : ''} ${p.ok ? '' : 'disabled'} style="width:auto"></td>
+    <td>${k + 1}</td><td class="desc">${F.esc(p.rot)}</td>
+    <td class="nota">${p.gerado && p.ok ? '<span class="etiqueta neutro">sistema</span> ' : ''}${F.esc(p.sit)}</td></tr>`).join('');
+  $('pkCorpo').querySelectorAll('[data-pk]').forEach(c => c.onchange = () => { if (c.checked) pkFora.delete(c.dataset.pk); else pkFora.add(c.dataset.pk); });
+  $('pkPend').innerHTML = listaPend.length ? listaPend.map(([n, t]) => `<li class="${n}">${t}</li>`).join('') : '<li class="ok">Sem pendências.</li>';
+  $('pkDrive').disabled = !Drive.configurado();
+  $('pkDrive').parentElement.title = Drive.configurado() ? '' : 'O Google Drive ainda não foi configurado no sistema';
+  const u = M.bm.dados && M.bm.dados.pacote;
+  $('pkUltimo').textContent = u ? `Última medição completa gerada em ${new Date(u.em).toLocaleString('pt-BR')}: ${u.paginas} página(s).` : '';
+}
+
+const pkLog = (t, cls = 'ok') => { const li = document.createElement('li'); li.className = cls; li.textContent = t; $('pkLog').appendChild(li); return li; };
+
+// carrega uma página do sistema num quadro escondido e pede a ela o próprio PDF
+function pdfDaPagina(url, cfg) {
+  return new Promise((ok, erro) => {
+    const fr = $('pkFrame');
+    let t0 = Date.now(), timer = null;
+    fr.onload = () => {
+      timer = setInterval(async () => {
+        const w = fr.contentWindow;
+        if (Date.now() - t0 > 90000) { clearInterval(timer); erro(new Error('a página demorou demais para carregar')); return; }
+        if (!w || !w.__pronto || !w.Drive) return;
+        clearInterval(timer);
+        if (w.__vazio) { ok(null); return; }
+        // objetos criados no quadro (realm dele): config copiada para lá e bytes copiados para cá
+        try {
+          const b = await w.Drive.gerarPdf(w.JSON.parse(JSON.stringify({ escala: 1.6, qualidade: 0.82, ...cfg })));
+          const buf = await b.arrayBuffer(), u8 = new Uint8Array(buf.byteLength); u8.set(new w.Uint8Array(buf));
+          ok(u8);
+        } catch (e) { erro(new Error(e && e.message || String(e))); }
+      }, 400);
+    };
+    fr.src = url;
+  });
+}
+
+async function gerarPacote() {
+  const usarDrive = $('pkDrive').checked && Drive.configurado();
+  $('pkGerar').disabled = true; $('pkLog').innerHTML = '';
+  try {
+    if (usarDrive) await Drive.obterToken();                // login do Google logo no clique
+    if (sujo) { pkLog('Salvando o BM…'); if (!await salvar(true)) throw new Error('não foi possível salvar o BM'); }
+    await Drive.carregar(PDFLIB);
+    const { PDFDocument, StandardFonts } = PDFLib;
+    const out = await PDFDocument.create();
+    const partes = partesPacote().filter(p => p.ok && !pkFora.has(p.id));
+    const resumo = [];
+    for (const p of partes) {
+      const li = pkLog(`${p.rot}…`, 'alerta');
+      try {
+        let n = 0;
+        if (p.gerado) {
+          const buf = await pdfDaPagina(GERADOS[p.id].url(), GERADOS[p.id].cfg);
+          if (buf) { const d = await PDFDocument.load(buf); (await out.copyPages(d, d.getPageIndices())).forEach(pg => { out.addPage(pg); n++; }); }
+        } else {
+          const { data, error } = await sb.storage.from('fotos').createSignedUrl(p.anexo.caminho, 300);
+          if (error) throw error;
+          const bytes = await (await fetch(data.signedUrl)).arrayBuffer();
+          const ext = p.anexo.nome.split('.').pop().toLowerCase();
+          if (ext === 'pdf') {
+            const d = await PDFDocument.load(bytes, { ignoreEncryption: true });
+            (await out.copyPages(d, d.getPageIndices())).forEach(pg => { out.addPage(pg); n++; });
+          } else {
+            const img = ext === 'png' ? await out.embedPng(bytes) : await out.embedJpg(bytes);
+            const pg = out.addPage([595.28, 841.89]), m = 28;
+            const k = Math.min((595.28 - 2 * m) / img.width, (841.89 - 2 * m) / img.height);
+            pg.drawImage(img, { x: (595.28 - img.width * k) / 2, y: (841.89 - img.height * k) / 2, width: img.width * k, height: img.height * k });
+            n = 1;
+          }
+        }
+        li.className = 'ok'; li.textContent = `${p.rot}: ${n} página(s)`;
+        resumo.push([p.rot, n]);
+      } catch (e) { li.className = 'bloq'; li.textContent = `${p.rot}: não entrou (${e.message})`; }
+    }
+    if (!out.getPageCount()) throw new Error('nenhum documento entrou no PDF');
+    // numeração discreta no rodapé
+    const fonte = await out.embedFont(StandardFonts.Helvetica), tot = out.getPageCount();
+    out.getPages().forEach((pg, i) => { const { width } = pg.getSize(); pg.drawText(`${i + 1}/${tot}`, { x: width - 48, y: 10, size: 7, font: fonte }); });
+    out.setTitle(`Medição BM ${String(M.bm.numero).padStart(2, '0')} - ${M.obra.nome}`);
+    const bytes = await out.save();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const nome = `Medição BM ${String(M.bm.numero).padStart(2, '0')} - ${M.obra.nome}`.replace(/[\\/:*?"<>|]+/g, '-') + '.pdf';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    pkLog(`PDF gerado: ${tot} página(s), ${(blob.size / 1048576).toFixed(1)} MB.`);
+    if (usarDrive) {
+      const li = pkLog('Enviando para o Drive…', 'alerta');
+      try { await Drive.enviarArquivo(blob, nome, ['Obras', M.obra.nome, 'Medições']); li.className = 'ok'; li.textContent = 'Enviado ao Drive: Sistema de Engenharia / Obras / ' + M.obra.nome + ' / Medições.'; }
+      catch (e) { li.className = 'bloq'; li.textContent = 'Drive: ' + e.message; }
+    }
+    const dados = { ...(M.bm.dados || {}), pacote: { em: new Date().toISOString(), paginas: tot, partes: resumo } };
+    const { error } = await sb.from('medicoes').update({ dados }).eq('id', bmId);
+    if (!error) M.bm.dados = dados;
+    desenharPacote();
+  } catch (e) { pkLog('Não foi possível gerar: ' + e.message, 'bloq'); }
+  finally { $('pkGerar').disabled = false; $('pkFrame').src = 'about:blank'; }
 }
 </script>
 </body>

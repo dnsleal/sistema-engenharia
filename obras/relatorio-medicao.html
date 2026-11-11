@@ -56,6 +56,7 @@ const TIMBRE = '../comum/img/timbre-sms-cuiaba.png';
   document.body.dataset.obra = M.obra.nome;
   $('bImprimir').onclick = () => window.print();
   $('bWord').onclick = baixarWord;
+  window.__pronto = true;
   Drive.botoes({ barra: '.ferramentas', antesDe: '#lVoltar', alvo: '#doc .folha', formatos: ['pdf', 'docx'], classe: 'sec', margemPdf: 0,
     cssPdf: '.drv-pdf .folha{min-height:0!important}', pasta: () => ['Obras', M.obra.nome, 'Medições'] });
 })();

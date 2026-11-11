@@ -82,6 +82,7 @@ const pct = (v, b) => b ? F.pct(v / b * 100) : '—';
   catch (e) { $('folha').innerHTML = `<div class="erro">Erro: ${F.esc(e.message)}</div>`; return; }
   M.usuario = user.email;
   desenhar();
+  window.__pronto = true;      // usado ao montar a medição completa
 })();
 
 Drive.botoes({ barra: '.ferramentas', antesDe: '#lVoltar', alvo: '#folha',

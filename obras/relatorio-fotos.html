@@ -73,7 +73,7 @@ const obraId = P.get('obra'), bmId = P.get('bm');
   ]);
   if (o.error || m.error || f.error) { $('paginas').innerHTML = '<div class="msg">Não foi possível carregar o relatório.</div>'; return; }
   const fotos = f.data;
-  if (!fotos.length) { $('paginas').innerHTML = '<div class="msg">Este BM ainda não tem fotos.</div>'; $('bImprimir').textContent = 'Sem fotos'; return; }
+  if (!fotos.length) { $('paginas').innerHTML = '<div class="msg">Este BM ainda não tem fotos.</div>'; $('bImprimir').textContent = 'Sem fotos'; window.__vazio = window.__pronto = true; return; }
   const { data: ass } = await sb.storage.from('fotos').createSignedUrls(fotos.map(x => x.caminho), 3600);
   const url = Object.fromEntries((ass || []).map(a => [a.path, a.signedUrl]));
   const itens = new Map((it.data || []).map(i => [i.item_id, i]));
@@ -83,6 +83,7 @@ const obraId = P.get('obra'), bmId = P.get('bm');
   const imgs = [...document.querySelectorAll('.foto img')];
   await Promise.all(imgs.map(im => im.complete ? 0 : new Promise(ok => { im.onload = im.onerror = ok; })));
   $('bImprimir').disabled = false; $('bImprimir').textContent = 'Imprimir / salvar em PDF';
+  window.__pronto = true;
 })();
 
 Drive.botoes({ barra: '.ferramentas', antesDe: '#lVoltar', alvo: '.pagina', formatos: ['pdf', 'docx'], margemPdf: 0,

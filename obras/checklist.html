@@ -88,6 +88,7 @@ let D = null;   // { obra, bm, linhas, cab }
   document.title = `Checklist BM ${String(bm.numero).padStart(2, '0')} - ${obra.nome}`;
   document.body.dataset.obra = obra.nome;
   desenhar();
+  window.__pronto = true;
   $('bImprimir').onclick = () => window.print();
   $('bExcel').onclick = () => XLSX.writeFile(montarWb(), limpa(document.title) + '.xlsx');
   $('bWord').onclick = baixarWord;
