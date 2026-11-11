@@ -50,6 +50,15 @@
   tr.pendente td { background: color-mix(in srgb, var(--alerta) 8%, transparent); }
   button.mini { padding: 2px 7px; font-size: .75rem; }
   #aba-docs td input { padding: 5px 8px; }
+  .grade-rel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
+  @media (max-width: 1100px) { .grade-rel { grid-template-columns: 1fr; } }
+  .prev-rel { background: #fff; border-radius: 10px; overflow: auto; position: sticky; top: 10px; max-height: calc(100vh - 140px); }
+  .prev-rel .rm.folha { zoom: .72; min-height: 0; }
+  .botoes-rel { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  .chk-linha { display: flex; gap: 8px; align-items: center; font-weight: 500; margin-top: 8px; } .chk-linha input { width: auto; }
+  .anex-linha { display: grid; grid-template-columns: 1fr auto auto; gap: 12px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--linha); font-size: .88rem; }
+  .anex-linha label { display: flex; gap: 4px; align-items: center; margin: 0; font-weight: 500; } .anex-linha input { width: auto; }
+  #aba-gestor h4 { margin: 10px 0 4px; font-size: .92rem; }
   .barra-acoes.painel { position: sticky; bottom: 0; z-index: 5; margin: 16px 0 0; border-radius: 10px; }
 </style>
 </head>
@@ -78,6 +87,8 @@
     <a class="aba-link" id="lFotosAba" href="#">3. Fotos ↗</a>
     <button type="button" data-aba="docs">4. Documentos</button>
     <button type="button" data-aba="chk">5. Checklist</button>
+    <button type="button" data-aba="fiscal">6. Relatório do fiscal</button>
+    <button type="button" data-aba="gestor">7. Relatório do gestor</button>
   </nav>
 
   <section class="aba ativa" id="aba-inicio">
@@ -189,6 +200,47 @@
     </section>
   </section>
 
+  <section class="aba" id="aba-fiscal">
+    <div class="grade-rel">
+      <section class="painel">
+        <h3>Relatório de fiscalização</h3>
+        <label for="rfTexto">Texto do relatório</label>
+        <textarea id="rfTexto" rows="14"></textarea>
+        <p class="nota" id="rfInfo"></p>
+        <label class="chk-linha"><input type="checkbox" id="rfTabela" checked> Incluir a tabela do boletim por etapa</label>
+        <div class="botoes-rel">
+          <button type="button" class="sec" id="rfRestaurar">Restaurar texto automático</button>
+          <button type="button" id="rfAbrir">Abrir para imprimir / exportar</button>
+        </div>
+        <p class="nota">Contratada, CNPJ, contrato, objeto, endereço, período, percentual e valor por extenso vêm da obra e do BM. Use <b>**texto**</b> para negrito. A assinatura é do fiscal técnico definido na obra; a data é a "Data dos relatórios" da aba Início.</p>
+      </section>
+      <div class="prev-rel"><div id="rfPrev"></div></div>
+    </div>
+  </section>
+
+  <section class="aba" id="aba-gestor">
+    <div class="grade-rel">
+      <section class="painel">
+        <h3>Relatório final do gestor</h3>
+        <p class="nota" style="margin-top:0">Processo, contrato, objeto, contratada, competência, empenho, valores, NF, glosa, IMR e retenções vêm da obra e da aba Início.</p>
+        <h4>Foram anexados à fiscalização?</h4>
+        <div id="rgAnexados"></div>
+        <div class="dados-bm" style="margin-top:8px">
+          <div><label for="rgMensal">Valor mensal contratado</label><input id="rgMensal" placeholder="não se aplica"></div>
+          <div><label for="rgDestino">Segue para</label><input id="rgDestino" placeholder="Diretoria de Aquisições e Contratos/SAG"></div>
+        </div>
+        <label for="rgConcl">Conclusão</label>
+        <textarea id="rgConcl" rows="12"></textarea>
+        <p class="nota" id="rgInfo"></p>
+        <div class="botoes-rel">
+          <button type="button" class="sec" id="rgRestaurar">Restaurar texto padrão</button>
+          <button type="button" id="rgAbrir">Abrir para imprimir / exportar</button>
+        </div>
+      </section>
+      <div class="prev-rel"><div id="rgPrev"></div></div>
+    </div>
+  </section>
+
   <div class="barra-acoes painel">
     <span class="info" id="info"></span>
     <button class="sec" id="bReabrir" style="display:none">Reabrir BM</button>
@@ -241,6 +293,8 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../comum/medicao.js?v=diego1"></script>
 <script src="../comum/checklist.js?v=diego1"></script>
+<script src="../comum/extenso.js?v=diego1"></script>
+<script src="../comum/relatorios-medicao.js?v=diego1"></script>
 <script src="../comum/drive.js?v=diego1"></script>
 <script>
 const { sb } = SE;
@@ -253,6 +307,7 @@ let sujo = false;
 let usuarioId = null;
 let chk = {};            // respostas do checklist deste BM (medicoes.dados.checklist)
 let docAlvo = null;      // item do checklist recebendo anexo
+let relF = {}, relG = {}; // ajustes dos relatórios (medicoes.dados.rel_fiscal / rel_gestor)
 let plan = { wb: null, arquivo: null, linhas: [], resultado: [] };   // importação da planilha da medição
 let extra = { pessoas: {}, fotos: 0 };   // responsáveis da obra e nº de fotos do BM
 let totalAtual = 0;                     // total deste BM (líquido + reajuste), recalculado ao digitar
@@ -284,7 +339,6 @@ const CAMPOS_DOC = ['comp', 'drel', 'proc', 'nfNum', 'nfData', 'nfValor', 'glosa
   const voltaBM = encodeURIComponent(`obras/medicao.html?obra=${obraId}&bm=${bmId}`);
   $('lEditarObra').href = `../index.html?editar=${obraId}&voltar=${voltaBM}`;
   document.querySelectorAll('#abas button').forEach(b => b.onclick = () => abrirAba(b.dataset.aba));
-  if (location.hash === '#quantidades') abrirAba('qtd');
   $('bSalvar').onclick = () => salvar();
   Drive.botoes({ barra: () => $('lBoletim').parentElement, salvar: 'planilha', paisagem: true,
     alvo: () => [$('titulo'), $('sub'), document.querySelector('.tabela-wrap table')],
@@ -331,6 +385,10 @@ async function carregar() {
   chk = Checklist.herdar(salvo, ant && ant.dados && ant.dados.checklist, b.nf_data || new Date().toISOString().slice(0, 10));
   if (JSON.stringify(chk) !== JSON.stringify(salvo)) sujo = true;      // herdou algo: grava no próximo Salvar
   desenharDocs(); desenharChk();
+  relF = { ...((b.dados && b.dados.rel_fiscal) || {}) }; relG = { ...((b.dados && b.dados.rel_gestor) || {}) };
+  prepararRel();
+  const aba = { '#quantidades': 'qtd', '#documentos': 'docs', '#checklist': 'chk', '#fiscal': 'fiscal', '#gestor': 'gestor' }[location.hash];
+  if (aba && !document.querySelector('#abas button.ativa[data-aba="' + aba + '"]')) abrirAba(aba);
   desenhar(); resumo();
 }
 
@@ -419,7 +477,9 @@ function resumo() {
 function abrirAba(nome) {
   document.querySelectorAll('#abas button').forEach(x => x.classList.toggle('ativa', x.dataset.aba === nome));
   document.querySelectorAll('.aba').forEach(a => a.classList.toggle('ativa', a.id === 'aba-' + nome));
-  history.replaceState(null, '', nome === 'qtd' ? '#quantidades' : location.pathname + location.search);
+  const H = { qtd: '#quantidades', docs: '#documentos', chk: '#checklist', fiscal: '#fiscal', gestor: '#gestor' };
+  history.replaceState(null, '', location.pathname + location.search + (H[nome] || ''));
+  if (nome === 'fiscal' || nome === 'gestor') desenharRel();
   if (nome === 'chk') desenharChk(); if (nome === 'docs') desenharDocs();
 }
 
@@ -496,7 +556,7 @@ function dadosDoc() {
     nf_numero: t('nfNum'), nf_data: $('nfData').value || null, nf_valor: n('nfValor'),
     glosa: $('glosa').value, glosa_valor: $('glosa').value === 'nao' ? null : n('glosaValor'), imr_pct: n('imr'),
     retencao_vinculada: t('retVinc'), retencao_terceirizado: t('retTerc'), outras_retencoes: t('retOutras'), observacoes: t('obs'),
-    dados: { ...(M.bm.dados || {}), checklist: chk }
+    dados: { ...(M.bm.dados || {}), checklist: chk, rel_fiscal: relF, rel_gestor: relG }
   };
 }
 
@@ -733,7 +793,7 @@ function mostrarPlanilha() {
 // ================= documentos e checklist =================
 // o BM "como está na tela" (NF e glosa digitadas ainda sem salvar contam)
 function bmAtual() {
-  return { ...M.bm, nf_numero: $('nfNum').value.trim() || null, nf_data: $('nfData').value || null, glosa: $('glosa').value };
+  return { ...M.bm, ...dadosDoc(), periodo_inicio: $('ini').value || null, periodo_fim: $('fim').value || null, reajuste_pct: F.lerNum($('reaj').value) || 0 };
 }
 const nomeCurto = t => t.replace(/\n.*/s, '').replace(/,? com autenticidade e vigente\.?/i, '').replace(/\{empenho\}/, '').slice(0, 110);
 
@@ -823,6 +883,70 @@ async function verDoc(a) {
   const { data, error } = await sb.storage.from('fotos').createSignedUrl(a.caminho, 600);
   if (error) { alert('Não consegui abrir: ' + error.message); return; }
   window.open(data.signedUrl, '_blank');
+}
+// ================= relatórios do fiscal e do gestor =================
+const TIMBRE = '../comum/img/timbre-sms-cuiaba.png';
+let pessoasRel = {};
+
+// medição "como está na tela": quantidades digitadas e dados do BM ainda sem salvar entram na prévia
+function mAtual() {
+  const bm = bmAtual();
+  const lanc = [];
+  for (const l of M.linhas) {
+    if (l.tipo !== 'servico') continue;
+    if (l.qa) lanc.push({ item_id: l.item_id, quantidade: l.qa, medicoes: { numero: bm.numero - 1 } });
+    const q = qtdEste(l); if (q) lanc.push({ item_id: l.item_id, quantidade: q, medicoes: { numero: bm.numero } });
+  }
+  const itens = M.linhas.map(({ qc, pu, qa, qb, qacum, qsaldo, vc, va, vb, vacum, vsaldo, excede, ...resto }) => resto);
+  return Medicao.montar(M.obra, M.planilhas, itens, M.medicoes, lanc, bm);
+}
+function ctxRel() { return RelMedicao.contexto(mAtual(), extra.pessoas); }
+
+function prepararRel() {
+  if (!document.getElementById('estiloRel')) { const st = document.createElement('style'); st.id = 'estiloRel'; st.textContent = RelMedicao.CSS; document.head.appendChild(st); }
+  // fiscal
+  $('rfTabela').checked = !relF.semTabela;
+  $('rfTexto').oninput = () => { relF.texto = $('rfTexto').value; sujo = true; resumo(); desenharRel(false); };
+  $('rfTabela').onchange = () => { relF.semTabela = !$('rfTabela').checked || undefined; sujo = true; desenharRel(); };
+  $('rfRestaurar').onclick = () => { delete relF.texto; sujo = true; desenharRel(); };
+  $('rfAbrir').onclick = () => abrirRel('fiscal');
+  // gestor
+  $('rgAnexados').innerHTML = RelMedicao.ANEXADOS.map(([k, t, padrao]) => {
+    const v = (relG.anexados && relG.anexados[k]) || padrao;
+    return `<div class="anex-linha"><span>${F.esc(t)}</span>
+      <label><input type="radio" name="an_${k}" value="sim" ${v === 'sim' ? 'checked' : ''}> Sim</label>
+      <label><input type="radio" name="an_${k}" value="nao" ${v === 'nao' ? 'checked' : ''}> Não</label></div>`;
+  }).join('');
+  $('rgAnexados').querySelectorAll('input').forEach(i => i.onchange = () => { relG.anexados = { ...(relG.anexados || {}), [i.name.slice(3)]: i.value }; sujo = true; desenharRel(); });
+  $('rgMensal').value = relG.valor_mensal || ''; $('rgDestino').value = relG.destino || '';
+  $('rgMensal').oninput = () => { relG.valor_mensal = $('rgMensal').value.trim() || undefined; sujo = true; desenharRel(false); };
+  $('rgDestino').oninput = () => { relG.destino = $('rgDestino').value.trim() || undefined; sujo = true; desenharRel(false); };
+  $('rgConcl').oninput = () => { relG.conclusao = $('rgConcl').value; sujo = true; resumo(); desenharRel(false); };
+  $('rgRestaurar').onclick = () => { delete relG.conclusao; sujo = true; desenharRel(); };
+  $('rgAbrir').onclick = () => abrirRel('gestor');
+  desenharRel();
+}
+
+// atualiza os textos (se não estiverem sendo digitados) e as prévias
+function desenharRel(textos = true) {
+  if (!M) return;
+  const aba = document.querySelector('#abas button.ativa');
+  if (!aba || !['fiscal', 'gestor'].includes(aba.dataset.aba)) return;
+  const c = ctxRel();
+  c.dados = { ...c.dados, rel_fiscal: relF, rel_gestor: relG };
+  if (textos) {
+    $('rfTexto').value = relF.texto || RelMedicao.textoFiscalPadrao(c);
+    $('rgConcl').value = relG.conclusao || RelMedicao.CONCLUSAO_PADRAO;
+  }
+  $('rfInfo').textContent = relF.texto ? 'Texto ajustado por você (não muda mais sozinho; "Restaurar" volta ao automático).' : 'Texto automático: acompanha os dados da obra e do BM.';
+  $('rgInfo').textContent = relG.conclusao ? 'Conclusão ajustada por você.' : 'Conclusão padrão do modelo ({destino} vira o campo "Segue para").';
+  $('rfPrev').innerHTML = RelMedicao.htmlFiscal(c, TIMBRE);
+  $('rgPrev').innerHTML = RelMedicao.htmlGestor(c, TIMBRE);
+}
+
+async function abrirRel(tipo) {
+  if (sujo && !await salvar(true)) return;
+  window.open(`relatorio-medicao.html?obra=${obraId}&bm=${bmId}&tipo=${tipo}`, '_blank');
 }
 </script>
 </body>
