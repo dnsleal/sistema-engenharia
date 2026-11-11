@@ -25,6 +25,10 @@
   .acoes-c .excluir { margin-left: auto; border-color: var(--critico); color: var(--critico); background: transparent; }
   .progresso { margin-top: 10px; font-size: .88rem; }
   .salvo { color: var(--ok); font-size: .78rem; min-height: 1em; }
+  .abas { display: flex; gap: 4px; border-bottom: 1px solid var(--linha); margin: 6px 0 16px; flex-wrap: wrap; }
+  .abas a, .abas span { border-bottom: 2px solid transparent; color: var(--texto-2); padding: 10px 14px; text-decoration: none; font: inherit; }
+  .abas a:hover { color: var(--texto); }
+  .abas span.ativa { color: var(--azul); border-bottom-color: var(--azul); }
 </style>
 </head>
 <body>
@@ -42,6 +46,8 @@
     </div>
     <a class="botao" id="lRelatorio" href="#" target="_blank">Relatório fotográfico / PDF</a>
   </div>
+
+  <nav class="abas" id="abasBM" aria-label="Etapas do BM"></nav>
 
   <section class="envio" id="envio">
     <div class="botoes-envio">
@@ -78,6 +84,11 @@ let userId = null, fotos = [], itens = [], urls = {};
   $('lObra').href = 'obra.html?id=' + obraId + '#medicoes';
   $('lBM').href = `medicao.html?obra=${obraId}&bm=${bmId}`;
   $('lRelatorio').href = `relatorio-fotos.html?obra=${obraId}&bm=${bmId}`;
+  // mesmas abas do BM: as outras etapas abrem a tela do BM na aba certa
+  const base = `medicao.html?obra=${obraId}&bm=${bmId}`;
+  $('abasBM').innerHTML = [['', '1. Início'], ['#quantidades', '2. Quantidades'], [null, '3. Fotos'], ['#documentos', '4. Documentos'], ['#checklist', '5. Checklist'],
+    ['#fiscal', '6. Relatório do fiscal'], ['#gestor', '7. Relatório do gestor'], ['#completa', '8. Medição completa']]
+    .map(([h, t]) => h === null ? `<span class="ativa" aria-current="page">${t}</span>` : `<a href="${base}${h}">${t}</a>`).join('');
   $('bCamera').onclick = () => $('iCamera').click();
   $('bArquivos').onclick = () => $('iArquivos').click();
   $('iCamera').onchange = e => enviar([...e.target.files]);
