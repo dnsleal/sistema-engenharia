@@ -42,6 +42,8 @@
   .pend li.alerta::before { content: "!"; color: var(--alerta); left: 7px; }
   .pend li.ok::before { content: "✓"; color: var(--ok); }
   .pend li a { margin-left: 4px; }
+  .anexo-plan { margin-top: 10px; font-size: .88rem; }
+  #dPlan { width: min(980px, 96vw); }
   .barra-acoes.painel { position: sticky; bottom: 0; z-index: 5; margin: 16px 0 0; border-radius: 10px; }
 </style>
 </head>
@@ -86,6 +88,7 @@
           </div>
           <label for="obs">Observações do BM</label>
           <textarea id="obs" rows="2"></textarea>
+          <div class="anexo-plan" id="cxPlan"></div>
         </section>
 
         <section class="painel">
@@ -130,6 +133,8 @@
       <input id="busca" type="search" placeholder="Buscar item, descrição ou código">
       <label><input type="checkbox" id="fComQtd" checked> só itens com quantidade</label>
       <label><input type="checkbox" id="fLancados"> só lançados neste BM</label>
+      <button type="button" class="sec" id="bImpPlan" style="margin-left:auto">Importar planilha da medição</button>
+      <input type="file" id="arqPlan" accept=".xlsx,.xls,.xlsm,.ods,.csv" style="display:none">
     </div>
     <div class="tabela-wrap">
       <table>
@@ -152,6 +157,42 @@
     <button class="sec" id="bFechar">Fechar BM</button>
     <button id="bSalvar">Salvar</button>
   </div>
+  <dialog id="dPlan">
+    <form method="dialog" id="fPlan">
+      <header>Importar planilha da medição</header>
+      <div class="corpo">
+        <p class="nota" style="margin-top:0">A planilha da contratada com o percentual (ou a quantidade) executado de cada item. O sistema localiza os itens pelo número, calcula a quantidade deste BM e mostra antes de aplicar. Nada é gravado até você clicar em <b>Salvar</b>.</p>
+        <div class="dados-bm">
+          <div><label for="pAba">Aba</label><select id="pAba"></select></div>
+          <div><label for="pPl">Planilha da obra</label><select id="pPl"></select></div>
+          <div><label for="pLin">Linha do cabeçalho</label><input id="pLin" type="number" min="1"></div>
+        </div>
+        <div class="dados-bm">
+          <div><label for="pColItem">Coluna do item</label><select id="pColItem"></select></div>
+          <div><label for="pColVal">Coluna com o executado</label><select id="pColVal"></select></div>
+          <div><label for="pTipo">Esse valor é</label>
+            <select id="pTipo">
+              <option value="pct_acum">% acumulado até este BM</option>
+              <option value="pct_bm">% executado neste BM</option>
+              <option value="qtd_acum">Quantidade acumulada até este BM</option>
+              <option value="qtd_bm">Quantidade executada neste BM</option>
+            </select></div>
+        </div>
+        <div class="kpis" id="pKpis" style="margin:10px 0"></div>
+        <div class="tabela-wrap" style="max-height:340px">
+          <table><thead><tr><th>Item</th><th>Descrição</th><th class="n">Contratado</th><th class="n">Anterior</th><th class="n">Lido</th><th class="n">Este BM</th><th></th></tr></thead>
+            <tbody id="pCorpo"></tbody></table>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:10px"><input type="checkbox" id="pGuardar" checked style="width:auto"> Guardar o arquivo junto com este BM (vai no processo da medição)</label>
+        <div class="msg" id="pMsg"></div>
+      </div>
+      <footer>
+        <button type="button" class="sec" id="pCancelar">Cancelar</button>
+        <button type="submit" id="pAplicar">Aplicar ao BM</button>
+      </footer>
+    </form>
+  </dialog>
+
   <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
 </main>
 
@@ -159,6 +200,7 @@
 <script src="../comum/config.js?v=diego1"></script>
 <script src="../comum/supabase.js?v=diego1"></script>
 <script src="../comum/formatos.js?v=diego1"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="../comum/medicao.js?v=diego1"></script>
 <script src="../comum/drive.js?v=diego1"></script>
 <script>
@@ -169,12 +211,22 @@ const obraId = P.get('obra'), bmId = P.get('bm');
 let M = null;            // dados montados
 let editado = {};        // item_id -> quantidade digitada neste BM
 let sujo = false;
+let usuarioId = null;
+let plan = { wb: null, arquivo: null, linhas: [], resultado: [] };   // importação da planilha da medição
 let extra = { pessoas: {}, fotos: 0 };   // responsáveis da obra e nº de fotos do BM
 let totalAtual = 0;                     // total deste BM (líquido + reajuste), recalculado ao digitar
 const CAMPOS_DOC = ['comp', 'drel', 'proc', 'nfNum', 'nfData', 'nfValor', 'glosa', 'glosaValor', 'imr', 'retVinc', 'retTerc', 'retOutras'];
 
 (async function iniciar() {
   const user = await SE.exigirLogin(); if (!user) return;
+  usuarioId = user.id;
+  $('bImpPlan').onclick = () => $('arqPlan').click();
+  $('arqPlan').onchange = abrirPlanilha;
+  for (const id of ['pAba']) $(id).onchange = () => { lerAba(true); };
+  for (const id of ['pLin']) $(id).onchange = () => { lerAba(false); };
+  for (const id of ['pColItem', 'pColVal', 'pTipo', 'pPl']) $(id).onchange = previa;
+  $('pCancelar').onclick = () => $('dPlan').close();
+  $('fPlan').onsubmit = aplicarPlanilha;
   $('uEmail').textContent = user.email; $('bSair').onclick = SE.sair;
   $('lObraTopo').href = 'obra.html?id=' + obraId + '#medicoes';
   $('lBoletim').href = `boletim.html?obra=${obraId}&bm=${bmId}`;
@@ -229,6 +281,7 @@ async function carregar() {
   $('selPl').innerHTML = '<option value="">Todas as planilhas</option>' +
     M.planilhas.map(p => `<option value="${p.id}">${M.nomePl(p)}</option>`).join('');
   travar(b.fechada);
+  mostrarPlanilha();
   desenhar(); resumo();
 }
 
@@ -450,6 +503,146 @@ async function reabrir() {
   const { error } = await sb.from('medicoes').update({ fechada: false }).eq('id', bmId);
   if (error) { alert('Erro ao reabrir: ' + error.message); return; }
   await carregar();
+}
+
+// ================= importação da planilha da medição (% executado por item) =================
+const normItem = v => String(v ?? '').trim().replace(/\s+/g, '').replace(/\.+$/, '').replace(/^0+(\d)/, '$1').split('.').map(p => p.replace(/^0+(\d)/, '$1')).join('.');
+const semAc = t => String(t ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase();
+
+async function abrirPlanilha() {
+  const f = $('arqPlan').files[0]; $('arqPlan').value = '';
+  if (!f) return;
+  if (M.bm.fechada) { alert('Este BM está fechado. Reabra-o para importar quantidades.'); return; }
+  try { plan.wb = XLSX.read(await f.arrayBuffer(), { type: 'array', cellNF: true }); }
+  catch (e) { alert('Não consegui abrir o arquivo: ' + e.message); return; }
+  plan.arquivo = f;
+  $('pAba').innerHTML = plan.wb.SheetNames.map(n => `<option>${F.esc(n)}</option>`).join('');
+  $('pPl').innerHTML = M.planilhas.map(p => `<option value="${p.id}">${F.esc(M.nomePl(p))}</option>`).join('');
+  if ($('selPl').value) $('pPl').value = $('selPl').value;
+  // aba provável: a que tiver "MEDI" no nome ou a primeira com coluna de item
+  const prov = plan.wb.SheetNames.find(n => /MEDI|BM|BOLETIM/i.test(n)) || plan.wb.SheetNames[0];
+  $('pAba').value = prov;
+  $('pMsg').textContent = ''; $('pMsg').className = 'msg';
+  lerAba(true);
+  $('dPlan').showModal();
+}
+
+// lê a aba como linhas de células {v, w}; acha o cabeçalho e sugere as colunas
+function lerAba(adivinharLinha) {
+  const ws = plan.wb.Sheets[$('pAba').value];
+  if (!ws || !ws['!ref']) { plan.linhas = []; previa(); return; }
+  const r = XLSX.utils.decode_range(ws['!ref']);
+  plan.linhas = [];
+  for (let i = r.s.r; i <= Math.min(r.e.r, r.s.r + 5000); i++) {
+    const lin = [];
+    for (let c = r.s.c; c <= Math.min(r.e.c, r.s.c + 80); c++) { const cel = ws[XLSX.utils.encode_cell({ r: i, c })]; lin.push(cel ? { v: cel.v, w: cel.w != null ? String(cel.w) : String(cel.v ?? ''), z: cel.z || '' } : null); }
+    plan.linhas.push(lin);
+  }
+  if (adivinharLinha) {
+    const h = plan.linhas.findIndex((l, i) => i < 40 && l.some(c => c && /^ITEM\b/.test(semAc(c.w).trim())));
+    $('pLin').value = (h >= 0 ? h : 0) + 1;
+  }
+  const h = Math.max(0, (parseInt($('pLin').value, 10) || 1) - 1);
+  // cabeçalho pode ter 2 linhas (ex.: "MEDIÇÃO ATUAL" em cima e "%" embaixo): junta a linha seguinte
+  const cab = (plan.linhas[h] || []).map((c, j) => [c && c.w, plan.linhas[h + 1] && plan.linhas[h + 1][j] && plan.linhas[h + 1][j].w].filter(Boolean).join(' ').trim());
+  const letra = j => XLSX.utils.encode_col(j + r.s.c);
+  const opts = cab.map((t, j) => `<option value="${j}">${letra(j)} — ${F.esc((t || '(sem título)').slice(0, 50))}</option>`).join('');
+  $('pColItem').innerHTML = opts; $('pColVal').innerHTML = opts;
+  const C = cab.map(semAc);
+  const iItem = C.findIndex(t => /^ITEM\b/.test(t));
+  // executado: prioridade para % acumulado, depois % do período, quantidade acumulada, quantidade do período
+  const acha = (re, re2) => C.findIndex(t => re.test(t) && (!re2 || re2.test(t)));
+  let iVal = -1, tipo = 'pct_acum';
+  const tent = [[/%|PERC/, /ACUM/, 'pct_acum'], [/%|PERC/, /ATUAL|PERIODO|MES|MEDI|EXEC|ESTE/, 'pct_bm'], [/ACUM/, /QU?A?N?T|QTD/, 'qtd_acum'], [/QU?A?N?T|QTD/, /ATUAL|PERIODO|MES|MEDI|EXEC/, 'qtd_bm'], [/%/, null, 'pct_bm']];
+  for (const [a, b, t] of tent) { const i = acha(a, b); if (i >= 0 && i !== iItem) { iVal = i; tipo = t; break; } }
+  if (iItem >= 0) $('pColItem').value = iItem;
+  if (iVal >= 0) { $('pColVal').value = iVal; $('pTipo').value = tipo; }
+  previa();
+}
+
+// número da célula: percentuais formatados com % no Excel vêm como fração (0,35 = 35%)
+function valorCel(c, ehPct) {
+  if (!c || c.v == null || c.v === '') return null;
+  let n = typeof c.v === 'number' ? c.v : F.lerNum(String(c.v).replace('%', ''));
+  if (n == null || !Number.isFinite(n)) return null;
+  if (ehPct && typeof c.v === 'number' && (/%/.test(c.z) || /%\s*$/.test(c.w))) n *= 100;
+  return n;
+}
+
+function previa() {
+  const h = Math.max(0, (parseInt($('pLin').value, 10) || 1) - 1);
+  const ci = +$('pColItem').value, cv = +$('pColVal').value, tipo = $('pTipo').value, ehPct = tipo.startsWith('pct');
+  const pl = $('pPl').value;
+  const servs = new Map(M.linhas.filter(l => l.tipo === 'servico' && l.planilha_id === pl).map(l => [normItem(l.item), l]));
+  const res = [], vistos = new Set();
+  let semMatch = 0;
+  for (const lin of plan.linhas.slice(h + 1)) {
+    if (!lin) continue;
+    const it = lin[ci] && normItem(lin[ci].w || lin[ci].v);
+    if (!it || !/^\d+(\.\d+)*$/.test(it)) continue;
+    const l = servs.get(it);
+    const val = valorCel(lin[cv], ehPct);
+    if (!l) { if (val) semMatch++; continue; }       // linha de etapa/título ou item fora da planilha
+    if (vistos.has(it)) continue; vistos.add(it);
+    if (val == null) continue;
+    let qb = tipo === 'pct_acum' ? l.qc * val / 100 - l.qa : tipo === 'pct_bm' ? l.qc * val / 100 : tipo === 'qtd_acum' ? val - l.qa : val;
+    qb = Math.round(qb * 1e4) / 1e4;
+    const aviso = qb < -1e-9 ? 'menor que o já medido' : l.qa + qb - l.qc > 1e-6 ? 'passa do contratado' : '';
+    res.push({ l, val, qb: Math.max(0, qb), aviso, atual: qtdEste(l) });
+  }
+  plan.resultado = res;
+  const comQtd = res.filter(r => r.qb > 0), muda = res.filter(r => Math.abs(r.qb - r.atual) > 1e-9);
+  const valor = Medicao.r2(comQtd.reduce((s, r) => s + Medicao.r2(r.qb * r.l.pu), 0));
+  const avisos = res.filter(r => r.aviso).length;
+  $('pKpis').innerHTML = `
+    <div class="kpi"><div class="rotulo">Itens reconhecidos</div><div class="valor">${res.length}</div><div class="det">${semMatch ? semMatch + ' linha(s) com valor sem item correspondente' : 'pelo nº do item'}</div></div>
+    <div class="kpi"><div class="rotulo">Com quantidade neste BM</div><div class="valor">${comQtd.length}</div><div class="det">${muda.length} mudam o que está lançado</div></div>
+    <div class="kpi"><div class="rotulo">Valor deste BM</div><div class="valor">${F.rs(valor)}</div><div class="det">sem desconto, sem reajuste</div></div>
+    <div class="kpi ${avisos ? 'critico' : ''}"><div class="rotulo">Avisos</div><div class="valor">${avisos}</div><div class="det">acima do contratado ou abaixo do já medido</div></div>`;
+  const mostrar = res.filter(r => r.qb > 0 || r.aviso || Math.abs(r.qb - r.atual) > 1e-9);
+  $('pCorpo').innerHTML = mostrar.length ? mostrar.map(r => `<tr class="${r.aviso ? 'excede' : ''}">
+      <td>${F.esc(r.l.item)}</td><td class="desc">${F.esc(r.l.descricao.slice(0, 90))}</td>
+      <td class="n">${F.num(r.l.qc, 2)}</td><td class="n">${F.num(r.l.qa, 2)}</td>
+      <td class="n">${ehPct ? F.num(r.val, 2) + '%' : F.num(r.val, 2)}</td><td class="n"><b>${F.num(r.qb, 4).replace(/,?0+$/, '')}</b></td>
+      <td class="nota">${r.aviso || (Math.abs(r.qb - r.atual) > 1e-9 && r.atual ? 'antes: ' + F.num(r.atual, 2) : '')}</td></tr>`).join('')
+    : `<tr><td colspan="7" class="vazio">Nenhum item reconhecido. Confira a linha do cabeçalho, as colunas e a planilha da obra.</td></tr>`;
+  $('pAplicar').disabled = !res.length;
+}
+
+async function aplicarPlanilha(e) {
+  e.preventDefault();
+  if (!plan.resultado.length) return;
+  for (const r of plan.resultado) editado[r.l.item_id] = r.qb;
+  sujo = true;
+  if ($('pGuardar').checked && plan.arquivo) {
+    $('pAplicar').disabled = true; $('pMsg').className = 'msg'; $('pMsg').textContent = 'Guardando o arquivo…';
+    try {
+      const nome = plan.arquivo.name.replace(/[^\w.\- ]+/g, '_');
+      const caminho = `${usuarioId}/${obraId}/${bmId}/docs/planilha-medicao-${Date.now()}-${nome}`;
+      const up = await sb.storage.from('fotos').upload(caminho, plan.arquivo, { contentType: plan.arquivo.type || 'application/octet-stream' });
+      if (up.error) throw up.error;
+      const dados = { ...(M.bm.dados || {}), planilha_medicao: { caminho, nome: plan.arquivo.name, em: new Date().toISOString(), aba: $('pAba').value, tipo: $('pTipo').value } };
+      const { error } = await sb.from('medicoes').update({ dados }).eq('id', bmId);
+      if (error) throw error;
+      M.bm.dados = dados;
+    } catch (err) { $('pMsg').className = 'msg erro'; $('pMsg').textContent = 'As quantidades foram aplicadas, mas o arquivo não foi guardado: ' + err.message; $('pAplicar').disabled = false; desenhar(); resumo(); mostrarPlanilha(); return; }
+  }
+  $('dPlan').close();
+  $('fComQtd').checked = true; $('fLancados').checked = true;
+  desenhar(); resumo(); mostrarPlanilha();
+  $('info').textContent = `${plan.resultado.length} item(ns) importados da planilha. Confira e clique em Salvar.`;
+}
+
+// planilha guardada com o BM (aparece na aba Início)
+function mostrarPlanilha() {
+  const p = M.bm.dados && M.bm.dados.planilha_medicao;
+  $('cxPlan').innerHTML = p ? `Planilha da medição: <a href="#" id="lPlan">${F.esc(p.nome)}</a> <span class="nota">· importada em ${new Date(p.em).toLocaleString('pt-BR')}</span>` : '';
+  if (p) $('lPlan').onclick = async ev => {
+    ev.preventDefault();
+    const { data, error } = await sb.storage.from('fotos').createSignedUrl(p.caminho, 600, { download: p.nome });
+    if (error) { alert('Não consegui abrir o arquivo: ' + error.message); return; }
+    location.href = data.signedUrl;
+  };
 }
 </script>
 </body>
