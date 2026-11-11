@@ -53,6 +53,7 @@
       <input id="busca" type="search" placeholder="Buscar nº, assunto, interessado ou documento">
       <select id="fStatus">
         <option value="abertos">Em aberto</option>
+        <option value="concluidos">Concluídos (respondidos e arquivados)</option>
         <option value="">Todos</option>
         <option value="recebido">Recebido</option>
         <option value="em_analise">Em análise</option>
@@ -230,7 +231,8 @@ function desenharKpis() {
     ['hoje', 'Vencem hoje', conta(p => d(p) === 0), 'critico'],
     ['semana', 'Próximos 7 dias', conta(p => d(p) != null && d(p) > 0 && d(p) <= 7), 'alerta'],
     ['abertos', 'Em aberto', abertos.length, ''],
-    ['fora', 'Respondidos fora do prazo', lista.filter(p => p.status === 'respondido' && p.respondido_em && p.data_limite && p.respondido_em > p.data_limite).length, '']
+    ['fora', 'Respondidos fora do prazo', lista.filter(p => p.status === 'respondido' && p.respondido_em && p.data_limite && p.respondido_em > p.data_limite).length, ''],
+    ['concluidos', 'Concluídos', lista.filter(p => FECHADOS.includes(p.status)).length, '']
   ];
   $('kpis').innerHTML = K.map(([k, rot, n, cls]) =>
     `<div class="kpi ${n && cls ? cls : ''} ${filtroKpi === k ? 'sel' : ''}" data-k="${k}"><div class="rotulo">${rot}</div><div class="valor">${n}</div><div class="det">${filtroKpi === k ? 'filtro ativo — clique para limpar' : 'clique para filtrar'}</div></div>`).join('');
@@ -247,13 +249,19 @@ function desenhar() {
     hoje: p => !FECHADOS.includes(p.status) && d(p) === 0,
     semana: p => !FECHADOS.includes(p.status) && d(p) != null && d(p) > 0 && d(p) <= 7,
     abertos: p => !FECHADOS.includes(p.status),
-    fora: p => p.status === 'respondido' && p.respondido_em && p.data_limite && p.respondido_em > p.data_limite
+    fora: p => p.status === 'respondido' && p.respondido_em && p.data_limite && p.respondido_em > p.data_limite,
+    concluidos: p => FECHADOS.includes(p.status)
   };
   let l = lista.filter(p =>
-    (filtroKpi ? fK[filtroKpi](p) : (!st || (st === 'abertos' ? !FECHADOS.includes(p.status) : p.status === st))) &&
+    (filtroKpi ? fK[filtroKpi](p) : (!st || (st === 'abertos' ? !FECHADOS.includes(p.status) : st === 'concluidos' ? FECHADOS.includes(p.status) : p.status === st))) &&
     (!ob || p.obra_id === ob) && passaCat(p) &&
     (!q || [p.numero, p.assunto, p.interessado, p.tipo, p.categoria, p.documento_resposta].some(x => (x || '').toUpperCase().includes(q))));
-  l = l.map(p => ({ p, s: situacao(p) })).sort((a, b) => a.s[2] - b.s[2] || (a.p.data_limite || '9').localeCompare(b.p.data_limite || '9'));
+  // concluídos: do mais recente para o mais antigo; demais: pela urgência do prazo
+  const soConcluidos = filtroKpi === 'concluidos' || (!filtroKpi && st === 'concluidos');
+  const fim = p => p.respondido_em || (p.updated_at || '').slice(0, 10) || p.data_entrada || '';
+  l = l.map(p => ({ p, s: situacao(p) })).sort(soConcluidos
+    ? (a, b) => fim(b.p).localeCompare(fim(a.p))
+    : (a, b) => a.s[2] - b.s[2] || (a.p.data_limite || '9').localeCompare(b.p.data_limite || '9'));
   if (!l.length) { $('linhas').innerHTML = `<tr><td colspan="8" class="vazio">${lista.length ? 'Nenhum processo com estes filtros.' : 'Nenhum processo cadastrado. Clique em <b>+ Novo processo</b>.'}</td></tr>`; return; }
   $('linhas').innerHTML = l.map(({ p, s }) => `<tr data-id="${p.id}" style="cursor:pointer">
     <td class="num">${F.esc(p.numero)}</td>
