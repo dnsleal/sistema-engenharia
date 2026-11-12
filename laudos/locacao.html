@@ -403,7 +403,7 @@ A edificação apresenta estado de conservação regular, compatível com o padr
 
   <div class="barra">
     <button onclick="exportarPDF()">Exportar PDF</button>
-    <button onclick="exportarWord()">Exportar Word (.doc)</button>
+    <button onclick="exportarWord()">Exportar Word (.docx)</button>
     <button class="sec" onclick="window.print()">Imprimir</button>
     <button class="sec" onclick="resetar()">Restaurar valores do laudo</button>
   </div>
@@ -870,8 +870,17 @@ window.LAUDO_CFG = {
 <script src="../comum/laudo-nuvem.js?v=diego1"></script>
 <script src="../comum/drive.js?v=diego1"></script>
 <script>
-Drive.botoes({ barra: '.se-barra', antesDe: '#seSalvar', alvo: '.folha .pagina', formatos: ['pdf', 'docx', 'xlsx'], classe: '',
-  nome: () => 'Laudo de locação - ' + window.LAUDO_CFG.titulo(), pasta: () => ['Laudos', 'Locação'] });
+let __det = [];
+const cfgLaudo = { barra: '.se-barra', antesDe: '#seSalvar', alvo: '.folha .pagina', formatos: ['pdf', 'docx', 'xlsx'], classe: '',
+  cssPdf: '.drv-pdf .pagina{min-height:0!important;margin:0!important}',
+  // mesmo visual do "Exportar PDF": sem bordas de campo e com as seções abertas
+  antes: () => { document.body.classList.add('exportando-pdf'); __det = [...document.querySelectorAll('details')].map(d => [d, d.open]); __det.forEach(([d]) => d.open = true); },
+  depois: () => { document.body.classList.remove('exportando-pdf'); __det.forEach(([d, o]) => d.open = o); },
+  nome: () => 'Laudo de locação - ' + window.LAUDO_CFG.titulo(), pasta: () => ['Laudos', 'Locação'] };
+Drive.botoes(cfgLaudo);
+// os botões "Exportar PDF" e "Exportar Word" do fim do laudo usam o mesmo gerador
+window.exportarPDF = () => Drive.baixar(cfgLaudo, 'pdf');
+window.exportarWord = () => Drive.baixar(cfgLaudo, 'docx');
 </script>
 </body>
 </html>

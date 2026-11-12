@@ -31,7 +31,8 @@
   const LIBS = {
     gsi: 'https://accounts.google.com/gsi/client',
     xlsx: 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
-    pdf: 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js'
+    pdf: 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js',
+    docx: 'https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js'
   };
   const REMOVER = 'script, style, button, input[type=file], .no-print, .se-barra, .ferramentas, .barra, .aviso, .drv-caixa, #drvAviso, #toast, [data-drive="fora"]';
 
@@ -41,6 +42,7 @@
     if (url === LIBS.xlsx && window.XLSX) return Promise.resolve();
     if (url === LIBS.pdf && window.html2pdf) return Promise.resolve();
     if (url === LIBS.gsi && window.google && google.accounts) return Promise.resolve();
+    if (url === LIBS.docx && window.htmlDocx) return Promise.resolve();
     return carregadas[url] = carregadas[url] || new Promise((ok, erro) => {
       const s = document.createElement('script');
       s.src = url; s.async = true; s.onload = ok;
@@ -285,6 +287,7 @@
     const caminho = cfg.pasta ? cfg.pasta() : [];
     // pede o login antes de montar o arquivo (o navegador só abre a janela do Google logo após o clique)
     await obterToken();
+    if (cfg.antes) cfg.antes();
     if (tipo === 'gdoc' && cfg.salvar === 'planilha') tipo = 'gsheet';
     if (tipo === 'gdoc') {
       avisar('Preparando o documento…', true);
@@ -334,11 +337,55 @@
     }
   }
 
+  // ------------------------------------------------------------------ baixar no computador (sem Google)
+  // Word: o documento vira .docx de verdade (html-docx-js), com as imagens embutidas
+  async function imagensEmbutidas(html) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    await Promise.all([...doc.images].map(async im => {
+      const src = im.getAttribute('src') || '';
+      if (!src || src.startsWith('data:')) return;
+      try {
+        const b = await (await fetch(new URL(src, location.href).href)).blob();
+        im.setAttribute('src', await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(b); }));
+      } catch (_) { im.remove(); }
+    }));
+    return '<!DOCTYPE html>' + doc.documentElement.outerHTML;
+  }
+  function salvarArquivo(blob, nome) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = nome;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+  }
+  async function baixar(cfg, tipo, botao) {
+    if (botao) botao.disabled = true;
+    const nome = limparNome(cfg.nome ? cfg.nome() : document.title);
+    try {
+      if (cfg.antes) cfg.antes();
+      if (tipo === 'pdf') { avisar('Gerando o PDF…', true); salvarArquivo(new Blob([await gerarPdf(cfg)], { type: MIME.pdf }), nome + '.pdf'); }
+      else if (tipo === 'xlsx') { avisar('Gerando o Excel…', true); salvarArquivo(await blobXlsx(cfg), nome + '.xlsx'); }
+      else if (tipo === 'docx') {
+        avisar('Gerando o Word…', true);
+        const html = await imagensEmbutidas(await htmlDoc(cfg, nome));
+        await carregar(LIBS.docx);
+        const b = window.htmlDocx ? htmlDocx.asBlob(html, { orientation: cfg.paisagem ? 'landscape' : 'portrait', margins: { top: 1000, bottom: 1000, left: 1000, right: 1000 } })
+          : new Blob(['\ufeff', html], { type: 'application/msword' });
+        salvarArquivo(b, nome + (window.htmlDocx ? '.docx' : '.doc'));
+      }
+      avisar('✓ Arquivo gerado: confira na pasta de downloads.', false, 5000);
+    } catch (e) {
+      avisar('⚠ ' + esc(e.message), false, 10000, true);
+    } finally {
+      if (botao) botao.disabled = false;
+      if (cfg.depois) try { cfg.depois(); } catch (_) {}
+    }
+  }
+
   // ------------------------------------------------------------------ interface
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const css = document.createElement('style');
   css.textContent = `
-    .drv-caixa{position:relative;display:inline-flex;gap:6px;align-items:center}
+    .drv-caixa{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
+    .drv-grupo{position:relative;display:inline-block}
     .drv-menu{position:absolute;top:calc(100% + 4px);right:0;z-index:2000;background:#0e0719;color:#ece6ff;border:1px solid rgba(139,92,246,.55);border-radius:8px;
       box-shadow:0 0 24px rgba(139,92,246,.25),0 8px 24px rgba(0,0,0,.5);padding:4px;min-width:190px;font:13px "Segoe UI",Arial,sans-serif;display:none}
     .drv-menu.aberto{display:block}
@@ -367,24 +414,33 @@
       const fmts = (cfg.formatos || ['pdf', 'docx', 'xlsx']);
       const caixa = document.createElement('span');
       caixa.className = 'drv-caixa';
-      caixa.innerHTML = `<button type="button" class="${cfg.classe || 'sec'}" data-drv="salvar" title="Grava como ${cfg.salvar === 'planilha' ? 'Planilha Google' : 'Documento Google'}, editável no Drive">Salvar no Drive</button>
-        <button type="button" class="${cfg.classe || 'sec'}" data-drv="menu" aria-haspopup="true">Exportar no Drive ▾</button>
-        <div class="drv-menu" role="menu">
-          ${fmts.includes('pdf') ? '<button type="button" data-fmt="pdf">PDF<small>como fica impresso</small></button>' : ''}
-          ${fmts.includes('docx') ? '<button type="button" data-fmt="docx">Word (.docx)<small>para editar no Word</small></button>' : ''}
-          ${fmts.includes('xlsx') ? '<button type="button" data-fmt="xlsx">Excel (.xlsx)<small>tabelas do documento</small></button>' : ''}
-        </div>`;
+      const itens = attr => `
+          ${fmts.includes('pdf') ? `<button type="button" ${attr}="pdf">PDF<small>como fica impresso</small></button>` : ''}
+          ${fmts.includes('docx') ? `<button type="button" ${attr}="docx">Word (.docx)<small>para editar no Word</small></button>` : ''}
+          ${fmts.includes('xlsx') ? `<button type="button" ${attr}="xlsx">Excel (.xlsx)<small>tabelas do documento</small></button>` : ''}`;
+      caixa.innerHTML = `<span class="drv-grupo"><button type="button" class="${cfg.classe || 'sec'}" data-drv="baixar" aria-haspopup="true">Baixar ▾</button>
+          <div class="drv-menu" role="menu" data-menu="baixar">${itens('data-bx')}</div></span>
+        ${CID ? `<button type="button" class="${cfg.classe || 'sec'}" data-drv="salvar" title="Grava como ${cfg.salvar === 'planilha' ? 'Planilha Google' : 'Documento Google'}, editável no Drive">Salvar no Drive</button>
+        <span class="drv-grupo"><button type="button" class="${cfg.classe || 'sec'}" data-drv="menu" aria-haspopup="true">Exportar no Drive ▾</button>
+          <div class="drv-menu" role="menu" data-menu="drive">${itens('data-fmt')}</div></span>` : ''}`;
       if (cfg.antesDe) barra.insertBefore(caixa, barra.querySelector(cfg.antesDe)); else barra.appendChild(caixa);
-      const menu = caixa.querySelector('.drv-menu');
-      caixa.querySelector('[data-drv="salvar"]').onclick = e => executar(cfg, 'gdoc', e.currentTarget);
-      caixa.querySelector('[data-drv="menu"]').onclick = e => {
+      const menus = [...caixa.querySelectorAll('.drv-menu')];
+      const abrirMenu = (botao, menu) => botao.onclick = e => {
         e.stopPropagation();
-        const x = menu.querySelector('[data-fmt="xlsx"]');
-        if (x) x.style.display = temTabela(cfg) ? '' : 'none';
+        menus.forEach(m => m !== menu && m.classList.remove('aberto'));
+        menu.querySelectorAll('[data-fmt="xlsx"],[data-bx="xlsx"]').forEach(x => { x.style.display = temTabela(cfg) ? '' : 'none'; });
         menu.classList.toggle('aberto');
       };
-      menu.querySelectorAll('[data-fmt]').forEach(b => b.onclick = e => { menu.classList.remove('aberto'); executar(cfg, b.dataset.fmt, caixa.querySelector('[data-drv="menu"]')); });
-      document.addEventListener('click', e => { if (!caixa.contains(e.target)) menu.classList.remove('aberto'); });
+      const mBx = caixa.querySelector('[data-menu="baixar"]'), bBx = caixa.querySelector('[data-drv="baixar"]');
+      abrirMenu(bBx, mBx);
+      mBx.querySelectorAll('[data-bx]').forEach(b => b.onclick = () => { mBx.classList.remove('aberto'); baixar(cfg, b.dataset.bx, bBx); });
+      if (CID) {
+        const mDr = caixa.querySelector('[data-menu="drive"]'), bDr = caixa.querySelector('[data-drv="menu"]');
+        caixa.querySelector('[data-drv="salvar"]').onclick = e => executar(cfg, 'gdoc', e.currentTarget);
+        abrirMenu(bDr, mDr);
+        mDr.querySelectorAll('[data-fmt]').forEach(b => b.onclick = () => { mDr.classList.remove('aberto'); executar(cfg, b.dataset.fmt, bDr); });
+      }
+      document.addEventListener('click', e => { if (!caixa.contains(e.target)) menus.forEach(m => m.classList.remove('aberto')); });
       return true;
     };
     if (!montar()) {                                    // barra criada depois (ex.: barra dos documentos salvos)
@@ -399,5 +455,5 @@
     return enviar(blob, limparNome(nome), caminho, converterPara);
   }
 
-  window.Drive = { botoes, executar, enviarArquivo, avisar, configurado: () => !!CID, MIME, obterToken, carregar, LIBS, gerarPdf, htmlDoc };
+  window.Drive = { botoes, executar, baixar, enviarArquivo, avisar, configurado: () => !!CID, MIME, obterToken, carregar, LIBS, gerarPdf, htmlDoc };
 })();
