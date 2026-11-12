@@ -9,7 +9,7 @@ window.SE_CONFIG = {
   // Nome usado pelo D.I.E.G.O. na saudação da tela de entrada ("BEM-VINDO, DIEGO.")
   NOME_OPERADOR: 'Diego',
   // ID do cliente OAuth do Google (público). Vazio = botões do Drive avisam que falta configurar.
-  GOOGLE_CLIENT_ID: '',
+  GOOGLE_CLIENT_ID: '567086241384-20jd956hfu18jdds2h0aq41q8iheh65v.apps.googleusercontent.com',
   // Padrões dos orçamentos novos (app de orçamento). Tudo pode ser trocado depois em "Dados e BDI".
   ORCAMENTO: {
     orgao: 'SECRETARIA MUNICIPAL DE SAÚDE',
