@@ -16,6 +16,12 @@
   tr.excede td { background: color-mix(in srgb, var(--critico) 10%, transparent); }
   tr.lancado td.qb input { border-color: var(--azul); background: var(--azul-claro); }
   td.desc { min-width: 260px; max-width: 460px; font-size: .86rem; }
+  .tPrev td.desc { min-width: 200px; max-width: 320px; }
+  .tPrev td .dif { display: block; color: #8a5a00; background: #fff3cd; border-radius: 3px; padding: 0 3px; font-size: .8rem; }
+  .tPrev td .ok2 { display: block; color: var(--texto-sec, #667); font-size: .8rem; }
+  .tPrev input.qprev { width: 92px; text-align: right; }
+  .tPrev select.alvo { font-size: .78rem; width: 170px; margin-top: 2px; padding: 3px 4px; }
+  tr.difer td { background: color-mix(in srgb, #f0b400 9%, transparent); }
   td.qb { white-space: nowrap; }
   td.qb input { width: 110px; text-align: right; padding: 6px 8px; font-variant-numeric: tabular-nums; }
   td.qb button { padding: 4px 7px; font-size: .75rem; margin-left: 4px; }
@@ -43,7 +49,7 @@
   .pend li.ok::before { content: "✓"; color: var(--ok); }
   .pend li a { margin-left: 4px; }
   .anexo-plan { margin-top: 10px; font-size: .88rem; }
-  #dPlan { width: min(980px, 96vw); }
+  #dPlan { width: min(1280px, 96vw); max-width: 96vw; }
   table.chk td.c, table.chk th.c { text-align: center; width: 44px; }
   table.chk input[type=radio] { width: auto; transform: scale(1.15); }
   table.chk td.desc { max-width: 520px; }
@@ -299,10 +305,17 @@
               <option value="qtd_acum">Quantidade acumulada até este BM</option>
               <option value="qtd_bm">Quantidade executada neste BM</option>
             </select></div>
+          <div><label for="pColQc" title="Usada para conferir com o contratado no sistema e para escolher a linha certa quando o nº do item se repete">Coluna da quant. contratada <span class="nota">(conferência)</span></label><select id="pColQc"></select></div>
+          <div><label for="pColPu" title="Usada para conferir com o preço do sistema e para escolher a linha certa quando o nº do item se repete">Coluna do preço unit. c/ BDI <span class="nota">(conferência)</span></label><select id="pColPu"></select></div>
         </div>
         <div class="kpis" id="pKpis" style="margin:10px 0"></div>
-        <div class="tabela-wrap" style="max-height:340px">
-          <table><thead><tr><th>Item</th><th>Descrição</th><th class="n">Contratado</th><th class="n">Anterior</th><th class="n">Lido</th><th class="n">Este BM</th><th></th></tr></thead>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+          <label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" id="pTodos" style="width:auto"> Mostrar todos os itens reconhecidos</label>
+          <label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" id="pSoAviso" style="width:auto"> Só os com aviso</label>
+          <span class="nota">A coluna <b>Este BM</b> pode ser corrigida aqui antes de aplicar. Em amarelo: preço ou contratado diferente da planilha da contratada.</span>
+        </div>
+        <div class="tabela-wrap" style="max-height:380px">
+          <table class="tPrev"><thead><tr><th>Item</th><th>Descrição</th><th>Un.</th><th class="n">Contratado<br><span class="nota">sistema · planilha</span></th><th class="n">P. unit. c/ BDI<br><span class="nota">sistema · planilha</span></th><th class="n">Anterior</th><th class="n">Lido</th><th class="n">Este BM</th><th class="n">Valor deste BM</th><th>Observação</th></tr></thead>
             <tbody id="pCorpo"></tbody></table>
         </div>
         <label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:10px"><input type="checkbox" id="pGuardar" checked style="width:auto"> Guardar o arquivo junto com este BM (vai no processo da medição)</label>
@@ -352,7 +365,8 @@ const CAMPOS_DOC = ['comp', 'drel', 'proc', 'nfNum', 'nfData', 'nfValor', 'glosa
   $('arqPlan').onchange = abrirPlanilha;
   for (const id of ['pAba']) $(id).onchange = () => { lerAba(true); };
   for (const id of ['pLin']) $(id).onchange = () => { lerAba(false); };
-  for (const id of ['pColItem', 'pColVal', 'pTipo', 'pPl']) $(id).onchange = previa;
+  for (const id of ['pColItem', 'pColVal', 'pTipo', 'pPl', 'pColQc', 'pColPu']) $(id).onchange = previa;
+  for (const id of ['pTodos', 'pSoAviso']) $(id).onchange = desenharPrevia;
   $('pCancelar').onclick = () => $('dPlan').close();
   $('fPlan').onsubmit = aplicarPlanilha;
   $('arqDoc').onchange = anexarDoc;
@@ -732,6 +746,14 @@ function lerAba(adivinharLinha) {
   if (iVal < 0) for (const [a, b, t] of tent) { const i = acha(a, b); if (i >= 0 && i !== iItem) { iVal = i; tipo = t; break; } }
   if (iItem >= 0) $('pColItem').value = iItem;
   if (iVal >= 0) { $('pColVal').value = iVal; $('pTipo').value = tipo; }
+  // colunas de conferência: quantidade contratada e preço unitário com BDI da planilha da contratada
+  const nada = '<option value="-1">(não usar)</option>';
+  $('pColQc').innerHTML = nada + opts; $('pColPu').innerHTML = nada + opts;
+  const fora = t => /MEDI|BM\s*\d|ACUM|EXEC|PERIODO|SALDO|ATUAL/.test(t);
+  const iQc = C.findIndex((t, j) => j !== iItem && j !== iVal && /\bQU?A?N?T|QTD/.test(t) && !fora(t));
+  let iPu = C.findIndex((t, j) => /UNIT/.test(t) && /COM\s*BDI|C\/\s*BDI/.test(t) && !fora(t));
+  if (iPu < 0) iPu = C.findIndex((t, j) => /UNIT/.test(t) && !/SEM\s*BDI|S\/\s*BDI/.test(t) && !fora(t));
+  $('pColQc').value = iQc; $('pColPu').value = iPu;
   previa();
 }
 
@@ -744,53 +766,129 @@ function valorCel(c, ehPct, fracao) {
   return n;
 }
 
+// Liga cada linha da planilha da contratada a um item do sistema.
+// O nº do item pode se repetir (versão antiga e nova da mesma linha, aditivo…): nesse caso as linhas
+// são consumidas na ordem, preferindo a que tem o mesmo contratado / preço da planilha.
 function previa() {
   const h = Math.max(0, (parseInt($('pLin').value, 10) || 1) - 1);
   const ci = +$('pColItem').value, cv = +$('pColVal').value, tipo = $('pTipo').value, ehPct = tipo.startsWith('pct');
+  const cq = +$('pColQc').value, cp = +$('pColPu').value;
   const pl = $('pPl').value;
-  const servs = new Map(M.linhas.filter(l => l.tipo === 'servico' && l.planilha_id === pl).map(l => [normItem(l.item), l]));
-  const res = [], vistos = new Set();
-  let semMatch = 0, repetidos = 0;
+  const cand = new Map();
+  for (const l of M.linhas) if (l.tipo === 'servico' && l.planilha_id === pl) {
+    const k = normItem(l.item); if (!cand.has(k)) cand.set(k, []); cand.get(k).push(l);
+  }
+  const usados = new Set(), res = [];
+  let semMatch = 0;
+  const num = c => (!c || c.v == null || c.v === '') ? null : (typeof c.v === 'number' ? c.v : F.lerNum(String(c.v)));
+  const perto = (a, b) => a != null && b != null && Math.abs(a - b) <= Math.max(0.011, Math.abs(b) * 1e-4);
   // coluna de % com todos os valores entre 0 e 1: está em fração (0,35 = 35%)
   const nums = plan.linhas.slice(h + 1).map(l => l && l[cv] && typeof l[cv].v === 'number' ? l[cv].v : null).filter(x => x != null);
   const fracao = ehPct && nums.length > 0 && Math.max(...nums) <= 1.0001;
-  for (const lin of plan.linhas.slice(h + 1)) {
-    if (!lin) continue;
-    const it = lin[ci] && normItem(lin[ci].w || lin[ci].v);
-    if (!it || !/^\d+(\.\d+)*$/.test(it)) continue;
-    const l = servs.get(it);
+  plan.linhas.slice(h + 1).forEach((lin, k) => {
+    if (!lin) return;
+    let it = lin[ci] && normItem(lin[ci].w || lin[ci].v);
+    if (!it || !/^\d+(\.\d+)*$/.test(it)) return;
     const val = valorCel(lin[cv], ehPct, fracao);
-    if (!l) { if (val) semMatch++; continue; }       // linha de etapa/título ou item fora da planilha
-    if (val == null) continue;                       // linha repetida sem valor (ex.: versão antiga do item)
-    if (vistos.has(it)) { repetidos++; continue; }
-    vistos.add(it);
-    let qb = tipo === 'pct_acum' ? l.qc * val / 100 - l.qa : tipo === 'pct_bm' ? l.qc * val / 100 : tipo === 'qtd_acum' ? val - l.qa : val;
-    qb = Math.round(qb * 1e4) / 1e4;
-    const aviso = qb < -1e-9 ? 'menor que o já medido' : l.qa + qb - l.qc > 1e-6 ? 'passa do contratado' : '';
-    res.push({ l, val, qb: Math.max(0, qb), aviso, atual: qtdEste(l) });
-  }
-  plan.resultado = res;
+    const qcP = cq >= 0 ? num(lin[cq]) : null, puP = cp >= 0 ? num(lin[cp]) : null;
+    // nº digitado como número no Excel (3.10 vira 3.1): se não sobrou linha para 3.1, tenta 3.10
+    let livres = (cand.get(it) || []).filter(l => !usados.has(l.item_id));
+    if (!livres.length && lin[ci] && typeof lin[ci].v === 'number' && cand.has(it + '0')) { it += '0'; livres = cand.get(it).filter(l => !usados.has(l.item_id)); }
+    if (!livres.length) { if (val) semMatch++; return; }
+    const l = livres.find(x => perto(x.qc, qcP) && perto(x.pu, puP)) || livres.find(x => perto(x.qc, qcP) && (qcP || puP == null)) ||
+      livres.find(x => perto(x.pu, puP)) || livres[0];
+    usados.add(l.item_id);
+    if (val == null) return;                       // linha sem valor (ex.: versão antiga do item)
+    const r = { l, val, qcP, puP, it, linha: h + 2 + k, cands: cand.get(it).length, atual: qtdEste(l) };
+    calcLinha(r, tipo);
+    res.push(r);
+  });
+  plan.resultado = res; plan.tipo = tipo; plan.semMatch = semMatch; plan.cand = cand;
+  desenharPrevia();
+}
+
+// quantidade deste BM a partir do valor lido (refeito quando o item de destino muda)
+function calcLinha(r, tipo) {
+  const l = r.l, val = r.val;
+  let qb = tipo === 'pct_acum' ? l.qc * val / 100 - l.qa : tipo === 'pct_bm' ? l.qc * val / 100 : tipo === 'qtd_acum' ? val - l.qa : val;
+  qb = Math.round(qb * 1e4) / 1e4;
+  r.calc = Math.max(0, qb); r.negativo = qb < -1e-9;
+  if (!r.manual) r.qb = r.calc;
+}
+
+function avisosLinha(r) {
+  const l = r.l, critico = [], dif = [];
+  if (r.negativo) critico.push('menor que o já medido');
+  if (l.qa + r.qb - l.qc > 1e-6) critico.push('passa do contratado');
+  if (r.qcP != null && Math.abs(r.qcP - l.qc) > Math.max(0.011, l.qc * 1e-4)) dif.push('contratado diferente');
+  if (r.puP != null && Math.abs(r.puP - l.pu) > 0.011) dif.push('preço diferente');
+  if (r.cands > 1) dif.push(`nº repetido (${r.cands} linhas)`);
+  if (r.manual) dif.push('corrigido à mão');
+  return { critico, dif };
+}
+
+function desenharPrevia() {
+  const res = plan.resultado, ehPct = (plan.tipo || '').startsWith('pct');
+  for (const r of res) r.av = avisosLinha(r);
   const comQtd = res.filter(r => r.qb > 0), muda = res.filter(r => Math.abs(r.qb - r.atual) > 1e-9);
   const valor = Medicao.r2(comQtd.reduce((s, r) => s + Medicao.r2(r.qb * r.l.pu), 0));
-  const avisos = res.filter(r => r.aviso).length;
+  const valorP = res.some(r => r.puP != null) ? Medicao.r2(comQtd.reduce((s, r) => s + Medicao.r2(r.qb * (r.puP ?? r.l.pu)), 0)) : null;
+  const criticos = res.filter(r => r.av.critico.length).length, difs = res.filter(r => r.av.dif.length && !r.av.critico.length).length;
+  // a mesma linha do sistema recebendo duas linhas da planilha
+  const cont = {}; for (const r of res) cont[r.l.item_id] = (cont[r.l.item_id] || 0) + 1;
   $('pKpis').innerHTML = `
-    <div class="kpi"><div class="rotulo">Itens reconhecidos</div><div class="valor">${res.length}</div><div class="det">${[semMatch ? semMatch + ' linha(s) com valor sem item correspondente' : '', repetidos ? repetidos + ' item(ns) repetido(s): valeu a 1ª linha' : ''].filter(Boolean).join(' · ') || 'pelo nº do item'}</div></div>
+    <div class="kpi"><div class="rotulo">Itens reconhecidos</div><div class="valor">${res.length}</div><div class="det">${plan.semMatch ? plan.semMatch + ' linha(s) com valor sem item correspondente' : 'pelo nº do item'}</div></div>
     <div class="kpi"><div class="rotulo">Com quantidade neste BM</div><div class="valor">${comQtd.length}</div><div class="det">${muda.length} mudam o que está lançado</div></div>
-    <div class="kpi"><div class="rotulo">Valor deste BM</div><div class="valor">${F.rs(valor)}</div><div class="det">sem desconto, sem reajuste</div></div>
-    <div class="kpi ${avisos ? 'critico' : ''}"><div class="rotulo">Avisos</div><div class="valor">${avisos}</div><div class="det">acima do contratado ou abaixo do já medido</div></div>`;
-  const mostrar = res.filter(r => r.qb > 0 || r.aviso || Math.abs(r.qb - r.atual) > 1e-9);
-  $('pCorpo').innerHTML = mostrar.length ? mostrar.map(r => `<tr class="${r.aviso ? 'excede' : ''}">
-      <td>${F.esc(r.l.item)}</td><td class="desc">${F.esc(r.l.descricao.slice(0, 90))}</td>
-      <td class="n">${F.num(r.l.qc, 2)}</td><td class="n">${F.num(r.l.qa, 2)}</td>
-      <td class="n">${ehPct ? F.num(r.val, 2) + '%' : F.num(r.val, 2)}</td><td class="n"><b>${F.num(r.qb, 4).replace(/,?0+$/, '')}</b></td>
-      <td class="nota">${r.aviso || (Math.abs(r.qb - r.atual) > 1e-9 && r.atual ? 'antes: ' + F.num(r.atual, 2) : '')}</td></tr>`).join('')
-    : `<tr><td colspan="7" class="vazio">Nenhum item reconhecido. Confira a linha do cabeçalho, as colunas e a planilha da obra.</td></tr>`;
+    <div class="kpi"><div class="rotulo">Valor deste BM (preço do sistema)</div><div class="valor">${F.rs(valor)}</div><div class="det">${valorP != null && Math.abs(valorP - valor) > 0.009 ? 'pelo preço da planilha: ' + F.rs(valorP) : 'sem desconto, sem reajuste'}</div></div>
+    <div class="kpi ${criticos ? 'critico' : ''}"><div class="rotulo">Avisos</div><div class="valor">${criticos} <span style="font-size:.9rem;font-weight:500">+ ${difs} p/ conferir</span></div><div class="det">vermelho: acima do contratado / abaixo do medido · amarelo: preço, contratado ou nº repetido</div></div>`;
+  const todos = $('pTodos').checked, soAviso = $('pSoAviso').checked;
+  const mostrar = res.map((r, i) => [r, i]).filter(([r]) => soAviso ? (r.av.critico.length || r.av.dif.length)
+    : (todos || r.qb > 0 || r.av.critico.length || r.av.dif.length || Math.abs(r.qb - r.atual) > 1e-9));
+  const q4 = v => F.num(v, 4).replace(/,?0+$/, '');
+  const par = (sis, pla, casas, rs) => {
+    const f = v => rs ? F.rs(v) : F.num(v, casas);
+    if (pla == null) return f(sis);
+    const igual = Math.abs(pla - sis) <= (rs ? 0.011 : Math.max(0.011, Math.abs(sis) * 1e-4));
+    return `${f(sis)}<span class="${igual ? 'ok2' : 'dif'}">${igual ? 'planilha igual' : 'planilha: ' + f(pla)}</span>`;
+  };
+  $('pCorpo').innerHTML = mostrar.length ? mostrar.map(([r, i]) => {
+    const l = r.l, opc = r.cands > 1 ? plan.cand.get(r.it) : null;
+    const sel = opc ? `<select class="alvo" data-i="${i}" title="Linha do sistema que recebe esta quantidade">${opc.map((x, k) =>
+      `<option value="${x.item_id}" ${x.item_id === l.item_id ? 'selected' : ''}>${k + 1}ª: qtd ${F.num(x.qc, 2)} · ${F.rs(x.pu)}</option>`).join('')}</select>` : '';
+    const obs = [...r.av.critico, ...r.av.dif, cont[l.item_id] > 1 ? 'duas linhas da planilha neste item' : '',
+      Math.abs(r.qb - r.atual) > 1e-9 && r.atual ? 'antes: ' + q4(r.atual) : ''].filter(Boolean).join(' · ');
+    return `<tr class="${r.av.critico.length || cont[l.item_id] > 1 ? 'excede' : r.av.dif.length ? 'difer' : ''}">
+      <td>${F.esc(l.item)}<div class="nota">lin. ${r.linha}</div>${sel}</td><td class="desc">${F.esc(l.descricao.slice(0, 110))}</td><td>${F.esc(l.unidade || '')}</td>
+      <td class="n">${par(l.qc, r.qcP, 2)}</td><td class="n">${par(l.pu, r.puP, 2, true)}</td>
+      <td class="n">${F.num(l.qa, 2)}</td>
+      <td class="n">${ehPct ? F.num(r.val, 2) + '%' : q4(r.val)}</td>
+      <td class="n"><input class="qprev" data-i="${i}" value="${r.qb ? q4(r.qb) : ''}" placeholder="0">${r.manual ? `<div class="nota">lido: ${q4(r.calc)} <a href="#" data-volta="${i}">desfazer</a></div>` : ''}</td>
+      <td class="n"><b>${F.rs(Medicao.r2(r.qb * l.pu))}</b>${r.puP != null && Math.abs(r.puP - l.pu) > 0.011 ? `<span class="dif">planilha: ${F.rs(Medicao.r2(r.qb * r.puP))}</span>` : ''}</td>
+      <td class="nota">${F.esc(obs)}</td></tr>`;
+  }).join('')
+    : `<tr><td colspan="10" class="vazio">${res.length ? 'Nada para mostrar com estes filtros.' : 'Nenhum item reconhecido. Confira a linha do cabeçalho, as colunas e a planilha da obra.'}</td></tr>`;
+  $('pCorpo').querySelectorAll('input.qprev').forEach(inp => {
+    inp.onchange = () => {
+      const v = inp.value.trim() === '' ? 0 : F.lerNum(inp.value);
+      if (v == null || v < 0) { inp.style.borderColor = 'var(--critico)'; return; }
+      const r = res[+inp.dataset.i]; r.qb = Math.round(v * 1e4) / 1e4; r.manual = Math.abs(r.qb - r.calc) > 1e-9;
+      desenharPrevia();
+      const prox = $('pCorpo').querySelector(`input.qprev[data-i="${+inp.dataset.i}"]`); if (prox) prox.closest('tr').scrollIntoView({ block: 'nearest' });
+    };
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inp.dispatchEvent(new Event('change')); } };
+  });
+  $('pCorpo').querySelectorAll('a[data-volta]').forEach(a => a.onclick = ev => { ev.preventDefault(); const r = res[+a.dataset.volta]; r.manual = false; r.qb = r.calc; desenharPrevia(); });
+  $('pCorpo').querySelectorAll('select.alvo').forEach(s => s.onchange = () => {
+    const r = res[+s.dataset.i]; r.l = M.linhas.find(x => x.item_id === s.value); r.atual = qtdEste(r.l); calcLinha(r, plan.tipo); desenharPrevia();
+  });
   $('pAplicar').disabled = !res.length;
 }
 
 async function aplicarPlanilha(e) {
   e.preventDefault();
   if (!plan.resultado.length) return;
+  const dup = {}; for (const r of plan.resultado) dup[r.l.item_id] = (dup[r.l.item_id] || 0) + 1;
+  if (Object.values(dup).some(n => n > 1) && !confirm('Há item do sistema recebendo duas linhas da planilha (marcado em vermelho). Só a última vai valer. Aplicar assim mesmo?')) return;
   for (const r of plan.resultado) editado[r.l.item_id] = r.qb;
   sujo = true;
   if ($('pGuardar').checked && plan.arquivo) {
