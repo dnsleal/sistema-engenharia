@@ -23,7 +23,10 @@
 
   // contexto comum aos dois relatórios
   function contexto(M, pessoas) {
-    const o = M.obra, bm = M.bm, d = bm.dados || {};
+    const d = M.bm.dados || {}, bm = M.bm;
+    // nº do empenho digitado no BM (item 4.1 dos documentos) vale sobre o do cadastro da obra
+    const emp = window.Checklist ? Checklist.empenho(M.obra, d.checklist) : M.obra.empenho_numero;
+    const o = { ...M.obra, empenho_numero: emp || M.obra.empenho_numero };
     const p = id => (id && pessoas[id]) || null;
     return {
       M, obra: o, bm, dados: d,

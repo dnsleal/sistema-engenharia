@@ -43,9 +43,14 @@
 
   // certidões/documentos que valem para o BM seguinte (enquanto vigentes): vêm do BM anterior
   const HERDA = new Set(['1.3', '3.1', '3.2', '3.3', '3.4', '3.5', '4.1', '5.1']);
+  // nº do empenho: o digitado neste BM (item 4.1); sem ele, o do cadastro da obra
+  const empenho = (obra, chk) => ((chk && chk['4.1'] && chk['4.1'].numero) || (obra && obra.empenho_numero) || '').trim();
   function herdar(atual, anterior, dataRef) {
     const out = { ...(atual || {}) };
     if (!anterior) return out;
+    // o nº do empenho segue para o BM seguinte (pode ser trocado quando vier empenho novo)
+    if (anterior['4.1'] && anterior['4.1'].numero && !(out['4.1'] && out['4.1'].numero))
+      out['4.1'] = { ...(out['4.1'] || {}), numero: anterior['4.1'].numero };
     for (const cod of HERDA) {
       const a = anterior[cod];
       if (!a || !a.anexo || (out[cod] && out[cod].anexo)) continue;
@@ -69,7 +74,7 @@
       if (it.auto === 'saldo') { r = s.anexo || obra.gestor_id || obra.fiscal_id ? 'sim' : null; auto = s.anexo ? '' : 'declaração gerada pelo sistema'; }
       if (it.auto === 'fiscal') { r = obra.fiscal_id ? 'sim' : null; auto = 'relatório gerado pelo sistema'; }
       if (it.auto === 'semfiscal') { r = obra.fiscal_id ? 'na' : 'sim'; auto = obra.fiscal_id ? 'há fiscal nomeado' : 'sem fiscal na obra: anexe a justificativa'; }
-      if (it.auto === 'empenho') { r = s.anexo || obra.empenho_numero ? 'sim' : null; auto = obra.empenho_numero ? 'nº do empenho vem da obra' : ''; }
+      if (it.auto === 'empenho') { const n = empenho(obra, C); r = s.anexo || n ? 'sim' : null; auto = s.numero ? 'nº do empenho digitado neste BM' : n ? 'nº do empenho vem da obra' : ''; }
       if (it.auto === 'glosa') { r = bm.glosa === 'nao' ? 'nao' : 'sim'; auto = 'resposta vem do BM'; }
       if (!it.auto && it.doc && s.anexo) r = 'sim';
       if (r == null && it.padrao) r = it.padrao;
@@ -80,7 +85,7 @@
       }
       const manual = !!(s.manual && s.r);
       if (manual) r = s.r;
-      const texto = it.txt.replace('{empenho}', obra.empenho_numero || '________');
+      const texto = it.txt.replace('{empenho}', empenho(obra, C) || '________');
       return { ...it, txt: texto, r, obs, fls: s.fls || '', anexo: s.anexo || null, validade: s.validade || '', herdado: !!s.herdado, manual, auto, alerta, glosa: bm.glosa };
     });
   }
@@ -100,5 +105,5 @@
     .sort((a, b) => +a[0].slice(1) - +b[0].slice(1)).map(([cod, v], i) => ({ cod, num: i + 1, desc: v.desc || '', anexo: v.anexo || null, obs: v.obs || '' }));
   const novoOutro = chk => 'O' + (Math.max(0, ...Object.keys(chk || {}).filter(k => /^O\d+$/.test(k)).map(k => +k.slice(1))) + 1);
 
-  window.Checklist = { MODELO, ITENS, DOCS, ROT, GLOSA, montar, herdar, pendencias, outros, novoOutro };
+  window.Checklist = { MODELO, ITENS, DOCS, ROT, GLOSA, montar, herdar, pendencias, outros, novoOutro, empenho };
 })();

@@ -186,7 +186,7 @@
       <p class="nota" style="margin-top:0">Os itens do checklist que pedem documento. Ao anexar, o item fica como <b>Sim</b> no checklist. Certidões, empenho, extrato e dados bancários vêm do BM anterior enquanto estiverem válidos; anexe a nova versão quando renovar. Os arquivos ficam guardados no seu espaço privado do Supabase.</p>
       <div class="tabela-wrap">
         <table>
-          <thead><tr><th>Item</th><th>Documento</th><th>Arquivo</th><th>Validade</th><th>Observação</th><th></th></tr></thead>
+          <thead><tr><th>Item</th><th>Documento</th><th>Arquivo</th><th>Validade / nº</th><th>Observação</th><th></th></tr></thead>
           <tbody id="docsCorpo"></tbody>
         </table>
       </div>
@@ -592,7 +592,7 @@ function pendencias(linhas, lancados, excedem) {
   falta(!o.contratada || !o.cnpj_contratada, 'Contratada ou CNPJ não cadastrados.', 'alerta', editar);
   falta(!o.objeto, 'Objeto do contrato não cadastrado.', 'alerta', editar);
   falta(!o.codigo_credor, 'Código/credor não cadastrado.', 'alerta', editar);
-  falta(!o.empenho_numero, 'Nota de empenho não cadastrada.', 'alerta', editar);
+  falta(!Checklist.empenho(o, chk), 'Nº da nota de empenho não informado (aba Documentos, item 4.1, ou no cadastro da obra).', 'alerta', editar);
   falta(!o.fiscal_id, 'Fiscal técnico não definido na obra.', 'alerta', editar);
   falta(!o.gestor_id, 'Gestor do contrato não definido na obra.', 'alerta', editar);
   // BM
@@ -953,7 +953,8 @@ function mostrarPlanilha() {
 // ================= documentos e checklist =================
 // o BM "como está na tela" (NF e glosa digitadas ainda sem salvar contam)
 function bmAtual() {
-  return { ...M.bm, ...dadosDoc(), periodo_inicio: $('ini').value || null, periodo_fim: $('fim').value || null, reajuste_pct: F.lerNum($('reaj').value) || 0 };
+  return { ...M.bm, ...dadosDoc(), periodo_inicio: $('ini').value || null, periodo_fim: $('fim').value || null, reajuste_pct: F.lerNum($('reaj').value) || 0,
+    dados: { ...(M.bm.dados || {}), checklist: chk } };
 }
 const nomeCurto = t => t.replace(/\n.*/s, '').replace(/,? com autenticidade e vigente\.?/i, '').replace(/\{empenho\}/, '').slice(0, 110);
 
@@ -964,7 +965,8 @@ function desenharDocs() {
     <td class="desc">${F.esc(nomeCurto(l.txt))}</td>
     <td>${l.anexo ? `<a href="#" data-ver="${l.cod}">${F.esc(l.anexo.nome)}</a>${l.herdado ? ' <span class="etiqueta neutro" title="Veio do BM anterior">BM anterior</span>' : ''}` : '<span class="nota">nenhum</span>'}
       ${l.alerta ? `<div><span class="etiqueta critico">${F.esc(l.alerta)}</span></div>` : ''}</td>
-    <td>${l.certidao ? `<input type="date" data-val="${l.cod}" value="${l.validade || ''}" style="width:150px">` : ''}</td>
+    <td>${l.certidao ? `<input type="date" data-val="${l.cod}" value="${l.validade || ''}" style="width:150px">`
+      : l.cod === '4.1' ? `<label for="empNum" style="margin:0 0 3px">Nº do empenho</label><input id="empNum" data-emp value="${F.esc(chk['4.1'] && chk['4.1'].numero || '')}" placeholder="${F.esc(M.obra.empenho_numero || 'Ex.: 16601001269/2026')}" style="width:190px"><div class="nota" style="font-size:.75rem">${chk['4.1'] && chk['4.1'].numero ? 'vale para os documentos deste BM' : M.obra.empenho_numero ? 'em branco: usa o da obra' : 'sai no checklist, declaração e relatório do gestor'}</div>` : ''}</td>
     <td><input data-dobs="${l.cod}" value="${F.esc(chk[l.cod] && chk[l.cod].obs || '')}" placeholder="${F.esc(l.obs || '')}"></td>
     <td style="white-space:nowrap"><button type="button" class="sec" data-anexar="${l.cod}">${l.anexo ? 'Trocar' : 'Anexar'}</button>
       ${l.anexo ? `<button type="button" class="sec" data-tirar="${l.cod}" title="Remover anexo">✕</button>` : ''}</td></tr>`).join('');
@@ -973,6 +975,7 @@ function desenharDocs() {
   $('docsCorpo').querySelectorAll('[data-tirar]').forEach(b => b.onclick = () => tirarDoc(b.dataset.tirar));
   $('docsCorpo').querySelectorAll('[data-ver]').forEach(a => a.onclick = e => { e.preventDefault(); verDoc(chk[a.dataset.ver].anexo); });
   $('docsCorpo').querySelectorAll('[data-val]').forEach(i => i.onchange = () => { item(i.dataset.val).validade = i.value || null; sujo = true; desenharDocs(); desenharChk(); resumo(); });
+  $('docsCorpo').querySelectorAll('[data-emp]').forEach(i => i.onchange = () => { item('4.1').numero = i.value.trim() || undefined; sujo = true; desenharDocs(); desenharChk(); resumo(); });
   $('docsCorpo').querySelectorAll('[data-dobs]').forEach(i => i.onchange = () => { item(i.dataset.dobs).obs = i.value.trim(); sujo = true; desenharChk(); });
   // outros documentos
   const O = Checklist.outros(chk);
