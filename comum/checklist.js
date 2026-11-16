@@ -6,7 +6,7 @@
 (function () {
   const MODELO = [
     { sec: '1', titulo: 'CONTRATO', itens: [
-      { cod: '1.1', txt: 'Abertura de processo administrativo devidamente autuado, protocolado, numerado e CI de encaminhamento.', doc: true },
+      { cod: '1.1', txt: 'Abertura de processo administrativo devidamente autuado, protocolado, numerado e CI de encaminhamento.', doc: true, auto: 'ci' },
       { cod: '1.2', txt: 'Todos os documentos estão inseridos no sistema SIGED' },
       { cod: '1.3', txt: 'Extrato do Termo de Contrato publicado no DOE/MT e Publicação do Fiscal', doc: true }
     ] },
@@ -71,6 +71,7 @@
       // automáticos
       if (it.auto === 'nf') { r = s.anexo ? 'sim' : null; if (!s.obs && bm.nf_numero) obs = `Nota Fiscal nº ${bm.nf_numero}`; auto = bm.nf_numero ? 'nº da NF vem do BM' : ''; }
       if (it.auto === 'gestor') { r = obra.gestor_id ? 'sim' : null; auto = 'relatório gerado pelo sistema'; }
+      if (it.auto === 'ci') { r = s.anexo || obra.gestor_id || obra.fiscal_id ? 'sim' : null; auto = s.anexo ? '' : 'CI gerada pelo sistema'; }
       if (it.auto === 'saldo') { r = s.anexo || obra.gestor_id || obra.fiscal_id ? 'sim' : null; auto = s.anexo ? '' : 'declaração gerada pelo sistema'; }
       if (it.auto === 'fiscal') { r = obra.fiscal_id ? 'sim' : null; auto = 'relatório gerado pelo sistema'; }
       if (it.auto === 'semfiscal') { r = obra.fiscal_id ? 'na' : 'sim'; auto = obra.fiscal_id ? 'há fiscal nomeado' : 'sem fiscal na obra: anexe a justificativa'; }

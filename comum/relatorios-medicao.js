@@ -91,6 +91,64 @@ Conforme consta nas planilhas de execução de ${objeto}${local}, foram executad
     </div>`;
   }
 
+  // ---------------- CI de encaminhamento da medição (checklist 1.1) ----------------
+  const CI_DE = 'Coordenadoria Técnica de Obras - CTO/SMS\nDiretoria de Patrimônio, Obras e Serviços – DPOS/SMS';
+  const CI_PARA = 'Diretoria de Aquisições e Contratos - SMS';
+  function ciReferente(o) {
+    let t = (o.objeto || o.nome || '').replace(/\.\s*$/, '').trim();
+    if (!t) return '________';
+    const letras = t.replace(/[^A-Za-zÀ-ÿ]/g, '');
+    if (letras && letras === letras.toUpperCase()) t = t.toLowerCase();          // objeto todo em maiúsculas
+    else if (!/^[A-ZÀ-Ý]{2}/.test(t)) t = t.charAt(0).toLowerCase() + t.slice(1);   // não mexe em sigla (CMEI, UBS…)
+    if (/^(aos?|à|às)\s/i.test(t)) return t;
+    if (/^serviços?\b/i.test(t)) return 'aos ' + t;
+    if (/^(obra|reforma|construção|ampliação|manutenção)\b/i.test(t)) return 'à ' + t;
+    return 'aos serviços de ' + t;
+  }
+  function textoCIPadrao(c) {
+    const o = c.obra, ci = c.dados.ci || {};
+    return `Prezados (as),
+
+Cumprimentando-a cordialmente, servimo-nos do presente expediente para encaminhar a Vossa Senhoria a ${c.numero}ª Medição contratual da empresa **${o.contratada || '________'}** no valor de **R$ ${F.num(c.valorBM, 2)}** (${Extenso.maiuscula(Extenso.reais(c.valorBM))}), referente ${ci.referente || ciReferente(o)}.
+
+Permaneço à disposição.
+
+Atenciosamente,`;
+  }
+  function dataExtenso(d) {
+    return d ? new Date(d + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) : '____ de __________ de ______';
+  }
+
+  function htmlCI(c, timbre, marca) {
+    const o = c.obra, ci = c.dados.ci || {};
+    const papel = ci.assinante || 'gestor';
+    const quem = { gestor: c.gestor, fiscal: c.fiscal, fiscal_adm: c.fiscalAdm }[papel];
+    const cargoPadrao = { gestor: 'Gestor do contrato', fiscal: 'Fiscal técnico do contrato', fiscal_adm: 'Fiscal administrativo do contrato' }[papel];
+    const assunto = ci.assunto || `Medição – ${o.contratada || '________'}`;
+    const de = String(ci.de || CI_DE).split('\n').map(E).join('<br>');
+    const texto = ci.texto || textoCIPadrao(c);
+    const corpo = String(texto).split(/\n\s*\n/).map(p => p.trim()).filter(Boolean)
+      .map(p => `<p class="${/^(Prezad|Atenciosamente|Permaneço)/i.test(p) ? 'ci-curto' : ''}">${rico(p).replace(/\n/g, '<br>')}</p>`).join('');
+    return `<div class="rm folha ci">
+      ${marca ? `<img class="ci-marca" src="${marca}" alt="">` : ''}
+      ${timbre ? `<div class="timbre"><img src="${timbre}" alt="Prefeitura de Cuiabá — Secretaria de Saúde"></div>` : ''}
+      <table class="ci-cab">
+        <tr><td colspan="2" class="ci-tit">COMUNICAÇÃO INTERNA</td></tr>
+        <tr><td colspan="2"><b>CI</b> nº ${E(ci.numero || '____/CTO/SMS/' + new Date().getFullYear())}</td></tr>
+        <tr><td><b>DATA:</b> ${E(dataExtenso(ci.data || c.bm.data_relatorio))}</td><td class="ci-cinza">PRAZO: ${E(ci.prazo || 'INAPLICÁVEL')}</td></tr>
+        <tr><td colspan="2"><b>DE:</b> ${de}</td></tr>
+        <tr><td colspan="2"><b>PARA:</b> ${E(ci.para || CI_PARA)}</td></tr>
+        <tr><td colspan="2"><b>ASSUNTO:</b> ${E(assunto)}</td></tr>
+      </table>
+      <div class="ci-corpo">${corpo}</div>
+      <div class="ci-assin">
+        ${quem ? `<div>${E(quem.nome)}</div><div>${E(quem.cargo || cargoPadrao)}</div>` : '<div><i>Responsável não definido na obra</i></div>'}
+        <div class="ass-el">(Assinado eletronicamente)</div>
+      </div>
+      <div class="ci-rod">cuiaba.mt.gov.br</div>
+    </div>`;
+  }
+
   // ---------------- Declaração de saldo orçamentário (checklist 2.3) ----------------
   const DECLARACAO_PADRAO = `DECLARAMOS, para os devidos fins, especialmente em atendimento ao disposto na Lei nº 14.133/2021 e suas alterações posteriores, a existência de previsão dos recursos orçamentários para assegurar o pagamento das despesas relacionadas ao objeto indicado acima, consoante a disponibilidade de dotação orçamentária para tal finalidade.`;
   const ASSINANTES = [['gestor', 'Gestor do Contrato'], ['fiscal', 'Fiscal Técnico do Contrato'], ['fiscal_adm', 'Fiscal Administrativo do Contrato']];
@@ -181,6 +239,18 @@ c) Cópia da Nota Fiscal devidamente atestada;`;
   .rm td.n { text-align: right; white-space: nowrap; } .rm td.c { text-align: center; }
   .rm .data { text-align: right; margin: 6px 0 0; }
   .rm.saldo h1 { margin-bottom: 26px; text-decoration: underline; }
+  .rm.ci { position: relative; overflow: hidden; display: flex; flex-direction: column; }
+  .rm.ci > * { position: relative; }
+  .rm.ci .ci-marca { position: absolute; left: 50%; top: 52%; width: 62%; transform: translate(-50%, -50%); opacity: .07; pointer-events: none; }
+  .rm table.ci-cab td { border: 1px solid #333; padding: 3px 6px; font-size: 10.5pt; }
+  .rm table.ci-cab td.ci-tit { text-align: center; font-weight: 700; }
+  .rm table.ci-cab td.ci-cinza { background: #d9d9d9; width: 48%; }
+  .rm .ci-corpo { margin-top: 22px; }
+  .rm .ci-corpo p { text-align: justify; text-indent: 1.25cm; margin: 0 0 10px; line-height: 1.6; }
+  .rm .ci-corpo p.ci-curto { text-indent: 1.25cm; }
+  .rm .ci-assin { text-align: center; margin-top: 46px; line-height: 1.3; }
+  .rm .ci-assin .ass-el { font-style: italic; font-size: 9.5pt; }
+  .rm .ci-rod { margin-top: auto; padding-top: 30px; text-align: right; color: #0b7a3e; font-size: 9pt; }
   .rm .ds-l { margin: 0 0 12px; } .rm .ds-l.just { text-align: justify; }
   .rm ul.ds-b { margin: 18px 0 22px 10px; padding: 0; list-style: none; }
   .rm ul.ds-b li { margin: 6px 0; }
@@ -199,5 +269,5 @@ c) Cópia da Nota Fiscal devidamente atestada;`;
   .rm table.anex td.concl .assin { margin-top: 26px; text-align: left; } .rm table.anex td.concl .assin .linha { margin: 0 0 4px; width: 55%; }
   `;
 
-  window.RelMedicao = { contexto, textoFiscalPadrao, htmlFiscal, htmlGestor, htmlSaldo, CSS, CONCLUSAO_PADRAO, DECLARACAO_PADRAO, ANEXADOS, ASSINANTES, periodoTexto };
+  window.RelMedicao = { contexto, textoFiscalPadrao, htmlFiscal, htmlGestor, htmlSaldo, htmlCI, textoCIPadrao, ciReferente, CI_DE, CI_PARA, CSS, CONCLUSAO_PADRAO, DECLARACAO_PADRAO, ANEXADOS, ASSINANTES, periodoTexto };
 })();
