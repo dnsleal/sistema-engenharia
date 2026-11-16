@@ -318,8 +318,8 @@
   <section class="aba" id="aba-pacote">
     <div class="grade-inicio">
       <section class="painel">
-        <h3>Medição completa em PDF único</h3>
-        <p class="nota" style="margin-top:0">Junta os documentos na ordem do checklist: os gerados pelo sistema e os anexados na aba Documentos. Desmarque o que não quiser incluir. Anexos em Word ou Excel não entram no PDF (anexe em PDF ou imagem).</p>
+        <h3>Medição completa</h3>
+        <p class="nota" style="margin-top:0">Junta os documentos na ordem do checklist: os gerados pelo sistema e os anexados na aba Documentos. Desmarque o que não quiser incluir. Baixe tudo num <b>PDF único</b> (com numeração de páginas) ou em <b>arquivos separados (.zip)</b>, numerados na mesma ordem. Anexos em Word ou Excel não entram no PDF único, mas vão no .zip no formato original.</p>
         <div class="dados-bm">
           <div><label for="pkChk">Checklist</label>
             <select id="pkChk"><option value="fim">No final</option><option value="inicio">No início</option><option value="nao">Não incluir</option></select></div>
@@ -328,7 +328,10 @@
         <div class="tabela-wrap" style="margin-top:8px">
           <table><thead><tr><th></th><th>Ordem</th><th>Documento</th><th>Situação</th></tr></thead><tbody id="pkCorpo"></tbody></table>
         </div>
-        <div class="botoes-rel"><button type="button" id="pkGerar">Gerar PDF da medição completa</button></div>
+        <div class="botoes-rel">
+          <button type="button" id="pkGerar" title="Um PDF só, na ordem do checklist, com numeração de páginas">⬇ Baixar medição completa (PDF único)</button>
+          <button type="button" class="sec" id="pkZip" title="Cada documento num arquivo, numerado na ordem do checklist. Anexos em Word/Excel também entram">⬇ Baixar arquivos separados (.zip)</button>
+        </div>
         <ul class="pend" id="pkLog"></ul>
       </section>
       <section class="painel">
@@ -506,7 +509,7 @@ async function carregar() {
       for (const k of ['de', 'para', 'prazo', 'assinante']) if (ciAnterior[k]) relC[k] = ciAnterior[k];
   }
   prepararRel();
-  $('pkGerar').onclick = gerarPacote; $('pkChk').onchange = desenharPacote;
+  $('pkGerar').onclick = gerarPacote; $('pkZip').onclick = gerarZip; $('pkChk').onchange = desenharPacote;
   const aba = { '#quantidades': 'qtd', '#documentos': 'docs', '#checklist': 'chk', '#ci': 'ci', '#saldo': 'saldo', '#fiscal': 'fiscal', '#gestor': 'gestor', '#completa': 'pacote' }[location.hash];
   if (aba && !document.querySelector('#abas button.ativa[data-aba="' + aba + '"]')) abrirAba(aba);
   desenhar(); resumo();
@@ -1244,13 +1247,13 @@ function partesPacote() {
     if (/^O\d+$/.test(id)) {
       const o = Checklist.outros(chk).find(x => x.cod === id), a = o.anexo;
       const ext = a ? (a.nome.split('.').pop() || '').toLowerCase() : '', cabe = ['pdf', 'jpg', 'jpeg', 'png'].includes(ext);
-      return { id, rot: `7.${o.num} — ${o.desc || 'Outro documento'}`, anexo: a, ok: !!a && cabe, sit: !a ? 'sem anexo' : cabe ? a.nome : `${a.nome} (formato não entra no PDF)` };
+      return { id, rot: `7.${o.num} — ${o.desc || 'Outro documento'}`, anexo: a, ok: !!a && cabe, sit: !a ? 'sem anexo' : cabe ? a.nome : `${a.nome} (não entra no PDF único; vai no .zip)` };
     }
     const l = L[id], a = l && l.anexo;
     const ext = a ? (a.nome.split('.').pop() || '').toLowerCase() : '';
     const cabe = ['pdf', 'jpg', 'jpeg', 'png'].includes(ext);
     return { id, rot: `${id} — ${nomeCurto(l.txt)}`, anexo: a, ok: !!a && cabe,
-      sit: !a ? (l.r === 'na' ? 'não se aplica' : 'sem anexo') : cabe ? a.nome : `${a.nome} (formato não entra no PDF)` };
+      sit: !a ? (l.r === 'na' ? 'não se aplica' : 'sem anexo') : cabe ? a.nome : `${a.nome} (não entra no PDF único; vai no .zip)` };
   });
 }
 
@@ -1355,6 +1358,53 @@ async function gerarPacote() {
     desenharPacote();
   } catch (e) { pkLog('Não foi possível gerar: ' + e.message, 'bloq'); }
   finally { $('pkGerar').disabled = false; $('pkFrame').src = 'about:blank'; }
+}
+
+// todos os documentos em arquivos separados, numerados na ordem do checklist, num .zip
+const JSZIP = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+async function gerarZip() {
+  const usarDrive = $('pkDrive').checked && Drive.configurado();
+  $('pkZip').disabled = $('pkGerar').disabled = true; $('pkLog').innerHTML = '';
+  try {
+    if (usarDrive) await Drive.obterToken();
+    if (sujo) { pkLog('Salvando o BM…'); if (!await salvar(true)) throw new Error('não foi possível salvar o BM'); }
+    await Drive.carregar(JSZIP);
+    const zip = new JSZip();
+    // entram as partes marcadas e também os anexos em Word/Excel (que não cabem no PDF único)
+    const partes = partesPacote().filter(p => (p.ok && !pkFora.has(p.id)) || (p.anexo && !p.ok && !pkFora.has(p.id)));
+    const limpa = t => String(t).replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').trim().slice(0, 90);
+    let k = 0, n = 0;
+    for (const p of partes) {
+      const pre = String(++k).padStart(2, '0') + ' - ';
+      const li = pkLog(`${p.rot}…`, 'alerta');
+      try {
+        if (p.gerado) {
+          const buf = await pdfDaPagina(GERADOS[p.id].url(), GERADOS[p.id].cfg);
+          if (!buf) { li.className = 'ok'; li.textContent = `${p.rot}: vazio, não entrou`; k--; continue; }
+          zip.file(pre + limpa(p.rot) + '.pdf', buf);
+        } else {
+          const { data, error } = await sb.storage.from('fotos').createSignedUrl(p.anexo.caminho, 300);
+          if (error) throw error;
+          const bytes = await (await fetch(data.signedUrl)).arrayBuffer();
+          const ext = (p.anexo.nome.split('.').pop() || 'bin').toLowerCase();
+          zip.file(pre + limpa(p.rot.replace(/ — .*/, '') + ' - ' + p.anexo.nome.replace(/\.[^.]+$/, '')) + '.' + ext, bytes);
+        }
+        n++; li.className = 'ok'; li.textContent = `${p.rot}: ok`;
+      } catch (e) { li.className = 'bloq'; li.textContent = `${p.rot}: não entrou (${e.message})`; k--; }
+    }
+    if (!n) throw new Error('nenhum documento para colocar no .zip');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    const nome = `Medição BM ${String(M.bm.numero).padStart(2, '0')} - ${M.obra.nome} (arquivos)`.replace(/[\\/:*?"<>|]+/g, '-') + '.zip';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = nome;
+    document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    pkLog(`.zip gerado: ${n} arquivo(s), ${(blob.size / 1048576).toFixed(1)} MB.`);
+    if (usarDrive) {
+      const li = pkLog('Enviando para o Drive…', 'alerta');
+      try { await Drive.enviarArquivo(blob, nome, ['Obras', M.obra.nome, 'Medições']); li.className = 'ok'; li.textContent = 'Enviado ao Drive: Sistema de Engenharia / Obras / ' + M.obra.nome + ' / Medições.'; }
+      catch (e) { li.className = 'bloq'; li.textContent = 'Drive: ' + e.message; }
+    }
+  } catch (e) { pkLog('Não foi possível gerar o .zip: ' + e.message, 'bloq'); }
+  finally { $('pkZip').disabled = $('pkGerar').disabled = false; $('pkFrame').src = 'about:blank'; }
 }
 </script>
 </body>
