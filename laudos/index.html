@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05010b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305010b'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%238b5cf6' stroke-width='3' stroke-dasharray='26 10'/%3E%3Cpath d='M32 16 46 24v16L32 48 18 40V24z' fill='%232bff9a'/%3E%3C/svg%3E">
 <title>Documentos — Sistema Integrado de Engenharia</title>
-<link rel="stylesheet" href="../comum/estilo.css?v=diego2">
+<link rel="stylesheet" href="../comum/estilo.css?v=diego3">
 <style>
   .novos { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-bottom: 16px; }
   .novo { background: var(--painel); border: 1px solid var(--linha); border-radius: var(--raio); padding: 16px; text-decoration: none; color: var(--texto); box-shadow: var(--sombra); }
@@ -23,6 +25,7 @@
   <h1>Sistema Integrado de Engenharia</h1>
   <nav>
     <a href="../index.html">Central</a>
+    <a href="../processos/index.html">Processos</a><a href="../sismob/index.html">SISMOB</a>
     <a href="../orcamento/index.html">Orçamento</a><a href="../orcamento/auditoria.html">Auditoria</a>
     <a href="index.html" class="ativo">Documentos</a><a href="../backup.html">Backup</a>
   </nav>
@@ -54,9 +57,9 @@
   <p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../comum/config.js?v=diego2"></script>
-<script src="../comum/supabase.js?v=diego2"></script>
-<script src="../comum/formatos.js?v=diego2"></script>
+<script src="../comum/config.js?v=diego3"></script>
+<script src="../comum/supabase.js?v=diego3"></script>
+<script src="../comum/formatos.js?v=diego3"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);

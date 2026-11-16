@@ -3,9 +3,40 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05010b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305010b'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%238b5cf6' stroke-width='3' stroke-dasharray='26 10'/%3E%3Cpath d='M32 16 46 24v16L32 48 18 40V24z' fill='%232bff9a'/%3E%3C/svg%3E">
 <title>Central de Monitoramento — Sistema Integrado de Engenharia</title>
-<link rel="stylesheet" href="comum/estilo.css?v=diego2">
+<link rel="stylesheet" href="comum/estilo.css?v=diego3">
 <style>
+  .hero {
+    position: relative; overflow: hidden;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--roxo-escuro) 55%, var(--painel)) 0%, var(--painel) 55%, color-mix(in srgb, var(--roxo-escuro) 25%, var(--painel)) 100%);
+    border: 1px solid color-mix(in srgb, var(--roxo) 45%, var(--linha));
+    border-radius: 12px; box-shadow: var(--sombra);
+    padding: 18px 20px; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(45% 90% at 88% -20%, rgba(43, 255, 154, .1), transparent 70%),
+      radial-gradient(40% 80% at 12% 120%, rgba(139, 92, 246, .18), transparent 70%),
+      repeating-linear-gradient(to bottom, rgba(255, 255, 255, .015) 0 1px, transparent 1px 3px);
+  }
+  .hero-nucleo { position: relative; flex: none; width: 54px; height: 54px; filter: drop-shadow(0 0 10px rgba(43, 255, 154, .35)); }
+  .hero-nucleo svg { width: 100%; height: 100%; overflow: visible; }
+  .hero-nucleo .anelh { transform-box: fill-box; transform-origin: center; animation: heroGira 14s linear infinite; }
+  @keyframes heroGira { to { transform: rotate(360deg); } }
+  .hero-texto { position: relative; flex: 1 1 280px; min-width: 0; }
+  .hero-chamada { font-family: var(--f-marca); font-size: .72rem; letter-spacing: .3em; color: var(--verde); text-transform: uppercase; }
+  .hero h2 { margin: 4px 0 2px; font-size: 1.45rem; letter-spacing: .01em; }
+  .hero h2 b { color: var(--marinho); font-weight: 700; }
+  .hero-sub { margin: 0; color: var(--texto-2); font-size: .9rem; }
+  .hero-sub .alerta-res { color: var(--alerta); }
+  .hero-sub .critico-res { color: var(--critico); font-weight: 600; }
+  .hero-sub .ok-res { color: var(--ok); }
+  .hero-acoes { position: relative; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-left: auto; }
+  @media (prefers-reduced-motion: reduce) { .hero-nucleo .anelh { animation: none; } }
   .filtros-central { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
   .filtros-central input { flex: 1 1 260px; width: auto; }
   .filtros-central select { flex: 0 0 auto; width: auto; min-width: 210px; }
@@ -43,12 +74,23 @@
 </header>
 
 <main>
-  <div class="cabecalho">
-    <div>
-      <h2>Central de Monitoramento</h2>
-      <p>Situação de todas as obras fiscalizadas, atualizada a cada medição.</p>
+  <div class="hero">
+    <div class="hero-nucleo" aria-hidden="true">
+      <svg viewBox="0 0 64 64">
+        <circle class="anelh" cx="32" cy="32" r="28" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-dasharray="30 12" stroke-linecap="round"/>
+        <circle cx="32" cy="32" r="21" fill="none" stroke="rgba(196,181,253,.4)" stroke-width="1"/>
+        <path d="M32 14 47 23v18L32 50 17 41V23z" fill="rgba(43,255,154,.12)" stroke="#2bff9a" stroke-width="2"/>
+        <circle cx="32" cy="32" r="5" fill="#2bff9a"/>
+      </svg>
     </div>
-    <button id="bNova">+ Nova obra</button>
+    <div class="hero-texto">
+      <div class="hero-chamada">// D.I.E.G.O. · Central de Monitoramento</div>
+      <h2 id="heroTitulo">Central de Monitoramento</h2>
+      <p class="hero-sub" id="heroSub">Situação de todas as obras fiscalizadas, atualizada a cada medição.</p>
+    </div>
+    <div class="hero-acoes cabecalho" style="margin:0">
+      <button id="bNova">+ Nova obra</button>
+    </div>
   </div>
 
   <div class="msg erro" id="pgMsg" role="alert" hidden></div>
@@ -178,10 +220,10 @@
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="comum/config.js?v=diego2"></script>
-<script src="comum/supabase.js?v=diego2"></script>
-<script src="comum/formatos.js?v=diego2"></script>
-<script src="comum/drive.js?v=diego2"></script>
+<script src="comum/config.js?v=diego3"></script>
+<script src="comum/supabase.js?v=diego3"></script>
+<script src="comum/formatos.js?v=diego3"></script>
+<script src="comum/drive.js?v=diego3"></script>
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
@@ -205,14 +247,36 @@ const SITUACAO = {
   concluida: ['Concluída', 'neutro'], encerrada: ['Encerrada', 'neutro']
 };
 
+function saudacao() {
+  const agora = new Date(), h = agora.getHours();
+  const ola = h < 5 ? 'Boa madrugada' : h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  const nome = (window.SE_CONFIG && SE_CONFIG.NOME_OPERADOR) || 'operador';
+  $('heroTitulo').innerHTML = `${ola}, <b>${F.esc(nome)}</b>.`;
+  const data = agora.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  $('heroSub').textContent = data.charAt(0).toUpperCase() + data.slice(1) + ' · carregando a situação das obras…';
+}
+
+// resumo falado da Central: obras, prazos e processos num relance
+function resumoHero(extra) {
+  const ativas = obras.filter(o => !['concluida', 'encerrada'].includes(o.status));
+  const vencidas = ativas.filter(o => o.prazo_vencido).length;
+  const data = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const parte = [`${ativas.length} obra(s) ativa(s)`];
+  parte.push(vencidas ? `<span class="critico-res">${vencidas} com prazo vencido</span>` : '<span class="ok-res">prazos em dia</span>');
+  if (extra && extra.procVenc) parte.push(`<span class="critico-res">${extra.procVenc} processo(s) SIGED vencido(s)</span>`);
+  if (extra && extra.hoje) parte.push(`<span class="alerta-res">${extra.hoje} vence(m) hoje</span>`);
+  $('heroSub').innerHTML = `${F.esc(data.charAt(0).toUpperCase() + data.slice(1))} · ` + parte.join(' · ') + '.';
+}
+
 (async function iniciar() {
   const user = await SE.exigirLogin();
   if (!user) return;
   usuario = user;
+  saudacao();
   $('uEmail').textContent = user.email;
   $('bSair').onclick = SE.sair;
   $('bNova').onclick = () => abrir(null);
-  Drive.botoes({ barra: '.cabecalho', antesDe: '#bNova', salvar: 'planilha', paisagem: true,
+  Drive.botoes({ barra: '.hero-acoes', antesDe: '#bNova', salvar: 'planilha', paisagem: true,
     alvo: () => [$('kpis'), document.querySelector('.tabela-wrap table')],
     nome: () => 'Central de obras - ' + new Date().toLocaleDateString('pt-BR').replace(/\//g, '-'), pasta: () => [] });
   $('bCancelar').onclick = () => { $('dObra').close(); if (voltarParaObra) location.href = destinoVolta(editando); };
@@ -244,6 +308,7 @@ async function carregar() {
   const { data, error } = await sb.from('v_obras_resumo').select('*').order('nome');
   if (error) { $('linhas').innerHTML = `<tr><td colspan="10" class="vazio">Erro ao carregar: ${F.esc(error.message)}</td></tr>`; $('kpis').innerHTML = ''; return; }
   obras = data;
+  resumoHero();
   desenharKpis();
   desenharTabela();
 }
@@ -283,6 +348,7 @@ async function kpiProcessos() {
   el.classList.toggle('critico', venc + hj > 0);
   el.querySelector('.valor').textContent = `${venc} / ${data.length}`;
   el.querySelector('.det').textContent = hj ? `vencidos / em aberto · ${hj} vence(m) hoje` : 'vencidos / em aberto';
+  if (venc || hj) resumoHero({ procVenc: venc, hoje: hj });
 }
 
 // SISMOB: atualizações periódicas vencidas + pendências vencidas (datas já gravadas)

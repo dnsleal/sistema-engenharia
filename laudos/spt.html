@@ -3,8 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05010b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305010b'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%238b5cf6' stroke-width='3' stroke-dasharray='26 10'/%3E%3Cpath d='M32 16 46 24v16L32 48 18 40V24z' fill='%232bff9a'/%3E%3C/svg%3E">
 <title>Boletim de sondagem SPT</title>
-<link rel="stylesheet" href="../comum/estilo.css?v=diego2">
+<link rel="stylesheet" href="../comum/estilo.css?v=diego3">
 <style>
   main { max-width: 1180px; }
   .grade4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 14px; }
@@ -108,9 +110,9 @@
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../comum/config.js?v=diego2"></script>
-<script src="../comum/supabase.js?v=diego2"></script>
-<script src="../comum/formatos.js?v=diego2"></script>
+<script src="../comum/config.js?v=diego3"></script>
+<script src="../comum/supabase.js?v=diego3"></script>
+<script src="../comum/formatos.js?v=diego3"></script>
 <script>
 const $ = id => document.getElementById(id);
 let nM = 10, nC = 2;
@@ -300,8 +302,8 @@ window.LAUDO_CFG = {
   depois: () => calcular()
 };
 </script>
-<script src="../comum/laudo-nuvem.js?v=diego2"></script>
-<script src="../comum/drive.js?v=diego2"></script>
+<script src="../comum/laudo-nuvem.js?v=diego3"></script>
+<script src="../comum/drive.js?v=diego3"></script>
 <script>
 Drive.botoes({ barra: '.se-barra', antesDe: '#seSalvar', alvo: '#boletim', formatos: ['pdf', 'docx'], classe: '',
   nome: () => window.LAUDO_CFG.titulo(), pasta: () => ['Sondagens', document.getElementById('obra').value || 'Sem obra'] });

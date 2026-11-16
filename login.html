@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305010b'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%238b5cf6' stroke-width='3' stroke-dasharray='26 10'/%3E%3Cpath d='M32 16 46 24v16L32 48 18 40V24z' fill='%232bff9a'/%3E%3C/svg%3E">
 <meta name="theme-color" content="#000000">
 <title>D.I.E.G.O. — Sistema Integrado de Engenharia</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -43,6 +44,11 @@
   #diego-boot.saindo { opacity: 0; filter: blur(8px); transform: scale(1.04); }
   #diego-boot.login { overflow-y: auto; }
 
+  #db-ceu { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .vinheta {
+    position: fixed; inset: 0; pointer-events: none; z-index: 1;
+    background: radial-gradient(ellipse 90% 80% at 50% 45%, transparent 48%, rgba(0, 0, 0, .55) 100%);
+  }
   .grade {
     position: absolute; inset: 0;
     background-image:
@@ -106,6 +112,10 @@
   #diego-boot.login .reator { width: min(30vmin, 240px); }
 
   .anel, .pulso, .cerebro, .rosto, .olhos, .barra { transform-box: fill-box; transform-origin: center; }
+  .orbita { transform-box: view-box; transform-origin: 200px 200px; }
+  .orbita.o1 { animation: gira 9s linear infinite; }
+  .orbita.o2 { animation: gira 15s linear infinite reverse; }
+  .orbita .rastro { stroke-linecap: round; opacity: .5; }
   .a1 { animation: gira 40s linear infinite; }
   .a2 { animation: gira 60s linear infinite reverse; }
   .a3 { animation: gira 14s linear infinite; transition: stroke .8s; }
@@ -227,18 +237,26 @@
     width: 100%; padding: 10px 12px;
     font: 15px var(--f-mono); letter-spacing: .04em; color: var(--texto);
     background: rgba(0,0,0,.6); border: 1px solid rgba(139,92,246,.5); border-radius: 0;
+    box-shadow: inset 0 0 14px rgba(139,92,246,.1);
     transition: border-color .2s, box-shadow .2s;
   }
   .acesso input::placeholder { color: #5f5283; }
   .acesso input:focus { outline: none; border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde), 0 0 16px rgba(43,255,154,.25); }
   .acesso input:-webkit-autofill { -webkit-text-fill-color: var(--texto); -webkit-box-shadow: 0 0 0 40px #0b0418 inset; caret-color: var(--texto); }
   .entrar {
+    position: relative; overflow: hidden;
     width: 100%; margin-top: 18px; padding: 12px 16px; cursor: pointer;
     font-family: var(--f-titulo); font-weight: 600; font-size: 13px; letter-spacing: .3em; padding-left: calc(16px + .3em);
     color: #000; background: var(--verde); border: 1px solid var(--verde);
     box-shadow: 0 0 18px rgba(43,255,154,.35);
     transition: box-shadow .2s, background .2s, color .2s, opacity .2s;
   }
+  .entrar::after {
+    content: ''; position: absolute; top: 0; bottom: 0; left: -70%; width: 42%;
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.6), transparent);
+    transform: skewX(-20deg); transition: left .5s ease;
+  }
+  .entrar:hover::after, .entrar:focus-visible::after { left: 130%; }
   .entrar:hover, .entrar:focus-visible { outline: none; box-shadow: 0 0 28px rgba(43,255,154,.6); }
   .entrar:disabled { opacity: .6; cursor: wait; }
   .links { display: flex; justify-content: space-between; gap: 10px; margin-top: 14px; font-size: 12px; letter-spacing: .08em; }
@@ -307,7 +325,7 @@
   @media (max-height: 640px) { .reator { width: min(36vmin, 250px); } #diego-boot.login .reator { width: min(26vmin, 160px); } }
   @media (max-height: 760px) and (min-width: 761px) { #diego-boot.login .reator { width: min(24vmin, 190px); } }
   @media (prefers-reduced-motion: reduce) {
-    .anel, .pulso, .grade, .varredura, .engrenagem, .tr.aceso, .no.aceso, .reflexo, .turbina, .nucleo-peito,
+    .anel, .pulso, .grade, .varredura, .engrenagem, .tr.aceso, .no.aceso, .reflexo, .turbina, .nucleo-peito, .orbita,
     #diego-boot.online .sigla, #diego-boot.online .olhos, #diego-boot.falando .barra { animation: none !important; }
   }
 </style>
@@ -316,6 +334,7 @@
 
 <!-- ================= D.I.E.G.O. ================= -->
 <div id="diego-boot" aria-label="D.I.E.G.O. — entrada do Sistema Integrado de Engenharia">
+  <canvas id="db-ceu" aria-hidden="true"></canvas>
   <div class="grade"></div>
 
   <!-- Fundo: pranchas de engenharia (ponte treliçada, hidrograma, engrenagens, viga, edifício, carimbo) -->
@@ -393,6 +412,7 @@
   </svg>
 
   <div class="varredura"></div>
+  <div class="vinheta"></div>
   <div class="scan"></div>
   <span class="canto c1"></span><span class="canto c2"></span><span class="canto c3"></span><span class="canto c4"></span>
 
@@ -454,6 +474,14 @@
         <circle id="db-prog" cx="200" cy="200" r="138" stroke="#2bff9a" stroke-width="4" stroke-linecap="round"
                 stroke-dasharray="867.08" stroke-dashoffset="867.08" transform="rotate(-90 200 200)"/>
         <circle class="anel a4" cx="200" cy="200" r="118" stroke="#c4b5fd" stroke-opacity=".7" stroke-width="2" stroke-dasharray="140 600"/>
+        <g class="orbita o1">
+          <path class="rastro" d="M200,24 A176,176 0 0 0 166,27" fill="none" stroke="#2bff9a" stroke-width="2"/>
+          <circle cx="200" cy="24" r="4.5" fill="#2bff9a"/>
+        </g>
+        <g class="orbita o2">
+          <path class="rastro" d="M200,392 A192,192 0 0 0 238,388" fill="none" stroke="#c4b5fd" stroke-width="1.6"/>
+          <circle cx="200" cy="392" r="3.2" fill="#c4b5fd"/>
+        </g>
       </g>
 
       <g filter="url(#db-brilho)">
@@ -563,8 +591,8 @@
 <!-- ================= FIM D.I.E.G.O. ================= -->
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="comum/config.js?v=diego2"></script>
-<script src="comum/supabase.js?v=diego2"></script>
+<script src="comum/config.js?v=diego3"></script>
+<script src="comum/supabase.js?v=diego3"></script>
 <script>
 /* =====================================================================
    1) ABERTURA D.I.E.G.O. — termina mostrando o formulário de login
@@ -691,6 +719,74 @@ const Diego = (() => {
   }
   relogio(); telemetria(); setProg(0);
   timers.push(setInterval(relogio, 1000), setInterval(telemetria, 450));
+
+  /* ---------- Céu: partículas-sinapse, constelações e cometas ---------- */
+  (() => {
+    const cv = $('db-ceu');
+    if (!cv || reduzido) return;
+    const cx2 = cv.getContext('2d');
+    const DPR = Math.min(2, window.devicePixelRatio || 1);
+    let W = 0, H = 0, ps = [], cometas = [], mx = .5, my = .5, prox = 0;
+    const novo = () => {
+      const verde = Math.random() < .22;
+      return { x: Math.random() * W, y: Math.random() * H, z: .3 + Math.random() * .7,
+        vx: (Math.random() - .5) * .18, vy: (Math.random() - .5) * .18,
+        r: .6 + Math.random() * 1.6, c: verde ? '43,255,154' : '167,139,250', tw: Math.random() * 6.28 };
+    };
+    const dim = () => {
+      W = innerWidth; H = innerHeight;
+      cv.width = W * DPR; cv.height = H * DPR;
+      cv.style.width = W + 'px'; cv.style.height = H + 'px';
+      cx2.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const n = Math.max(40, Math.min(110, Math.round(W * H / 16000)));
+      while (ps.length < n) ps.push(novo());
+      ps.length = n;
+    };
+    dim();
+    addEventListener('resize', dim);
+    addEventListener('pointermove', e => { mx = e.clientX / W; my = e.clientY / H; }, { passive: true });
+    const LIG = 110;
+    function quadro(t) {
+      if (raiz.classList.contains('saindo')) return;
+      requestAnimationFrame(quadro);
+      if (document.hidden) return;
+      cx2.clearRect(0, 0, W, H);
+      const dx = (mx - .5) * 18, dy = (my - .5) * 12;   // paralaxe sutil
+      for (const p of ps) {
+        p.x += p.vx; p.y += p.vy; p.tw += .025;
+        if (p.x < -8) p.x = W + 8; else if (p.x > W + 8) p.x = -8;
+        if (p.y < -8) p.y = H + 8; else if (p.y > H + 8) p.y = -8;
+      }
+      cx2.lineWidth = 1;
+      for (let i = 0; i < ps.length; i++) for (let j = i + 1; j < ps.length; j++) {
+        const a = ps[i], b = ps[j], ddx = a.x - b.x, ddy = a.y - b.y;
+        if (Math.abs(ddx) > LIG || Math.abs(ddy) > LIG) continue;
+        const d = Math.hypot(ddx, ddy);
+        if (d < LIG) { cx2.strokeStyle = `rgba(139,92,246,${(1 - d / LIG) * .14})`; cx2.beginPath();
+          cx2.moveTo(a.x + dx * a.z, a.y + dy * a.z); cx2.lineTo(b.x + dx * b.z, b.y + dy * b.z); cx2.stroke(); }
+      }
+      for (const p of ps) {
+        const alfa = .25 + .45 * p.z * (0.6 + 0.4 * Math.sin(p.tw));
+        cx2.fillStyle = `rgba(${p.c},${alfa})`;
+        cx2.beginPath(); cx2.arc(p.x + dx * p.z, p.y + dy * p.z, p.r, 0, 6.29); cx2.fill();
+      }
+      // cometas de vez em quando
+      if (t > prox) { prox = t + 3500 + Math.random() * 5500;
+        const deCima = Math.random() < .7;
+        cometas.push({ x: Math.random() * W * .9, y: deCima ? -14 : Math.random() * H * .4,
+          vx: 3.5 + Math.random() * 2.5, vy: 2.2 + Math.random() * 1.6, vida: 1 }); }
+      for (const c of cometas) {
+        c.x += c.vx; c.y += c.vy; c.vida -= .008;
+        const g = cx2.createLinearGradient(c.x, c.y, c.x - c.vx * 14, c.y - c.vy * 14);
+        g.addColorStop(0, `rgba(43,255,154,${.85 * c.vida})`); g.addColorStop(1, 'rgba(43,255,154,0)');
+        cx2.strokeStyle = g; cx2.lineWidth = 1.6; cx2.beginPath();
+        cx2.moveTo(c.x, c.y); cx2.lineTo(c.x - c.vx * 14, c.y - c.vy * 14); cx2.stroke();
+        cx2.fillStyle = `rgba(230,255,244,${c.vida})`; cx2.beginPath(); cx2.arc(c.x, c.y, 1.7, 0, 6.29); cx2.fill();
+      }
+      cometas = cometas.filter(c => c.vida > 0 && c.x < W + 40 && c.y < H + 40);
+    }
+    requestAnimationFrame(quadro);
+  })();
 
   /* ---------- O robô "fala" uma linha de status ---------- */
   async function falar(txt, tipo) {
