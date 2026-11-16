@@ -88,6 +88,32 @@ Conforme consta nas planilhas de execução de ${objeto}${local}, foram executad
     </div>`;
   }
 
+  // ---------------- Declaração de saldo orçamentário (checklist 2.3) ----------------
+  const DECLARACAO_PADRAO = `DECLARAMOS, para os devidos fins, especialmente em atendimento ao disposto na Lei nº 14.133/2021 e suas alterações posteriores, a existência de previsão dos recursos orçamentários para assegurar o pagamento das despesas relacionadas ao objeto indicado acima, consoante a disponibilidade de dotação orçamentária para tal finalidade.`;
+  const ASSINANTES = [['gestor', 'Gestor do Contrato'], ['fiscal', 'Fiscal Técnico do Contrato'], ['fiscal_adm', 'Fiscal Administrativo do Contrato']];
+
+  function htmlSaldo(c, timbre) {
+    const o = c.obra, d = c.dados.decl_saldo || {};
+    const papel = d.assinante || 'gestor';
+    const quem = { gestor: c.gestor, fiscal: c.fiscal, fiscal_adm: c.fiscalAdm }[papel];
+    const cargoPadrao = (ASSINANTES.find(a => a[0] === papel) || [])[1] || 'Gestor do Contrato';
+    const cargo = `${(quem && quem.cargo) || cargoPadrao} nº ${o.num_contrato || '________'}`;
+    const texto = d.texto || DECLARACAO_PADRAO;
+    return `<div class="rm folha saldo">
+      ${timbre ? `<div class="timbre"><img src="${timbre}" alt="Prefeitura de Cuiabá — Secretaria de Saúde"></div>` : ''}
+      <h1>DECLARAÇÃO DA EXISTÊNCIA DE SALDO ORÇAMENTÁRIO</h1>
+      <p class="ds-l"><b>Empresa Contratada:</b> ${E(o.contratada || '________')}</p>
+      <p class="ds-l just"><b>Objeto do Contrato:</b> “${E((o.objeto || o.nome || '').replace(/\.\s*$/, ''))}”.</p>
+      <ul class="ds-b">
+        <li><b>CONTRATO Nº:</b> ${E(o.num_contrato || '________')}${o.contratada ? ' — ' + E(o.contratada) : ''}</li>
+        <li><b>Nº EMPENHO:</b> ${E(o.empenho_numero || '________')}</li>
+      </ul>
+      <div class="texto">${paragrafos(texto)}</div>
+      ${c.bm.data_relatorio ? `<p class="data">Cuiabá-MT, ${new Date(c.bm.data_relatorio + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>` : ''}
+      ${assinatura(quem, cargo).replace('<div><b>', '<div>Nome do servidor: <b>')}
+    </div>`;
+  }
+
   // ---------------- Relatório do Gestor ----------------
   const CONCLUSAO_PADRAO = `Na função de Gestor deste contrato, o que o faço na forma do § 3º do art. 8º da Lei nº 14.133 e do Decreto Municipal 10.070/2024, **CONCLUO E APROVO A FISCALIZAÇÃO** e declaro que os relatórios da fiscalização técnica e administrativa foram por mim analisados e que, a eles foram anexados todos os documentos necessários para comprovação da execução do objeto da contratação e das obrigações fiscais e trabalhistas.
 
@@ -151,6 +177,12 @@ c) Cópia da Nota Fiscal devidamente atestada;`;
   .rm table.bol tr.tot td { font-weight: 700; background: #f2f2f2; }
   .rm td.n { text-align: right; white-space: nowrap; } .rm td.c { text-align: center; }
   .rm .data { text-align: right; margin: 6px 0 0; }
+  .rm.saldo h1 { margin-bottom: 26px; text-decoration: underline; }
+  .rm .ds-l { margin: 0 0 12px; } .rm .ds-l.just { text-align: justify; }
+  .rm ul.ds-b { margin: 18px 0 22px 10px; padding: 0; list-style: none; }
+  .rm ul.ds-b li { margin: 6px 0; }
+  .rm ul.ds-b li::before { content: '●'; font-size: 8pt; margin-right: 8px; vertical-align: 1px; }
+  .rm.saldo .assin { margin-top: 60px; }
   .rm .assin { text-align: center; margin-top: 34px; line-height: 1.35; break-inside: avoid; }
   .rm .assin .linha { width: 60%; margin: 0 auto 4px; border-top: 1px solid #111; }
   .rm .assin .ass-el { font-style: italic; }
@@ -164,5 +196,5 @@ c) Cópia da Nota Fiscal devidamente atestada;`;
   .rm table.anex td.concl .assin { margin-top: 26px; text-align: left; } .rm table.anex td.concl .assin .linha { margin: 0 0 4px; width: 55%; }
   `;
 
-  window.RelMedicao = { contexto, textoFiscalPadrao, htmlFiscal, htmlGestor, CSS, CONCLUSAO_PADRAO, ANEXADOS, periodoTexto };
+  window.RelMedicao = { contexto, textoFiscalPadrao, htmlFiscal, htmlGestor, htmlSaldo, CSS, CONCLUSAO_PADRAO, DECLARACAO_PADRAO, ANEXADOS, ASSINANTES, periodoTexto };
 })();

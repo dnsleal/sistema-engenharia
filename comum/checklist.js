@@ -13,7 +13,7 @@
     { sec: '2', titulo: 'FISCAL E GESTOR DO CONTRATO', itens: [
       { cod: '2.1', txt: 'Emissão da Ordem de Fornecimento', doc: true },
       { cod: '2.2', txt: 'Nota Fiscal/Fatura devidamente assinado e datado pelo Fiscal', doc: true, auto: 'nf' },
-      { cod: '2.3', txt: 'Declaração de existência de saldo orçamentário para execução da despesa, emitido por gestor, fiscal ou setor responsável', doc: true },
+      { cod: '2.3', txt: 'Declaração de existência de saldo orçamentário para execução da despesa, emitido por gestor, fiscal ou setor responsável', doc: true, auto: 'saldo' },
       { cod: '2.4', txt: 'Relatório Final do Gestor do Contrato Com Recebimento Definitivo assinado e datado.', auto: 'gestor' },
       { cod: '2.5', txt: 'Relatório de Fiscalização Técnica de Serviços assinado e datado pelo Fiscal.', auto: 'fiscal' },
       { cod: '2.6', txt: 'Relatório Fiscalização Administrativa de Serviços Com Dedicação Exclusiva de Mão de Obra assinado e datado pelo Responsável.', padrao: 'na' },
@@ -66,6 +66,7 @@
       // automáticos
       if (it.auto === 'nf') { r = s.anexo ? 'sim' : null; if (!s.obs && bm.nf_numero) obs = `Nota Fiscal nº ${bm.nf_numero}`; auto = bm.nf_numero ? 'nº da NF vem do BM' : ''; }
       if (it.auto === 'gestor') { r = obra.gestor_id ? 'sim' : null; auto = 'relatório gerado pelo sistema'; }
+      if (it.auto === 'saldo') { r = s.anexo || obra.gestor_id || obra.fiscal_id ? 'sim' : null; auto = s.anexo ? '' : 'declaração gerada pelo sistema'; }
       if (it.auto === 'fiscal') { r = obra.fiscal_id ? 'sim' : null; auto = 'relatório gerado pelo sistema'; }
       if (it.auto === 'semfiscal') { r = obra.fiscal_id ? 'na' : 'sim'; auto = obra.fiscal_id ? 'há fiscal nomeado' : 'sem fiscal na obra: anexe a justificativa'; }
       if (it.auto === 'empenho') { r = s.anexo || obra.empenho_numero ? 'sim' : null; auto = obra.empenho_numero ? 'nº do empenho vem da obra' : ''; }

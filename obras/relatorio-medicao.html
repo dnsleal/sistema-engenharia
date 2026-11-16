@@ -39,12 +39,12 @@
 <script>
 const { sb } = SE;
 const $ = id => document.getElementById(id);
-const P = new URLSearchParams(location.search), obraId = P.get('obra'), bmId = P.get('bm'), tipo = P.get('tipo') === 'gestor' ? 'gestor' : 'fiscal';
+const P = new URLSearchParams(location.search), obraId = P.get('obra'), bmId = P.get('bm'), tipo = ['gestor', 'saldo'].includes(P.get('tipo')) ? P.get('tipo') : 'fiscal';
 const TIMBRE = '../comum/img/timbre-sms-cuiaba.png';
 
 (async function () {
   const u = await SE.exigirLogin(); if (!u) return;
-  $('lVoltar').href = `medicao.html?obra=${obraId}&bm=${bmId}#${tipo === 'gestor' ? 'gestor' : 'fiscal'}`;
+  $('lVoltar').href = `medicao.html?obra=${obraId}&bm=${bmId}#${tipo === 'gestor' ? 'gestor' : tipo === 'saldo' ? 'saldo' : 'fiscal'}`;
   $('estiloDoc').textContent = RelMedicao.CSS;
   let M;
   try { M = await Medicao.carregar(sb, obraId, bmId); }
@@ -52,9 +52,9 @@ const TIMBRE = '../comum/img/timbre-sms-cuiaba.png';
   const ids = [M.obra.fiscal_id, M.obra.gestor_id, M.obra.fiscal_adm_id].filter(Boolean), pessoas = {};
   if (ids.length) { const { data } = await sb.from('pessoas').select('*').in('id', ids); for (const p of data || []) pessoas[p.id] = p; }
   const c = RelMedicao.contexto(M, pessoas);
-  $('doc').innerHTML = tipo === 'gestor' ? RelMedicao.htmlGestor(c, TIMBRE) : RelMedicao.htmlFiscal(c, TIMBRE);
+  $('doc').innerHTML = tipo === 'gestor' ? RelMedicao.htmlGestor(c, TIMBRE) : tipo === 'saldo' ? RelMedicao.htmlSaldo(c, TIMBRE) : RelMedicao.htmlFiscal(c, TIMBRE);
   const n = String(M.bm.numero).padStart(2, '0');
-  document.title = `${tipo === 'gestor' ? 'Relatório do Gestor' : 'Relatório de Fiscalização'} BM ${n} - ${M.obra.nome}`;
+  document.title = `${tipo === 'gestor' ? 'Relatório do Gestor' : tipo === 'saldo' ? 'Declaração de saldo orçamentário' : 'Relatório de Fiscalização'} BM ${n} - ${M.obra.nome}`;
   document.body.dataset.obra = M.obra.nome;
   $('bImprimir').onclick = () => window.print();
   $('bWord').onclick = baixarWord;
