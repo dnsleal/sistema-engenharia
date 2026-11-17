@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#05010b">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305010b'/%3E%3Ccircle cx='32' cy='32' r='24' fill='none' stroke='%238b5cf6' stroke-width='3' stroke-dasharray='26 10'/%3E%3Cpath d='M32 16 46 24v16L32 48 18 40V24z' fill='%232bff9a'/%3E%3C/svg%3E">
+<title>Cálculo de despesas de serviços</title>
+<link rel="stylesheet" href="../comum/estilo.css?v=diego3">
+<style>
+  main { max-width: 1240px; }
+  h3 { margin: 0 0 4px; font-size: 1.02rem; }
+  .sub { margin: 0 0 12px; color: var(--texto-2); font-size: .85rem; }
+  .grade4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0 14px; }
+  @media (max-width: 760px) { .grade4 { grid-template-columns: 1fr 1fr; } }
+  .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; margin-top: 16px; }
+  @media (max-width: 1000px) { .duas { grid-template-columns: 1fr; } }
+  table.ed { width: 100%; border-collapse: collapse; font-size: .86rem; }
+  table.ed th { font-size: .7rem; text-transform: uppercase; color: var(--texto-2); text-align: left; padding: 4px; }
+  table.ed td { padding: 3px; vertical-align: middle; }
+  table.ed tbody tr:nth-child(2n) { background: transparent; }
+  table.ed input { padding: 6px 7px; }
+  table.ed input.n { text-align: right; }
+  table.ed td.tot { text-align: right; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; padding-left: 8px; }
+  table.ed td.lbl { color: var(--texto-2); font-size: .85rem; }
+  .x { background: transparent !important; border: none !important; box-shadow: none !important; color: var(--critico); cursor: pointer; font-size: 1rem; padding: 2px 6px; }
+  .botoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .bloco { border: 1px solid var(--linha); border-radius: 8px; padding: 10px 12px; margin-top: 12px; }
+  .bloco h4 { margin: 0 0 8px; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--azul); }
+  .linha3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 10px; }
+  .soma { margin-top: 12px; border-top: 1px solid var(--linha); padding-top: 10px; }
+  .soma div { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; font-variant-numeric: tabular-nums; }
+  .soma .imp { color: var(--alerta); }
+  .soma .fim { font-size: 1.08rem; font-weight: 700; color: var(--verde); border-top: 1px dashed var(--linha); margin-top: 4px; padding-top: 7px; }
+  .imposto { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 10px; align-items: end; margin-top: 10px; }
+  .kpis { margin-top: 16px; }
+  .dica { font-size: .78rem; color: var(--texto-2); margin: 6px 0 0; }
+  /* ---------- folha impressa ---------- */
+  #folha { background: #fff; color: #111; width: 210mm; margin: 22px auto; padding: 14mm 14mm 12mm; box-shadow: 0 2px 10px rgba(0,0,0,.15); font: 10.5px Arial, Helvetica, sans-serif; }
+  #folha h1 { font-size: 15px; margin: 0; text-align: center; letter-spacing: .03em; }
+  #folha .cabf { text-align: center; color: #444; margin: 2px 0 10px; font-size: 10px; }
+  #folha table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  #folha td, #folha th { border: 1px solid #333; padding: 3px 6px; font-size: 10px; color: #111; background: #fff; }
+  #folha th { background: #e8ebf2; text-align: left; font-weight: 700; }
+  #folha td.r, #folha th.r { text-align: right; white-space: nowrap; }
+  #folha tr.st td { font-weight: 700; background: #f3f4f8; }
+  #folha tr.tt td { font-weight: 700; background: #dfe6f3; }
+  #folha .tit { margin: 12px 0 0; font-weight: 700; font-size: 11px; color: #1f3864; text-transform: uppercase; }
+  #folha .id td { border: 1px solid #333; }
+  #folha .id td span { display: block; color: #555; font-size: 8px; text-transform: uppercase; }
+  #folha .obs { margin-top: 10px; font-size: 9.5px; color: #333; white-space: pre-wrap; }
+  #folha .ass { margin-top: 34px; text-align: center; }
+  #folha .ass div:first-child { width: 60%; margin: 0 auto; border-top: 1px solid #222; padding-top: 3px; font-weight: 700; }
+  @media print {
+    @page { size: A4 portrait; margin: 10mm; }
+    body { background: #fff; }
+    main > *:not(#folha), .rodape { display: none !important; }
+    main { padding: 0; max-width: none; }
+    #folha { box-shadow: none; margin: 0; width: auto; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="cabecalho">
+    <div><h2>Cálculo de despesas de serviços</h2><p>Serviços (ex.: furos de sondagem) e custos de deslocamento, estadia e alimentação, cada um com o seu imposto.</p></div>
+    <button type="button" onclick="window.print()">Imprimir / salvar em PDF</button>
+  </div>
+
+  <section class="painel">
+    <h3>Identificação</h3>
+    <div class="grade4">
+      <div style="grid-column:span 2"><label for="cliente">Cliente / contratante</label><input id="cliente"></div>
+      <div style="grid-column:span 2"><label for="servico">Serviço / obra</label><input id="servico" value="Sondagem SPT"></div>
+      <div style="grid-column:span 2"><label for="local">Local</label><input id="local" placeholder="Município-UF"></div>
+      <div><label for="data">Data</label><input id="data" type="date"></div>
+      <div><label for="validade">Validade da proposta</label><input id="validade" value="30 dias"></div>
+      <div style="grid-column:span 4"><label for="rt">Responsável</label><input id="rt" value="Eng. Civil Diego Nascimento Soares Leal — CREA-MT 37420"></div>
+    </div>
+  </section>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="duas">
+    <!-- ==================== SERVIÇOS ==================== -->
+    <section class="painel">
+      <h3>1. Serviços</h3>
+      <p class="sub">O que é executado: furos de sondagem, ensaios, laudos, mobilização de equipamento…</p>
+      <table class="ed">
+        <thead><tr><th>Descrição</th><th style="width:70px">Un.</th><th style="width:80px">Qtd.</th><th style="width:105px">Valor unit. (R$)</th><th style="width:110px;text-align:right">Total</th><th></th></tr></thead>
+        <tbody id="tbS"></tbody>
+      </table>
+      <div class="botoes"><button type="button" class="sec" id="bMaisS">+ serviço</button></div>
+
+      <div class="imposto">
+        <div><label for="impS">Imposto sobre serviços (%)</label><input id="impS" class="n" value="15,5" inputmode="decimal"></div>
+        <div><label for="modoS">Cálculo</label><select id="modoS"><option value="dentro">Por dentro (÷ (1 − %))</option><option value="fora">Por fora (× (1 + %))</option></select></div>
+        <div></div>
+      </div>
+      <div class="soma" id="somaS"></div>
+    </section>
+
+    <!-- ==================== DESLOCAMENTO ==================== -->
+    <section class="painel">
+      <h3>2. Deslocamento, estadia e alimentação</h3>
+      <p class="sub">Custos de levar a equipe até o local e mantê-la lá durante o serviço.</p>
+
+      <div class="bloco">
+        <h4>Período e equipe</h4>
+        <div class="linha3">
+          <div><label for="dias">Nº de dias</label><input id="dias" class="n" value="17" inputmode="decimal"></div>
+          <div><label for="pessoas">Pessoas na equipe</label><input id="pessoas" class="n" value="1" inputmode="decimal"><div class="dica">multiplica alimentação e diárias</div></div>
+          <div><label for="quartos">Quartos de hotel</label><input id="quartos" class="n" value="1" inputmode="decimal"></div>
+        </div>
+      </div>
+
+      <div class="bloco">
+        <h4>Deslocamento (combustível)</h4>
+        <table class="ed">
+          <thead><tr><th></th><th>Km ida e volta</th><th>Consumo (km/l)</th><th title="Acréscimo pelo desgaste e manutenção do veículo">Fator</th><th style="text-align:right">Custo</th></tr></thead>
+          <tbody>
+            <tr><td class="lbl">Asfalto</td><td><input id="kmA" class="n" value="1100" inputmode="decimal"></td><td><input id="consA" class="n" value="6" inputmode="decimal"></td><td><input id="fatA" class="n" value="1,5" inputmode="decimal"></td><td class="tot" id="cA"></td></tr>
+            <tr><td class="lbl">Terra</td><td><input id="kmT" class="n" value="0" inputmode="decimal"></td><td><input id="consT" class="n" value="4" inputmode="decimal"></td><td><input id="fatT" class="n" value="2" inputmode="decimal"></td><td class="tot" id="cT"></td></tr>
+          </tbody>
+        </table>
+        <div class="linha3" style="margin-top:8px">
+          <div><label for="comb">Preço do combustível (R$/l)</label><input id="comb" class="n" value="7,15" inputmode="decimal"></div>
+          <div style="grid-column:span 2"><p class="dica" id="litros" style="margin-top:26px"></p></div>
+        </div>
+        <p class="dica">Custo = km ÷ consumo × preço × fator. O fator cobre desgaste, pneus e manutenção (planilha base: 1,5 no asfalto e 2 na terra).</p>
+      </div>
+
+      <div class="bloco">
+        <h4>Estadia e alimentação</h4>
+        <table class="ed">
+          <thead><tr><th></th><th style="width:130px">R$ por dia</th><th style="text-align:right">Total</th></tr></thead>
+          <tbody>
+            <tr><td class="lbl">Alimentação (por pessoa)</td><td><input id="alim" class="n" value="150" inputmode="decimal"></td><td class="tot" id="cAl"></td></tr>
+            <tr><td class="lbl">Hotel (por quarto)</td><td><input id="hotel" class="n" value="280" inputmode="decimal"></td><td class="tot" id="cH"></td></tr>
+            <tr><td class="lbl">Diárias de funcionários (por pessoa)</td><td><input id="diaria" class="n" value="0" inputmode="decimal"></td><td class="tot" id="cD"></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="bloco">
+        <h4>Outros (pedágio, frete, passagem…)</h4>
+        <table class="ed">
+          <thead><tr><th>Descrição</th><th style="width:130px">Valor (R$)</th><th></th></tr></thead>
+          <tbody id="tbO"></tbody>
+        </table>
+        <div class="botoes"><button type="button" class="sec" id="bMaisO">+ outro custo</button></div>
+      </div>
+
+      <div class="imposto">
+        <div><label for="impD">Imposto sobre deslocamento (%)</label><input id="impD" class="n" value="15,5" inputmode="decimal"></div>
+        <div><label for="modoD">Cálculo</label><select id="modoD"><option value="dentro">Por dentro (÷ (1 − %))</option><option value="fora">Por fora (× (1 + %))</option></select></div>
+        <div></div>
+      </div>
+      <div class="soma" id="somaD"></div>
+    </section>
+  </div>
+
+  <section class="painel" style="margin-top:16px">
+    <label for="obs">Observações (saem na folha impressa)</label>
+    <textarea id="obs" rows="3" placeholder="Ex.: valores para mobilização a partir de Cuiabá-MT; não inclui locação de equipamentos especiais."></textarea>
+  </section>
+
+  <div id="folha"></div>
+</main>
+<p class="rodape">Desenvolvido por Eng. Civil Diego Leal — CREA-MT 37420</p>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../comum/config.js?v=diego3"></script>
+<script src="../comum/supabase.js?v=diego3"></script>
+<script src="../comum/formatos.js?v=diego3"></script>
+<script>
+const $ = id => document.getElementById(id);
+const E = s => F.esc(s || '');
+// "1.250" sem vírgula é milhar (mil duzentos e cinquenta), não 1,25
+const n = id => { const el = $(id); if (!el) return 0; let t = String(el.value || '').trim();
+  if (!t.includes(',') && /^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+  const v = F.lerNum(t); return Number.isFinite(v) ? v : 0; };
+const r2 = v => Math.round((v + Number.EPSILON) * 100) / 100;
+let nS = 1, nO = 0, ultimo = null;
+
+// ---------- linhas dinâmicas ----------
+function linhasS() {
+  const tb = $('tbS'), ant = {};
+  tb.querySelectorAll('input').forEach(i => ant[i.id] = i.value);
+  tb.innerHTML = '';
+  for (let k = 1; k <= nS; k++) tb.insertAdjacentHTML('beforeend', `<tr>
+    <td><input id="sd${k}" placeholder="Ex.: Furo de sondagem SPT"></td>
+    <td><input id="su${k}" placeholder="furo"></td>
+    <td><input id="sq${k}" class="n" inputmode="decimal" placeholder="0"></td>
+    <td><input id="sv${k}" class="n" inputmode="decimal" placeholder="0,00"></td>
+    <td class="tot" id="st${k}"></td>
+    <td>${nS > 1 ? `<button type="button" class="x" data-rs="${k}" title="Remover">✕</button>` : ''}</td></tr>`);
+  for (const [id, v] of Object.entries(ant)) if ($(id)) $(id).value = v;
+  tb.querySelectorAll('[data-rs]').forEach(b => b.onclick = () => removerLinha('s', +b.dataset.rs));
+}
+function linhasO() {
+  const tb = $('tbO'), ant = {};
+  tb.querySelectorAll('input').forEach(i => ant[i.id] = i.value);
+  tb.innerHTML = nO ? '' : '<tr><td colspan="3" class="dica">Nenhum. Use para pedágio, frete do equipamento, passagens…</td></tr>';
+  for (let k = 1; k <= nO; k++) tb.insertAdjacentHTML('beforeend', `<tr>
+    <td><input id="od${k}" placeholder="Ex.: Pedágio"></td>
+    <td><input id="ov${k}" class="n" inputmode="decimal" placeholder="0,00"></td>
+    <td><button type="button" class="x" data-ro="${k}" title="Remover">✕</button></td></tr>`);
+  for (const [id, v] of Object.entries(ant)) if ($(id)) $(id).value = v;
+  tb.querySelectorAll('[data-ro]').forEach(b => b.onclick = () => removerLinha('o', +b.dataset.ro));
+}
+// remove a linha k deslocando as de baixo para cima
+function removerLinha(t, k) {
+  const cols = t === 's' ? ['sd', 'su', 'sq', 'sv'] : ['od', 'ov'];
+  const tot = t === 's' ? nS : nO;
+  for (let i = k; i < tot; i++) for (const c of cols) $(c + i).value = $(c + (i + 1)).value;
+  if (t === 's') { for (const c of cols) $(c + nS).value = ''; nS--; linhasS(); } else { nO--; linhasO(); }
+  avisarMudanca();
+}
+function avisarMudanca() { calcular(); $('obs').dispatchEvent(new Event('input', { bubbles: true })); }
+
+// ---------- imposto ----------
+function comImposto(base, pct, modo) {
+  const p = pct / 100;
+  if (!base) return { total: 0, imp: 0 };
+  if (modo === 'fora') { const t = r2(base * (1 + p)); return { total: t, imp: r2(t - base) }; }
+  if (p >= 1) return { total: base, imp: 0 };
+  const t = r2(base / (1 - p)); return { total: t, imp: r2(t - base) };
+}
+
+// ---------- cálculo ----------
+function calcular() {
+  // serviços
+  const servs = [];
+  for (let k = 1; k <= nS; k++) {
+    const q = n('sq' + k), v = n('sv' + k), t = r2(q * v);
+    $('st' + k).textContent = t ? F.rs(t) : '—';
+    const d = $('sd' + k).value.trim();
+    if (d || t) servs.push({ d: d || 'Serviço', u: $('su' + k).value.trim(), q, v, t });
+  }
+  const baseS = r2(servs.reduce((s, x) => s + x.t, 0));
+  const pS = n('impS'), mS = $('modoS').value, rS = comImposto(baseS, pS, mS);
+
+  // deslocamento
+  const preco = n('comb');
+  const lA = n('consA') ? n('kmA') / n('consA') : 0, lT = n('consT') ? n('kmT') / n('consT') : 0;
+  const cA = r2(lA * preco * (n('fatA') || 1)), cT = r2(lT * preco * (n('fatT') || 1));
+  $('cA').textContent = F.rs(cA); $('cT').textContent = F.rs(cT);
+  $('litros').textContent = (lA + lT) ? `≈ ${F.num(lA + lT, 1)} litros (${F.num(lA, 1)} asfalto + ${F.num(lT, 1)} terra), sem o fator: ${F.rs(r2((lA + lT) * preco))}` : '';
+  const dias = n('dias'), pes = n('pessoas') || 0, qts = n('quartos') || 0;
+  const cAl = r2(n('alim') * dias * pes), cH = r2(n('hotel') * dias * qts), cD = r2(n('diaria') * dias * pes);
+  $('cAl').textContent = F.rs(cAl); $('cH').textContent = F.rs(cH); $('cD').textContent = F.rs(cD);
+  const outros = [];
+  for (let k = 1; k <= nO; k++) { const v = r2(n('ov' + k)), d = $('od' + k).value.trim(); if (v || d) outros.push({ d: d || 'Outro custo', v }); }
+  const itensD = [
+    { d: `Combustível — asfalto (${F.num(n('kmA'), 0)} km ÷ ${F.num(n('consA'), 1)} km/l × ${F.rs(preco)} × fator ${F.num(n('fatA'), 2)})`, v: cA, mostra: n('kmA') > 0 },
+    { d: `Combustível — terra (${F.num(n('kmT'), 0)} km ÷ ${F.num(n('consT'), 1)} km/l × ${F.rs(preco)} × fator ${F.num(n('fatT'), 2)})`, v: cT, mostra: n('kmT') > 0 },
+    { d: `Alimentação (${F.rs(n('alim'))}/dia × ${F.num(dias, 0)} dia(s) × ${F.num(pes, 0)} pessoa(s))`, v: cAl, mostra: cAl > 0 },
+    { d: `Hotel (${F.rs(n('hotel'))}/dia × ${F.num(dias, 0)} dia(s) × ${F.num(qts, 0)} quarto(s))`, v: cH, mostra: cH > 0 },
+    { d: `Diárias de funcionários (${F.rs(n('diaria'))}/dia × ${F.num(dias, 0)} dia(s) × ${F.num(pes, 0)} pessoa(s))`, v: cD, mostra: cD > 0 },
+    ...outros.map(o => ({ ...o, mostra: true }))
+  ].filter(i => i.mostra);
+  const baseD = r2(cA + cT + cAl + cH + cD + outros.reduce((s, o) => s + o.v, 0));
+  const pD = n('impD'), mD = $('modoD').value, rD = comImposto(baseD, pD, mD);
+
+  const desc = (p, m) => `Imposto ${F.num(p, 2).replace(/,00$/, '')}% ${m === 'fora' ? 'por fora' : 'por dentro'}`;
+  $('somaS').innerHTML = `<div><span>Subtotal dos serviços</span><b>${F.rs(baseS)}</b></div>
+    <div class="imp"><span>${desc(pS, mS)}</span><b>${F.rs(rS.imp)}</b></div>
+    <div class="fim"><span>Serviços com imposto</span><span>${F.rs(rS.total)}</span></div>`;
+  $('somaD').innerHTML = `<div><span>Combustível</span><span>${F.rs(r2(cA + cT))}</span></div>
+    <div><span>Alimentação, hotel e diárias</span><span>${F.rs(r2(cAl + cH + cD))}</span></div>
+    ${outros.length ? `<div><span>Outros</span><span>${F.rs(r2(outros.reduce((s, o) => s + o.v, 0)))}</span></div>` : ''}
+    <div><span>Subtotal do deslocamento</span><b>${F.rs(baseD)}</b></div>
+    <div class="imp"><span>${desc(pD, mD)}</span><b>${F.rs(rD.imp)}</b></div>
+    <div class="fim"><span>Deslocamento com imposto</span><span>${F.rs(rD.total)}</span></div>`;
+
+  const total = r2(rS.total + rD.total), imp = r2(rS.imp + rD.imp);
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="rotulo">Serviços com imposto</div><div class="valor">${F.rs(rS.total)}</div><div class="det">${F.rs(baseS)} + imposto ${F.rs(rS.imp)}</div></div>
+    <div class="kpi"><div class="rotulo">Deslocamento com imposto</div><div class="valor">${F.rs(rD.total)}</div><div class="det">${F.rs(baseD)} + imposto ${F.rs(rD.imp)}</div></div>
+    <div class="kpi"><div class="rotulo">Impostos</div><div class="valor">${F.rs(imp)}</div><div class="det">serviços + deslocamento</div></div>
+    <div class="kpi"><div class="rotulo">Valor total</div><div class="valor" style="color:var(--verde)">${F.rs(total)}</div><div class="det">sem imposto: ${F.rs(r2(baseS + baseD))}</div></div>`;
+
+  ultimo = { servs, baseS, rS, pS, mS, itensD, baseD, rD, pD, mD, total, imp, desc };
+  folha();
+}
+
+// ---------- folha para imprimir / exportar ----------
+function folha() {
+  const u = ultimo; if (!u) return;
+  const data = $('data').value ? new Date($('data').value + 'T12:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  $('folha').innerHTML = `
+    <h1>DEMONSTRATIVO DE DESPESAS — ${E(($('servico').value || 'SERVIÇOS').toUpperCase())}</h1>
+    <div class="cabf">Serviços, deslocamento, estadia e alimentação</div>
+    <table class="id"><tr>
+      <td style="width:50%"><span>Cliente / contratante</span>${E($('cliente').value) || '—'}</td>
+      <td><span>Local</span>${E($('local').value) || '—'}</td>
+      <td style="width:18%"><span>Data</span>${data ? E(data) : '—'}</td></tr></table>
+
+    <div class="tit">1. Serviços</div>
+    <table>
+      <tr><th style="width:5%">Item</th><th>Descrição</th><th style="width:7%">Un.</th><th class="r" style="width:9%">Qtd.</th><th class="r" style="width:15%">Valor unit.</th><th class="r" style="width:16%">Total</th></tr>
+      ${u.servs.length ? u.servs.map((s, i) => `<tr><td>1.${i + 1}</td><td>${E(s.d)}</td><td>${E(s.u)}</td><td class="r">${F.num(s.q, 2).replace(/,00$/, '')}</td><td class="r">${F.rs(s.v)}</td><td class="r">${F.rs(s.t)}</td></tr>`).join('')
+        : '<tr><td colspan="6">Sem serviços lançados.</td></tr>'}
+      <tr class="st"><td colspan="5">Subtotal dos serviços</td><td class="r">${F.rs(u.baseS)}</td></tr>
+      <tr><td colspan="5">${u.desc(u.pS, u.mS)}</td><td class="r">${F.rs(u.rS.imp)}</td></tr>
+      <tr class="tt"><td colspan="5">Total dos serviços com imposto</td><td class="r">${F.rs(u.rS.total)}</td></tr>
+    </table>
+
+    <div class="tit">2. Deslocamento, estadia e alimentação</div>
+    <table>
+      <tr><th style="width:5%">Item</th><th>Descrição</th><th class="r" style="width:16%">Total</th></tr>
+      ${u.itensD.length ? u.itensD.map((s, i) => `<tr><td>2.${i + 1}</td><td>${E(s.d)}</td><td class="r">${F.rs(s.v)}</td></tr>`).join('') : '<tr><td colspan="3">Sem despesas de deslocamento.</td></tr>'}
+      <tr class="st"><td colspan="2">Subtotal do deslocamento</td><td class="r">${F.rs(u.baseD)}</td></tr>
+      <tr><td colspan="2">${u.desc(u.pD, u.mD)}</td><td class="r">${F.rs(u.rD.imp)}</td></tr>
+      <tr class="tt"><td colspan="2">Total do deslocamento com imposto</td><td class="r">${F.rs(u.rD.total)}</td></tr>
+    </table>
+
+    <div class="tit">3. Resumo</div>
+    <table>
+      <tr><td>Serviços (com imposto)</td><td class="r" style="width:16%">${F.rs(u.rS.total)}</td></tr>
+      <tr><td>Deslocamento, estadia e alimentação (com imposto)</td><td class="r">${F.rs(u.rD.total)}</td></tr>
+      <tr><td>Impostos incluídos</td><td class="r">${F.rs(u.imp)}</td></tr>
+      <tr class="tt"><td>VALOR TOTAL</td><td class="r">${F.rs(u.total)}</td></tr>
+    </table>
+    ${window.Extenso ? `<p style="margin:6px 0 0">Valor total: ${F.rs(u.total)} (${E(Extenso.reais(u.total))}).</p>` : ''}
+    ${$('validade').value ? `<p style="margin:4px 0 0">Validade: ${E($('validade').value)}.</p>` : ''}
+    ${$('obs').value.trim() ? `<div class="obs"><b>Observações:</b> ${E($('obs').value.trim())}</div>` : ''}
+    <div class="ass"><div>${E($('rt').value)}</div></div>`;
+}
+
+// ---------- montagem ----------
+linhasS(); linhasO();
+$('sd1').value = 'Furo de sondagem SPT'; $('su1').value = 'furo'; $('sq1').value = '0'; $('sv1').value = '1.250,00';
+$('data').value = new Date().toISOString().slice(0, 10);
+$('bMaisS').onclick = () => { nS++; linhasS(); avisarMudanca(); $('sd' + nS).focus(); };
+$('bMaisO').onclick = () => { nO++; linhasO(); avisarMudanca(); $('od' + nO).focus(); };
+document.addEventListener('input', e => { if (!e.target.closest('.se-barra')) calcular(); });
+document.addEventListener('change', e => { if (!e.target.closest('.se-barra')) calcular(); });
+calcular();
+
+window.LAUDO_CFG = {
+  tipo: 'despesa', nome: 'Cálculo de despesas',
+  titulo: () => `Despesas — ${$('servico').value || 'serviço'}${$('cliente').value ? ' — ' + $('cliente').value : ''}${$('local').value ? ' (' + $('local').value + ')' : ''}`,
+  valor: () => ultimo ? ultimo.total : null,
+  extra: () => ({ nS, nO }),
+  antes: d => { if (d.extra) { nS = d.extra.nS || 1; nO = d.extra.nO || 0; linhasS(); linhasO(); } },
+  depois: () => calcular()
+};
+</script>
+<script src="../comum/extenso.js?v=diego3"></script>
+<script src="../comum/laudo-nuvem.js?v=diego3"></script>
+<script src="../comum/drive.js?v=diego3"></script>
+<script>
+calcular();
+Drive.botoes({ barra: '.se-barra', antesDe: '#seSalvar', alvo: '#folha', formatos: ['pdf', 'docx'], classe: '',
+  nome: () => window.LAUDO_CFG.titulo(), pasta: () => ['Despesas de serviços', document.getElementById('cliente').value || 'Sem cliente'] });
+</script>
+</body>
+</html>
