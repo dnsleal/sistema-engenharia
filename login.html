@@ -903,6 +903,16 @@ $('lEsqueci').onclick = () => trocarModo('recuperar');
 // Já está logado? vai direto.
 sb.auth.getSession().then(({ data }) => { if (data.session) location.replace(destino()); });
 
+// confere se o Supabase está respondendo (projeto pausado devolve erro de rede ou 5xx)
+async function servidorFora(t) {
+  if (/fetch|network|timeout|50[0-9]|paused|unavailable/i.test(t)) return true;
+  try {
+    const c = new AbortController(); setTimeout(() => c.abort(), 6000);
+    const r = await fetch(SE_CONFIG.SUPABASE_URL + '/rest/v1/', { headers: { apikey: SE_CONFIG.SUPABASE_KEY }, signal: c.signal });
+    return r.status >= 500;
+  } catch (_) { return true; }
+}
+
 $('form').onsubmit = async e => {
   e.preventDefault();
   const email = $('email').value.trim(), senha = $('senha').value;
@@ -933,6 +943,12 @@ $('form').onsubmit = async e => {
     }
   } catch (err) {
     const t = String(err.message || err);
+    // banco em pausa (plano gratuito do Supabase pausa após ~7 dias sem uso): não é a senha
+    if (await servidorFora(t)) {
+      msg('O banco de dados do sistema está em pausa ou fora do ar — não é a sua senha. No plano gratuito do Supabase ele pausa depois de alguns dias sem uso: entre em supabase.com/dashboard, abra o projeto "sistema-engenharia" e clique em "Restore project". Em 2 a 5 minutos o acesso volta.', 'erro');
+      Diego.falar('SERVIDOR EM PAUSA', 'erro');
+      return;
+    }
     msg(/Invalid login/i.test(t) ? 'E-mail ou senha incorretos.'
       : /Email not confirmed/i.test(t) ? 'Confirme o e-mail antes de entrar (veja sua caixa de entrada).'
       : /Password should be/i.test(t) ? 'A senha precisa ter pelo menos 8 caracteres.'
