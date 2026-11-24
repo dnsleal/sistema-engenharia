@@ -276,9 +276,10 @@ def ler(caminho: str | Path, cfg: dict, unidade: str | None = None) -> Desenho:
         raise ErroLeitura(f"Não consegui abrir {caminho.name}: {exc}") from exc
 
     camadas_area = cfgmod.camadas_de_area(cfg)
+    camadas_leitura = camadas_area + cfg["camadas"].get("paredes", []) + cfg["camadas"].get("esquadrias", [])
     b = _Bruto()
     for e in doc.modelspace():
-        _ler_entidade(e, b, camadas_area, 0, None)
+        _ler_entidade(e, b, camadas_leitura, 0, None)
 
     alertas: list[Alerta] = []
 
@@ -325,7 +326,12 @@ def ler(caminho: str | Path, cfg: dict, unidade: str | None = None) -> Desenho:
     # ---- polilinhas quase fechadas e linhas soltas nas camadas de área
     tol = cfg["tolerancia_fechamento_m"]
     por_camada = defaultdict(list)
+    linhas_paredes, linhas_esq = [], []
     for pts, camada, ref in b.abertos:
+        if cfgmod.camada_parede(camada, cfg):
+            linhas_paredes.append(LineString(escalar(pts)))
+        elif cfgmod.camada_esquadria(camada, cfg):
+            linhas_esq.append(LineString(escalar(pts)))
         if not cfgmod.casa_camada(camada, camadas_area):
             continue
         pts = escalar(pts)
@@ -355,6 +361,10 @@ def ler(caminho: str | Path, cfg: dict, unidade: str | None = None) -> Desenho:
                                              f"que não fecham nenhuma área — foram ignoradas."))
 
     textos = [Texto(t, x * fator, y * fator, h * fator, c) for t, x, y, h, c in b.textos]
+    paredes = [p.geom for p in poligonos if cfgmod.camada_parede(p.camada, cfg)]
+    for p in poligonos:  # contorno de esquadrias fechadas (caixilhos) também pode fechar vão
+        if cfgmod.camada_esquadria(p.camada, cfg):
+            linhas_esq.append(LineString(p.geom.exterior.coords))
 
     for camada, info in b.camadas.items():
         if info.get("falhas"):
@@ -363,4 +373,5 @@ def ler(caminho: str | Path, cfg: dict, unidade: str | None = None) -> Desenho:
 
     return Desenho(arquivo=str(caminho), formato=formato, unidade=desc, fator_m=fator,
                    poligonos=poligonos, textos=textos, blocos=b.blocos,
-                   camadas={k: dict(v) for k, v in sorted(b.camadas.items())}, alertas=alertas)
+                   camadas={k: dict(v) for k, v in sorted(b.camadas.items())}, alertas=alertas,
+                   paredes=paredes, linhas_paredes=linhas_paredes, linhas_esquadrias=linhas_esq)

@@ -11,11 +11,14 @@ from __future__ import annotations
 
 import re
 
-from shapely.geometry import Point
+from shapely.geometry import Point, box
+from shapely.ops import unary_union
 from shapely.strtree import STRtree
 
 from . import config as cfgmod
 from .formatos import num
+from shapely.geometry import LineString, Polygon
+
 from .modelo import Alerta, Area, Desenho, Poligono, Resultado
 
 RE_AREA = re.compile(r"(?:A\s*[=:]\s*)?(\d{1,6}(?:[.,]\d{1,3})?)\s*m(?:²|2)\b", re.I)
@@ -113,6 +116,81 @@ def _sem_duplicados(polys: list[Poligono]) -> list[Poligono]:
     return fica
 
 
+def _tampa_vao(a, b, paredes):
+    """Retângulo que fecha o vão entre os batentes a e b na espessura da parede.
+
+    Mede a espessura 1 cm para dentro de cada batente, na perpendicular à linha da esquadria;
+    assim o ambiente é cortado no alinhamento da face da parede, não na linha do peitoril."""
+    import math
+    comp = math.dist(a, b)
+    ux, uy = (b[0] - a[0]) / comp, (b[1] - a[1]) / comp
+    nx, ny = -uy, ux
+    faixas = []
+    for p, sinal in ((a, -1), (b, 1)):
+        q = (p[0] + sinal * ux * 0.01, p[1] + sinal * uy * 0.01)
+        sonda = LineString([(q[0] - nx * 0.6, q[1] - ny * 0.6), (q[0] + nx * 0.6, q[1] + ny * 0.6)])
+        corte = sonda.intersection(paredes)
+        pedacos = [g for g in getattr(corte, "geoms", [corte]) if g.geom_type == "LineString" and not g.is_empty]
+        if not pedacos:
+            return None
+        pq = Point(q)
+        pedaco = min(pedacos, key=lambda g: g.distance(pq))
+        if pedaco.distance(pq) > 0.02:
+            return None
+        ts = [(x - q[0]) * nx + (y - q[1]) * ny for x, y in pedaco.coords]
+        faixas.append((min(ts), max(ts)))
+    t0, t1 = min(f[0] for f in faixas), max(f[1] for f in faixas)
+    if not 0.03 <= t1 - t0 <= 0.6:
+        return None
+    return Polygon([(a[0] + nx * t0, a[1] + ny * t0), (b[0] + nx * t0, b[1] + ny * t0),
+                    (b[0] + nx * t1, b[1] + ny * t1), (a[0] + nx * t1, a[1] + ny * t1)])
+
+
+def _faces_por_paredes(d: Desenho, cfg: dict) -> list[Poligono]:
+    """Ambientes = espaço livre entre as paredes.
+
+    1. barreira = paredes (polígonos e linhas) + linhas de esquadria que vão de uma parede à outra
+       (peitoril/caixilho de janela; folha e arco de porta encostam só num lado e ficam de fora);
+    2. fecha os vãos de porta: engorda a barreira em d (cantos retos), pega o espaço livre que
+       sobrou fechado (o que encosta na borda é o lado de fora) e devolve os d — a sala volta
+       exatamente à face das paredes, com o vão da porta cortado no alinhamento da parede.
+    """
+    fino = 1e-4  # 0,1 mm: espessura dada às linhas, sem efeito prático na área
+    pecas = list(d.paredes) + [l.buffer(fino, cap_style=2) for l in d.linhas_paredes if l.length > 0]
+    if not pecas:
+        return []
+    paredes = unary_union(pecas)
+    tol, minimo = 0.03, 0.20
+    barreiras = [paredes]
+    for linha in d.linhas_esquadrias:
+        cs = list(linha.coords)
+        for a, b in zip(cs, cs[1:]):
+            seg_pa, seg_pb = Point(a), Point(b)
+            if (seg_pa.distance(seg_pb) >= minimo and paredes.distance(seg_pa) <= tol
+                    and paredes.distance(seg_pb) <= tol):
+                tampa = _tampa_vao(a, b, paredes)
+                barreiras.append(tampa if tampa is not None else LineString([a, b]).buffer(fino, cap_style=2))
+    barreira = unary_union(barreiras)
+    dd = cfg.get("fechamento_vaos_m", 0.45)
+    moldura = box(*barreira.bounds).buffer(1.0, join_style=2)
+    livre = moldura.difference(barreira)
+    fechado = barreira.buffer(dd, join_style=2, cap_style=3)
+    sobra = moldura.difference(fechado)
+    faces = []
+    for f in getattr(sobra, "geoms", [sobra]):
+        if f.is_empty or f.exterior.distance(moldura.exterior) < 1e-6:
+            continue  # encosta na borda: é o lado de fora do prédio
+        sala = f.buffer(dd, join_style=2).intersection(livre)
+        if sala.geom_type != "Polygon":
+            partes = [g for g in getattr(sala, "geoms", []) if g.geom_type == "Polygon"]
+            if not partes:
+                continue
+            sala = max(partes, key=lambda g: g.intersection(f).area)
+        if sala.area >= cfg.get("area_minima_m2", 0.2):
+            faces.append(Poligono(sala, "(paredes)", "paredes"))
+    return faces
+
+
 def _menor_que_contem(pt: Point, polys: list[Poligono], arvore: STRtree):
     melhor = None
     for i in arvore.query(pt):
@@ -148,9 +226,22 @@ def analisar(d: Desenho, cfg: dict, pe_direito: float | None = None) -> Resultad
         (por_cat[cat] if cat else soltos).append(p)
     por_cat = {k: _sem_duplicados(v) for k, v in por_cat.items()}
 
+    modo_pedido = cfg.get("modo", "auto")
+    if modo_pedido in ("paredes", "textos"):
+        por_cat["ambientes"] = []
+    faces_paredes = [] if modo_pedido == "textos" else _faces_por_paredes(d, cfg)
+    if modo_pedido == "paredes" and not faces_paredes:
+        alertas.append(Alerta("erro", "Modo paredes pedido, mas não achei paredes (padrões: "
+                                      + ", ".join(cfg["camadas"].get("paredes", [])) + "). Use --camada-paredes."))
     if por_cat["ambientes"]:
         modo = "camadas"
         candidatos = por_cat["ambientes"]
+    elif faces_paredes:
+        modo = "paredes"
+        candidatos = faces_paredes
+        alertas.append(Alerta("info", "Sem camada de ambientes: os ambientes foram montados pelo espaço entre as "
+                                      "paredes. Ambientes sem parede de divisa (salas abertas entre si, vãos "
+                                      "largos) não são calculados — aparecem nos alertas."))
     else:
         modo = "textos"
         candidatos = _sem_duplicados(soltos)
@@ -180,7 +271,7 @@ def analisar(d: Desenho, cfg: dict, pe_direito: float | None = None) -> Resultad
     #      sem aquela informação mais próximo, até distancia_rotulo_m
     adotou: dict[int, float] = {}
     sem_lugar = []
-    if modo == "camadas" and candidatos:
+    if modo in ("camadas", "paredes") and candidatos:
         def falta(p, r):
             g = grupos.get(id(p), [])
             if r.nome:
@@ -207,12 +298,23 @@ def analisar(d: Desenho, cfg: dict, pe_direito: float | None = None) -> Resultad
     else:
         sem_lugar = [r for r in orfaos if r.nome and camadas_nomes]
 
+    if modo == "paredes":
+        candidatos = [p for p in candidatos if any(r.nome for r in grupos.get(id(p), []))]
+
     ambientes: list[Area] = []
     for p in candidatos:
         g = grupos.get(id(p), [])
         nome, sobra = _juntar_nome([r for r in g if r.nome])
         c = p.geom.representative_point()
         outros = [r.nome for r in sobra if r.nome != nome]
+        if outros and modo == "paredes":
+            # mais de um ambiente no mesmo espaço: falta parede de divisa. Não calcula para não somar errado.
+            todos = [nome] + list(dict.fromkeys(outros))
+            alertas.append(Alerta("atencao", f"Sem parede entre {', '.join(todos[:5])}"
+                                             f"{'…' if len(todos) > 5 else ''} (espaço único de "
+                                             f"{num(p.geom.area)} m²): não calculados. Desenhe a divisa numa "
+                                             f"camada de ambientes ou use a hachura/polilinha de área.", c.x, c.y))
+            continue
         if outros and modo == "camadas":
             alertas.append(Alerta("info", f"Ambiente {nome}: outros textos dentro dele foram ignorados como nome "
                                           f"({', '.join(outros[:4])}{'…' if len(outros) > 4 else ''}).", c.x, c.y))
@@ -260,8 +362,21 @@ def analisar(d: Desenho, cfg: dict, pe_direito: float | None = None) -> Resultad
                     a.nome = f"{nome} ({k})"
             alertas.append(Alerta("info", f"Nome '{nome}' aparece em {n} ambientes; numerados (1)…({n})."))
 
-    for r in sem_lugar:
-        alertas.append(Alerta("atencao", f"Texto '{r.nome}' não está dentro de nenhum ambiente.", r.x, r.y))
+    if modo == "paredes":
+        # junta as linhas de cada nome e explica: o espaço não fecha (vão largo ou aberto para fora)
+        resto = list(sem_lugar)
+        vao = 2 * cfg.get("fechamento_vaos_m", 0.45)
+        while resto:
+            nome, sobra = _juntar_nome(resto)
+            usados = [r for r in resto if r not in sobra]
+            r0 = usados[0]
+            alertas.append(Alerta("atencao", f"{nome}: não calculado — o espaço não fecha só com paredes (comunica "
+                                             f"com o lado de fora ou com outro ambiente por vão maior que "
+                                             f"{num(vao)} m, ou não há parede de divisa).", r0.x, r0.y))
+            resto = sobra
+    else:
+        for r in sem_lugar:
+            alertas.append(Alerta("atencao", f"Texto '{r.nome}' não está dentro de nenhum ambiente.", r.x, r.y))
 
     # ---- conferências
     tol = cfg.get("diferenca_declarada_m2", 0.05)
@@ -275,6 +390,21 @@ def analisar(d: Desenho, cfg: dict, pe_direito: float | None = None) -> Resultad
             c = a.geom.representative_point()
             alertas.append(Alerta("info", f"{a.nome}: área muito pequena ({num(a.area)} m²). É mesmo um ambiente?",
                                   c.x, c.y))
+
+    if modo == "camadas" and faces_paredes:
+        tol_p = cfg.get("diferenca_paredes_m2", 0.02)
+        arv_f = STRtree([f.geom for f in faces_paredes])
+        for a in ambientes:
+            for j in arv_f.query(a.geom):
+                f = faces_paredes[int(j)].geom
+                inter = a.geom.intersection(f).area
+                if inter >= 0.9 * max(a.area, f.area):        # é o mesmo ambiente
+                    if abs(f.area - a.area) > tol_p:
+                        c = a.geom.representative_point()
+                        alertas.append(Alerta("atencao", f"{a.nome}: a área desenhada ({num(a.area)} m²) não encosta "
+                                                         f"nas paredes — pelas faces das paredes dá {num(f.area)} m² "
+                                                         f"(diferença {num(f.area - a.area)} m²).", c.x, c.y))
+                    break
 
     if len(ambientes) > 1:
         arv = STRtree([a.geom for a in ambientes])

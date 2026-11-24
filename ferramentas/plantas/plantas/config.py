@@ -43,6 +43,16 @@ def categoria_da_camada(camada: str, cfg: dict) -> str | None:
     return None
 
 
+def camada_parede(camada: str, cfg: dict) -> bool:
+    c = cfg["camadas"]
+    return casa_camada(camada, c.get("paredes", [])) and not casa_camada(camada, c.get("ignorar", []))
+
+
+def camada_esquadria(camada: str, cfg: dict) -> bool:
+    c = cfg["camadas"]
+    return casa_camada(camada, c.get("esquadrias", [])) and not casa_camada(camada, c.get("ignorar", []))
+
+
 def camadas_de_area(cfg: dict) -> list[str]:
     c = cfg["camadas"]
     return c.get("ambientes", []) + c.get("terreno", []) + c.get("construida", []) + c.get("permeavel", [])

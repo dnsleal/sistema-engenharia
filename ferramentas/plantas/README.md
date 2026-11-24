@@ -37,7 +37,8 @@ python -m plantas processar minha_planta.dxf --dados projeto.json --modelo exemp
 ```
 
 Outras opções: `--unidade m|cm|mm` (DXF sem unidade), `--pe-direito 3.0`, `--saida pasta`,
-`--camada-terreno`, `--camada-construida`, `--camada-permeavel`, `--camada-nomes`, `--config meu.json`, `--detalhes`.
+`--modo auto|camadas|paredes|textos`, `--vao 1.0`, `--camada-terreno`, `--camada-construida`, `--camada-permeavel`,
+`--camada-nomes`, `--camada-numeros`, `--camada-paredes`, `--camada-esquadrias`, `--config meu.json`, `--detalhes`.
 
 ## Como desenhar para o resultado sair certo
 
@@ -52,6 +53,26 @@ vez. Para isso a planta precisa seguir um padrão mínimo:
    (`CONSTRUIDA*`, `PROJECAO*`) e das **áreas permeáveis** (`PERMEAVEL*`). Com elas saem as taxas de ocupação
    e permeabilidade.
 
+### Sem camada de áreas: modo paredes
+
+Se o desenho não tem polilinha/hachura de ambientes, o programa monta cada ambiente pelo **espaço entre as
+paredes** (camadas `*PAREDE*`, `*ALVENARIA*`; `*DEMOL*` fica de fora):
+
+- vãos de porta de até 0,90 m são fechados no alinhamento da parede (`--vao 1.0` para portas maiores);
+- janelas largas são fechadas pela linha da esquadria que vai de um batente ao outro (camadas `*ESQ*`,
+  `*JANELA*`, `*PORTA*`); folha e arco de porta não dividem o ambiente;
+- a área é a da **face interna das paredes**;
+- dois nomes no mesmo espaço (sala aberta para a circulação, espera + circulação…) **não são calculados**:
+  aparecem nos alertas, porque a divisa entre eles é decisão de projeto e não está desenhada. O mesmo vale para
+  espaços que se abrem para fora por vão largo (varandas, abrigos).
+
+Na USF Jardim Fortaleza, sem usar as hachuras, saíram 22 dos 30 ambientes, com diferença de até 0,006 m² para
+a hachura (que fica 2 mm antes da parede); os 8 restantes são espaços abertos entre si ou para fora.
+
+Quando há camada de ambientes **e** paredes, as duas são comparadas: hachura que não encosta na parede vira
+alerta (ex.: "CURATIVO: a área desenhada (8,60 m²) não encosta nas paredes — pelas faces das paredes dá 8,64 m²").
+`--modo paredes` força o cálculo pelas paredes mesmo havendo hachura.
+
 Nomes de camada são configuráveis em `config_padrao.json` ou num `config.json` seu (`--config`).
 `exemplos/config_arq.json` é o padrão de camadas `ARQ-` (testado no projeto da USF Jardim Fortaleza/Santa Laura):
 ambientes = hachura `ARQ-HACH-SETOR`, nomes em `ARQ-TEXTOS`, áreas em `ARQ-AREAS`, números em `ARQ-NUMEROS`,
@@ -61,8 +82,8 @@ coordenadas; por isso as camadas de nome precisam ser informadas (senão os text
 ```bash
 python -m plantas processar USF_..._ARQ_R00.dxf --config exemplos/config_arq.json --dados projeto.json
 ```
-Se nenhuma camada de ambientes for achada, o programa entra no **modo textos**: cada nome escrito marca a menor
-área fechada que o contém. Funciona, mas é menos confiável — o aviso aparece no resultado.
+Se não houver camada de ambientes, o programa usa as **paredes** (veja abaixo). Sem paredes reconhecidas, entra no
+**modo textos**: cada nome escrito marca a menor área fechada que o contém (menos confiável; o aviso aparece).
 
 ## O que ele confere sozinho (alertas)
 

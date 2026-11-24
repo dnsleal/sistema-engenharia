@@ -51,6 +51,9 @@ class Desenho:
     camadas: dict = field(default_factory=dict)             # camada -> {'fechados': n, 'abertos': n, 'textos': n}
     alertas: list[Alerta] = field(default_factory=list)
     tem_camadas: bool = True           # PDF sem camadas (OCG) = False
+    paredes: list = field(default_factory=list)      # polígonos (paredes desenhadas fechadas), em m
+    linhas_paredes: list = field(default_factory=list)       # LineString de paredes desenhadas com linhas
+    linhas_esquadrias: list = field(default_factory=list)    # LineString de portas/janelas
 
 
 @dataclass

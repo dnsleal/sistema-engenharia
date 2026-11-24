@@ -32,7 +32,11 @@ def _cfg(args) -> dict:
     cfg = cfgmod.carregar(args.config)
     if getattr(args, "camada_ambientes", None):
         cfg["camadas"]["ambientes"] = args.camada_ambientes
-    for chave in ("terreno", "construida", "permeavel", "nomes"):
+    if getattr(args, "modo", None):
+        cfg["modo"] = args.modo
+    if getattr(args, "vao", None):
+        cfg["fechamento_vaos_m"] = args.vao / 2
+    for chave in ("terreno", "construida", "permeavel", "nomes", "numeros", "paredes", "esquadrias"):
         v = getattr(args, f"camada_{chave}", None)
         if v:
             cfg["camadas"][chave] = v
@@ -149,6 +153,12 @@ def main(argv=None) -> int:
         p.add_argument("--camada-construida", nargs="+", metavar="CAMADA")
         p.add_argument("--camada-permeavel", nargs="+", metavar="CAMADA")
         p.add_argument("--camada-nomes", nargs="+", metavar="CAMADA", help="camada(s) dos textos de nome dos ambientes")
+        p.add_argument("--camada-numeros", nargs="+", metavar="CAMADA", help="camada(s) com o número de cada ambiente")
+        p.add_argument("--camada-paredes", nargs="+", metavar="CAMADA", help="camada(s) das paredes (modo paredes)")
+        p.add_argument("--camada-esquadrias", nargs="+", metavar="CAMADA", help="camada(s) de portas/janelas")
+        p.add_argument("--modo", choices=["auto", "camadas", "paredes", "textos"],
+                       help="como achar os ambientes (padrão auto: camada de ambientes > paredes > textos)")
+        p.add_argument("--vao", type=float, help="modo paredes: maior vão de porta fechado automaticamente, em m (padrão 0,90)")
 
     p = sub.add_parser("processar", help="calcula áreas e gera planilha, memorial, SVG e JSON")
     comuns(p)

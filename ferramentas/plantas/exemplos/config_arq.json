@@ -1,11 +1,33 @@
 {
-  "_leia": "Padrão de camadas ARQ- (ex.: projetos das USF). Ambientes = hachura de setorização da planta NOVA. Use: --config exemplos/config_arq.json",
+  "_leia": "Padrão de camadas ARQ- (ex.: projetos das USF). Ambientes = hachura de setorização da planta NOVA; paredes da planta nova (ARQ-PROJ-PAREDES) servem para conferir as hachuras ou, com --modo paredes, para calcular sem hachura. Use: --config exemplos/config_arq.json",
   "camadas": {
-    "ambientes": ["ARQ-HACH-SETOR"],
-    "terreno": ["ARQ-LOTE"],
-    "construida": ["ARQ-PROJECAO"],
-    "permeavel": ["ARQ-PAISAGISMO-PERMEAVEL", "ARQ-PERMEAVEL"],
-    "nomes": ["ARQ-TEXTOS", "ARQ-AREAS"],
-    "numeros": ["ARQ-NUMEROS"]
+    "ambientes": [
+      "ARQ-HACH-SETOR"
+    ],
+    "terreno": [
+      "ARQ-LOTE"
+    ],
+    "construida": [
+      "ARQ-PROJECAO"
+    ],
+    "permeavel": [
+      "ARQ-PAISAGISMO-PERMEAVEL",
+      "ARQ-PERMEAVEL"
+    ],
+    "nomes": [
+      "ARQ-TEXTOS",
+      "ARQ-AREAS"
+    ],
+    "numeros": [
+      "ARQ-NUMEROS"
+    ],
+    "paredes": [
+      "ARQ-PROJ-PAREDES"
+    ],
+    "esquadrias": [
+      "ARQ-ESQ*",
+      "ARQ-JANELAS",
+      "ARQ-PORTAS"
+    ]
   }
 }

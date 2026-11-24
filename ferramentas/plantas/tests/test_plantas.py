@@ -293,3 +293,84 @@ def test_numeracao_incompleta_usa_ordem_de_leitura():
     res = analise.analisar(Desenho("x.dxf", "dxf", "m", 1.0, poligonos=polys, textos=textos), _cfg_rotulos())
     assert [a.numero for a in res.ambientes] == [1, 2]
     assert any("incompleta" in a.mensagem for a in res.alertas)
+
+
+def _planta_so_paredes(tmp_path):
+    """Sem camada de ambientes. Paredes de 15 cm (polilinhas fechadas), porta de 0,80 m com folha e arco,
+    janela de 1,50 m com peitoril de um lado ao outro do vão e duas salas sem parede entre elas."""
+    import ezdxf
+    doc = ezdxf.new()
+    doc.header["$INSUNITS"] = 6
+    msp = doc.modelspace()
+
+    def ret(x0, y0, x1, y1, camada="PAREDES"):
+        msp.add_lwpolyline([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], close=True, dxfattribs={"layer": camada})
+
+    ret(0, 0, 1.5, 0.15)
+    ret(3.0, 0, 10.3, 0.15)          # parede de baixo com vão de janela 1,5..3,0
+    ret(0, 4.15, 10.3, 4.3)          # cima
+    ret(0, 0, 0.15, 4.3)             # esquerda
+    ret(10.15, 0, 10.3, 4.3)         # direita
+    ret(4.15, 0.15, 4.3, 1.0)        # parede interna com porta 1,0..1,8
+    ret(4.15, 1.8, 4.3, 4.15)
+    msp.add_line((1.5, 0.075), (3.0, 0.075), dxfattribs={"layer": "JANELAS"})      # peitoril
+    ret(4.3, 1.0, 5.1, 1.04, "PORTAS")                                              # folha
+    msp.add_arc((4.3, 1.0), 0.8, 0, 90, dxfattribs={"layer": "PORTAS"})             # arco de abertura
+    msp.add_text("ESCRITÓRIO", height=0.15, dxfattribs={"insert": (1.5, 2)})
+    msp.add_text("A = 16,00 m²", height=0.1, dxfattribs={"insert": (1.5, 1.7)})
+    msp.add_text("SALA", height=0.15, dxfattribs={"insert": (6, 2)})
+    msp.add_text("COZINHA", height=0.15, dxfattribs={"insert": (9, 2)})
+    doc.saveas(tmp_path / "paredes.dxf")
+    return tmp_path / "paredes.dxf"
+
+
+def test_modo_paredes_sem_camada_de_areas(tmp_path):
+    arq = _planta_so_paredes(tmp_path)
+    res = analise.analisar(leitor_dxf.ler(arq, CFG), CFG)
+    assert res.modo == "paredes"
+    amb = _por_nome(res)
+    assert list(amb) == ["ESCRITÓRIO"]
+    esc = amb["ESCRITÓRIO"]
+    assert esc.area == pytest.approx(16.0, abs=1e-6)        # porta e janela cortadas na face da parede
+    assert esc.perimetro == pytest.approx(16.0, abs=1e-6)
+    assert esc.area_declarada == 16.0
+    msgs = " | ".join(a.mensagem for a in res.alertas)
+    assert "SALA" in msgs and "COZINHA" in msgs and "não calculado" in msgs   # sem parede entre as duas
+    assert not any(a.nivel == "erro" for a in res.alertas)
+
+
+def test_paredes_a_demolir_nao_contam(tmp_path):
+    import ezdxf
+    arq = _planta_so_paredes(tmp_path)
+    doc = ezdxf.readfile(arq)
+    # parede a demolir dividindo SALA e COZINHA: não pode separar as duas
+    doc.modelspace().add_lwpolyline([(7.5, 0.15), (7.65, 0.15), (7.65, 4.15), (7.5, 4.15)], close=True,
+                                    dxfattribs={"layer": "PAREDES-DEMOLIR"})
+    doc.saveas(arq)
+    res = analise.analisar(leitor_dxf.ler(arq, CFG), CFG)
+    assert "SALA" not in _por_nome(res)
+    # mas se a parede for nova, separa e calcula as duas
+    doc.modelspace().add_lwpolyline([(7.5, 0.15), (7.65, 0.15), (7.65, 4.15), (7.5, 4.15)], close=True,
+                                    dxfattribs={"layer": "PAREDES-NOVAS"})
+    doc.saveas(arq)
+    amb = _por_nome(analise.analisar(leitor_dxf.ler(arq, CFG), CFG))
+    assert amb["SALA"].area == pytest.approx((7.5 - 4.3) * 4, abs=1e-6)
+    assert amb["COZINHA"].area == pytest.approx((10.15 - 7.65) * 4, abs=1e-6)
+
+
+def test_confere_hachura_contra_paredes(tmp_path):
+    import ezdxf
+    arq = _planta_so_paredes(tmp_path)
+    doc = ezdxf.readfile(arq)
+    # polilinha de área do ESCRITÓRIO desenhada 1 cm antes da parede da esquerda
+    doc.modelspace().add_lwpolyline([(0.16, 0.15), (4.15, 0.15), (4.15, 4.15), (0.16, 4.15)], close=True,
+                                    dxfattribs={"layer": "AMBIENTES"})
+    doc.saveas(arq)
+    res = analise.analisar(leitor_dxf.ler(arq, CFG), CFG)
+    assert res.modo == "camadas"
+    assert _por_nome(res)["ESCRITÓRIO"].area == pytest.approx(3.99 * 4, abs=1e-6)
+    assert any("não encosta nas paredes" in a.mensagem and "16,00" in a.mensagem for a in res.alertas)
+    # forçando o modo paredes, vale a face da parede
+    cfg = config.carregar()
+    cfg["modo"] = "paredes"
+    assert _por_nome(analise.analisar(leitor_dxf.ler(arq, cfg), cfg))["ESCRITÓRIO"].area == pytest.approx(16, abs=1e-6)
