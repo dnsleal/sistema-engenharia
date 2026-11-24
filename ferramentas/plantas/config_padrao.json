@@ -1,0 +1,25 @@
+{
+  "_leia": "Padrões de camadas aceitam * (ex.: AMBIENTE* pega AMBIENTES e AMBIENTE-TERREO). Maiúsculas/minúsculas tanto faz.",
+  "camadas": {
+    "ambientes": ["AMBIENTE*", "AREA-AMB*", "AREA_AMB*", "AREAS-AMB*", "A-AREA*"],
+    "terreno": ["TERRENO*", "LOTE*", "AREA-TERRENO*"],
+    "construida": ["CONSTRUIDA*", "AREA-CONSTRUIDA*", "PROJECAO*", "AREA-PROJECAO*"],
+    "permeavel": ["PERMEAVEL*", "AREA-PERMEAVEL*"],
+    "nomes": [],
+    "_nomes": "Camadas dos textos com o nome dos ambientes. Vazio = aceita texto de qualquer camada."
+  },
+  "pe_direito_padrao": 2.80,
+  "tolerancia_fechamento_m": 0.02,
+  "area_minima_m2": 0.20,
+  "diferenca_declarada_m2": 0.05,
+  "ignorar_textos": [
+    "^[\\d\\s.,+\\-=x/×()%]+$",
+    "^\\d+[.,]?\\d*\\s*m[²2]?$",
+    "^ESC(ALA)?\\b",
+    "^(PLANTA|CORTE|FACHADA|PRANCHA|FOLHA|DATA|DESENHO|ESCALA|N[º°O]\\.?)\\b",
+    "^PD\\s*[=:]",
+    "^(H|PE[- ]DIREITO)\\s*[=:]",
+    "^[A-Z]?\\d{1,3}$"
+  ],
+  "_ignorar_textos": "Expressões regulares (sem diferenciar maiúsculas) de textos que nunca são nome de ambiente: cotas, áreas, escalas, títulos."
+}

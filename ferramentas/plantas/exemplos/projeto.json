@@ -1,0 +1,16 @@
+{
+  "obra": "Residência unifamiliar — exemplo",
+  "endereco": "Rua Exemplo, 100 — Bairro — Cuiabá/MT",
+  "proprietario": "Nome do proprietário",
+  "responsavel": "Diego Leal — Engenheiro Civil",
+  "registro": "CREA-MT 37420",
+  "municipio": "Cuiabá - MT",
+  "objeto": "",
+  "descricoes": {
+    "SALA": "Piso em porcelanato 60×60 cm, paredes com pintura acrílica sobre massa corrida, forro de gesso.",
+    "COZINHA": "Piso cerâmico, revestimento cerâmico até 1,50 m na parede da pia, bancada em granito.",
+    "BANHEIRO": "Piso e paredes em revestimento cerâmico até o teto, bancada em granito, box em vidro temperado.",
+    "QUARTO": "Piso em porcelanato, pintura acrílica, forro de gesso.",
+    "VARANDA": "Piso cerâmico antiderrapante, cobertura em laje."
+  }
+}

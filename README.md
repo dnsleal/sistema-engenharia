@@ -17,6 +17,7 @@ Desenvolvido por Eng. Civil Diego Leal, CREA-MT 37420.
 | 6 | Proposta Geoflora e relatório de vistoria (clientes) salvos no sistema | pronto |
 | 7 | Acompanhamento de processos SIGED (prazos, histórico, alertas) | pronto |
 | 8 | Simulador de armaduras | a fazer |
+| 9 | Leitura de plantas DXF/DWG/PDF: áreas, perímetros, quadro de áreas e memorial (`ferramentas/plantas`, Python) | em teste |
 
 ## Estrutura
 
@@ -84,3 +85,7 @@ Os padrões dos orçamentos novos (órgão, município, responsável técnico, t
 `orcamento/bases/sinapi-mt-AAAA-MM.json` (app anterior e Auditoria) traz, só para MT: insumos e composições nos dois regimes (desonerado e não desonerado), a composição analítica, o % de mão de obra e o preço de SP (%AS) dos insumos sem preço em MT. Composições com custo zero em MT ficam fora da busca.
 
 Para incluir um mês novo, gere o arquivo a partir dos relatórios da CAIXA (SINAPI_Referência e SINAPI_mão_de_obra) e acrescente uma linha em `orcamento/bases/index.json`. Também é possível importar o mês direto no app (Bancos de dados → Importar planilha); nesse caso a base fica só no navegador onde foi importada.
+
+## Plantas: áreas e memorial
+
+`ferramentas/plantas/` lê plantas DXF, DWG (convertido para DXF) e PDF vetorial e calcula área e perímetro de cada ambiente. Gera a planilha de áreas, o memorial em Word, um desenho de conferência (SVG) e um JSON. Por enquanto roda no computador, em Python. Instruções em [ferramentas/plantas/README.md](ferramentas/plantas/README.md).
