@@ -34,9 +34,16 @@ def _num(s: str) -> float:
 class _Rotulo:
     """Um texto do desenho já separado em nome / área escrita / pé-direito."""
 
-    def __init__(self, t, ignorar: list[re.Pattern]):
+    def __init__(self, t, ignorar: list[re.Pattern], camadas_numeros: list[str] = ()):
         self.x, self.y, self.altura, self.camada = t.x, t.y, t.altura, t.camada
-        self.area = self.pd = None
+        self.area = self.pd = self.numero = None
+        self.texto = t.texto
+        if camadas_numeros and cfgmod.casa_camada(t.camada, camadas_numeros):
+            if re.fullmatch(r"\s*\d{1,4}\s*", t.texto):
+                self.numero = int(t.texto)
+            self.nome = ""
+            self.ponto = Point(self.x, self.y)
+            return
         nomes = []
         for linha in re.split(r"[\n\r]+|\\P", t.texto):
             linha = " ".join(linha.split())
@@ -54,6 +61,40 @@ class _Rotulo:
             nomes.append(linha)
         self.nome = " ".join(nomes).upper()
         self.ponto = Point(self.x, self.y)
+
+    @property
+    def util(self) -> bool:
+        return bool(self.nome) or self.area is not None or self.pd is not None or self.numero is not None
+
+    @property
+    def largura(self) -> float:
+        return 0.6 * self.altura * max(len(self.texto), 1)
+
+
+def _juntar_nome(nomes: list[_Rotulo]) -> tuple[str, list[_Rotulo]]:
+    """Junta nomes escritos em várias linhas (TEXTs separados, um embaixo do outro).
+
+    Parte do maior texto e agrega os de altura parecida, alinhados e logo acima/abaixo.
+    Devolve o nome e os textos que sobraram (não fazem parte do nome)."""
+    if not nomes:
+        return "", []
+    resto = sorted(nomes, key=lambda r: -r.altura)
+    grupo = [resto.pop(0)]
+    h = grupo[0].altura
+    mudou = True
+    while mudou:
+        mudou = False
+        for r in list(resto):
+            if abs(r.altura - h) > 0.2 * h:
+                continue
+            x_ok = any(abs(r.x - g.x) <= max(r.largura, g.largura) / 2 + h for g in grupo)
+            y_ok = any(abs(r.y - g.y) <= 1.8 * h for g in grupo)
+            if x_ok and y_ok:
+                grupo.append(r)
+                resto.remove(r)
+                mudou = True
+    grupo.sort(key=lambda r: (-r.y, r.x))
+    return " ".join(r.nome for r in grupo), resto
 
 
 def _sem_duplicados(polys: list[Poligono]) -> list[Poligono]:
@@ -91,9 +132,13 @@ def analisar(d: Desenho, cfg: dict, pe_direito: float | None = None) -> Resultad
     pd_padrao = pe_direito if pe_direito is not None else cfg.get("pe_direito_padrao")
     ignorar = [re.compile(r, re.I) for r in cfg.get("ignorar_textos", [])]
     camadas_nomes = cfg["camadas"].get("nomes") or []
+    camadas_numeros = cfg["camadas"].get("numeros") or []
+    dist_rotulo = cfg.get("distancia_rotulo_m", 1.0)
 
-    rotulos = [_Rotulo(t, ignorar) for t in d.textos
-               if not camadas_nomes or cfgmod.casa_camada(t.camada, camadas_nomes)]
+    rotulos = [_Rotulo(t, ignorar, camadas_numeros) for t in d.textos
+               if not camadas_nomes or cfgmod.casa_camada(t.camada, camadas_nomes)
+               or (camadas_numeros and cfgmod.casa_camada(t.camada, camadas_numeros))]
+    rotulos = [r for r in rotulos if r.util]
 
     # ---- separa polígonos por categoria de camada
     por_cat = {"ambientes": [], "terreno": [], "construida": [], "permeavel": []}
@@ -119,49 +164,88 @@ def analisar(d: Desenho, cfg: dict, pe_direito: float | None = None) -> Resultad
     arvore = STRtree([p.geom for p in candidatos]) if candidatos else None
 
     # ---- associa cada texto ao menor polígono que o contém
-    nomes_de: dict[int, list[_Rotulo]] = {}
-    info_de: dict[int, list[_Rotulo]] = {}
-    sem_lugar = []
+    grupos: dict[int, list[_Rotulo]] = {}
+    orfaos = []
     for r in rotulos:
         p = _menor_que_contem(r.ponto, candidatos, arvore) if arvore is not None else None
         if p is None:
-            if r.nome and camadas_nomes:
-                sem_lugar.append(r)
-            continue
-        if r.nome:
-            nomes_de.setdefault(id(p), []).append(r)
-        if r.area is not None or r.pd is not None:
-            info_de.setdefault(id(p), []).append(r)
+            orfaos.append(r)
+        else:
+            grupos.setdefault(id(p), []).append(r)
 
     if modo == "textos":
-        candidatos = [p for p in candidatos if id(p) in nomes_de]
+        candidatos = [p for p in candidatos if any(r.nome for r in grupos.get(id(p), []))]
+
+    # ---- rótulo fora do ambiente (ambiente pequeno, texto ao lado): vai para o ambiente
+    #      sem aquela informação mais próximo, até distancia_rotulo_m
+    adotou: dict[int, float] = {}
+    sem_lugar = []
+    if modo == "camadas" and candidatos:
+        def falta(p, r):
+            g = grupos.get(id(p), [])
+            if r.nome:
+                return id(p) in adotou or not any(x.nome for x in g)
+            if r.area is not None:
+                return not any(x.area is not None for x in g)
+            if r.numero is not None:
+                return not any(x.numero is not None for x in g)
+            return not any(x.pd is not None for x in g)
+
+        for r in sorted(orfaos, key=lambda r: (not r.nome,)):  # nomes primeiro
+            perto = [(p.geom.distance(r.ponto), p) for p in candidatos]
+            perto = [(dd, p) for dd, p in perto if dd <= dist_rotulo and falta(p, r)]
+            if not perto:
+                if r.nome and camadas_nomes:
+                    sem_lugar.append(r)
+                continue
+            # prefere o ambiente que já adotou um texto vizinho (o resto do mesmo rótulo)
+            perto.sort(key=lambda t: (id(t[1]) not in adotou, t[0]))
+            dd, p = perto[0]
+            grupos.setdefault(id(p), []).append(r)
+            if r.nome and id(p) not in adotou:
+                adotou[id(p)] = dd
+    else:
+        sem_lugar = [r for r in orfaos if r.nome and camadas_nomes]
 
     ambientes: list[Area] = []
     for p in candidatos:
-        nomes = sorted(nomes_de.get(id(p), []), key=lambda r: -r.altura)
+        g = grupos.get(id(p), [])
+        nome, sobra = _juntar_nome([r for r in g if r.nome])
         c = p.geom.representative_point()
-        if nomes:
-            nome = nomes[0].nome
-            outros = [r.nome for r in nomes[1:] if r.nome != nome]
-            if outros and modo == "camadas":
-                alertas.append(Alerta("info", f"Ambiente {nome}: outros textos dentro dele foram ignorados como nome "
-                                              f"({', '.join(outros[:4])}{'…' if len(outros) > 4 else ''}).", c.x, c.y))
-        else:
-            nome = ""
-        infos = info_de.get(id(p), [])
-        area_decl = next((r.area for r in infos if r.area is not None), None)
-        pd = next((r.pd for r in infos if r.pd is not None), pd_padrao)
-        ambientes.append(Area("ambientes", nome, p.camada, p.geom, pd, area_decl, p.origem))
+        outros = [r.nome for r in sobra if r.nome != nome]
+        if outros and modo == "camadas":
+            alertas.append(Alerta("info", f"Ambiente {nome}: outros textos dentro dele foram ignorados como nome "
+                                          f"({', '.join(outros[:4])}{'…' if len(outros) > 4 else ''}).", c.x, c.y))
+        if id(p) in adotou:
+            alertas.append(Alerta("atencao", f"Ambiente {nome} ({num(p.geom.area)} m²): o nome está escrito FORA "
+                                             f"dele (a {num(adotou[id(p)])} m); associado pela proximidade. Confira.",
+                                  c.x, c.y))
+        area_decl = next((r.area for r in g if r.area is not None), None)
+        pd = next((r.pd for r in g if r.pd is not None), pd_padrao)
+        a_ = Area("ambientes", nome, p.camada, p.geom, pd, area_decl, p.origem)
+        nums = sorted({r.numero for r in g if r.numero is not None})
+        a_.numero = nums[0] if len(nums) == 1 else 0
+        ambientes.append(a_)
 
-    ambientes.sort(key=_ordem_leitura)
-    sem_nome = 0
-    for i, a in enumerate(ambientes, 1):
-        a.numero = i
+    # numeração: a do desenho, se completa e sem repetição; senão, ordem de leitura
+    nums = [a.numero for a in ambientes]
+    usar_desenho = bool(camadas_numeros) and ambientes and all(nums) and len(set(nums)) == len(nums)
+    if usar_desenho:
+        ambientes.sort(key=lambda a: a.numero)
+    else:
+        if camadas_numeros and any(nums):
+            alertas.append(Alerta("atencao", f"Numeração dos ambientes no desenho incompleta ou repetida "
+                                             f"({sum(1 for n in nums if n)} de {len(nums)} com número); "
+                                             f"usei a ordem de leitura."))
+        ambientes.sort(key=_ordem_leitura)
+        for i, a in enumerate(ambientes, 1):
+            a.numero = i
+    for a in ambientes:
         if not a.nome:
-            sem_nome += 1
-            a.nome = f"AMBIENTE {i} (SEM NOME)"
+            a.nome = f"AMBIENTE {a.numero} (SEM NOME)"
             c = a.geom.representative_point()
-            alertas.append(Alerta("atencao", f"Ambiente nº {i} ({num(a.area)} m²) sem texto de nome dentro.", c.x, c.y))
+            alertas.append(Alerta("atencao", f"Ambiente nº {a.numero} ({num(a.area)} m²) sem texto de nome dentro.",
+                                  c.x, c.y))
 
     # nomes repetidos: numera (QUARTO 1, QUARTO 2) só na saída, mantendo o aviso
     vistos: dict[str, int] = {}

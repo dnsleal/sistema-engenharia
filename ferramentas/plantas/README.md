@@ -53,6 +53,14 @@ vez. Para isso a planta precisa seguir um padrão mínimo:
    e permeabilidade.
 
 Nomes de camada são configuráveis em `config_padrao.json` ou num `config.json` seu (`--config`).
+`exemplos/config_arq.json` é o padrão de camadas `ARQ-` (testado no projeto da USF Jardim Fortaleza/Santa Laura):
+ambientes = hachura `ARQ-HACH-SETOR`, nomes em `ARQ-TEXTOS`, áreas em `ARQ-AREAS`, números em `ARQ-NUMEROS`,
+lote em `ARQ-LOTE`, projeção em `ARQ-PROJECAO`. Nesse padrão, a planta existente e a nova estão nas mesmas
+coordenadas; por isso as camadas de nome precisam ser informadas (senão os textos da existente se misturam).
+
+```bash
+python -m plantas processar USF_..._ARQ_R00.dxf --config exemplos/config_arq.json --dados projeto.json
+```
 Se nenhuma camada de ambientes for achada, o programa entra no **modo textos**: cada nome escrito marca a menor
 área fechada que o contém. Funciona, mas é menos confiável — o aviso aparece no resultado.
 
@@ -60,6 +68,9 @@ Se nenhuma camada de ambientes for achada, o programa entra no **modo textos**: 
 
 - polilinha quase fechada (folga até 2 cm): fecha e avisa; ambiente feito com linhas soltas: monta e avisa;
 - polígono com laço (autointerseção); hachura repetindo a polilinha (não conta em dobro);
+- nome escrito em várias linhas (TEXTs separados, um embaixo do outro): junta ("HALL DOS" + "SANITÁRIOS");
+- ambiente pequeno com o rótulo do lado de fora: associa ao ambiente sem nome mais próximo (até 1 m) e avisa;
+- numeração dos ambientes do próprio desenho (camada `numeros`), se completa e sem repetição;
 - ambiente sem nome, nome repetido (numera), texto de nome fora de qualquer ambiente;
 - **área escrita no desenho diferente da calculada**;
 - **ambientes sobrepostos** (área útil contada em dobro) — nível erro;

@@ -245,3 +245,51 @@ def test_ambiente_dentro_de_bloco_escalado(tmp_path):
     res = _dxf_um(tmp_path, monta)
     assert _por_nome(res)["GUARITA"].area == pytest.approx(6, abs=1e-9)
     assert res.desenho.blocos[("MODULO", "0")] == 1
+
+
+def _cfg_rotulos():
+    cfg = config.carregar()
+    cfg["camadas"]["nomes"] = ["NOMES", "AREAS"]
+    cfg["camadas"]["numeros"] = ["NUM"]
+    return cfg
+
+
+def test_nome_em_duas_linhas_numero_do_desenho_e_rotulo_fora():
+    # padrão de projeto real: nome em TEXTs empilhados, área e número em camadas próprias;
+    # ambiente pequeno com o rótulo inteiro escrito do lado de fora
+    polys = [Poligono(box(0, 0, 4, 3), "AMBIENTES", "hachura"),
+             Poligono(box(4.1, 0, 8, 3), "AMBIENTES", "hachura"),
+             Poligono(box(8.1, 0, 9.1, 1.3), "AMBIENTES", "hachura")]          # 1,30 m²
+    T = Texto
+    textos = [T("2", 2, 1.9, 0.10, "NUM"), T("HALL DOS", 2, 1.65, 0.13, "NOMES"),
+              T("SANITÁRIOS", 2, 1.49, 0.13, "NOMES"), T("A = 12,00 m²", 2, 1.35, 0.08, "AREAS"),
+              T("1", 6, 1.9, 0.10, "NUM"), T("CONSULTÓRIO", 6, 1.65, 0.13, "NOMES"),
+              T("ODONTOLÓGICO 01", 6, 1.49, 0.13, "NOMES"), T("VÃO LIVRE", 6, 0.3, 0.07, "NOMES"),
+              # rótulo do ambiente pequeno, ACIMA dele (fora do polígono)
+              T("3", 8.6, 1.85, 0.10, "NUM"), T("ABRIGO DO", 8.6, 1.70, 0.10, "NOMES"),
+              T("COMPRESSOR", 8.6, 1.57, 0.10, "NOMES"), T("A = 1,30 m²", 8.6, 1.46, 0.08, "AREAS"),
+              T("SALA DE OUTRA PLANTA", 30, 30, 0.13, "OUTRA")]
+    res = analise.analisar(Desenho("x.dxf", "dxf", "m", 1.0, poligonos=polys, textos=textos), _cfg_rotulos())
+    assert [(a.numero, a.nome) for a in res.ambientes] == [
+        (1, "CONSULTÓRIO ODONTOLÓGICO 01"), (2, "HALL DOS SANITÁRIOS"), (3, "ABRIGO DO COMPRESSOR")]
+    abrigo = res.ambientes[2]
+    assert abrigo.area_declarada == 1.30
+    assert any(a.nivel == "atencao" and "FORA" in a.mensagem and "ABRIGO" in a.mensagem for a in res.alertas)
+    assert any("VÃO LIVRE" in a.mensagem for a in res.alertas)          # não virou parte do nome
+    assert not any("sobrepõem" in a.mensagem or "SEM NOME" in a.mensagem for a in res.alertas)
+
+
+def test_rotulo_longe_demais_nao_e_associado():
+    polys = [Poligono(box(0, 0, 1, 1), "AMBIENTES", "polilinha")]
+    textos = [Texto("DEPÓSITO", 0.5, 3.5, 0.1, "NOMES")]                 # 2,5 m acima
+    res = analise.analisar(Desenho("x.dxf", "dxf", "m", 1.0, poligonos=polys, textos=textos), _cfg_rotulos())
+    assert "SEM NOME" in res.ambientes[0].nome
+    assert any("não está dentro de nenhum ambiente" in a.mensagem for a in res.alertas)
+
+
+def test_numeracao_incompleta_usa_ordem_de_leitura():
+    polys = [Poligono(box(0, 0, 2, 2), "AMBIENTES", "polilinha"), Poligono(box(3, 0, 5, 2), "AMBIENTES", "polilinha")]
+    textos = [Texto("7", 1, 1.5, 0.1, "NUM"), Texto("SALA", 1, 1, 0.1, "NOMES"), Texto("COPA", 4, 1, 0.1, "NOMES")]
+    res = analise.analisar(Desenho("x.dxf", "dxf", "m", 1.0, poligonos=polys, textos=textos), _cfg_rotulos())
+    assert [a.numero for a in res.ambientes] == [1, 2]
+    assert any("incompleta" in a.mensagem for a in res.alertas)

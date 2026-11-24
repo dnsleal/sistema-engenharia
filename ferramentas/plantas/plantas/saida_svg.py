@@ -26,14 +26,22 @@ def gerar(res: Resultado, destino: str | Path, largura_px: int = 1400) -> Path:
         destino.write_text('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="60">'
                            '<text x="10" y="35">Nenhuma área encontrada.</text></svg>', encoding="utf-8")
         return destino
-    minx = min(g.bounds[0] for g in geoms)
-    miny = min(g.bounds[1] for g in geoms)
-    maxx = max(g.bounds[2] for g in geoms)
-    maxy = max(g.bounds[3] for g in geoms)
+    # enquadra no prédio (ambientes + construída); o lote costuma ser bem maior e fica cortado
+    foco = [a.geom for a in res.ambientes] + [a.geom for a in res.outras.get("construida", [])] or geoms
+    minx = min(g.bounds[0] for g in foco)
+    miny = min(g.bounds[1] for g in foco)
+    maxx = max(g.bounds[2] for g in foco)
+    maxy = max(g.bounds[3] for g in foco)
+    folga = 0.04 * max(maxx - minx, maxy - miny)
+    minx, miny, maxx, maxy = minx - folga, miny - folga, maxx + folga, maxy + folga
     w, h = (maxx - minx) or 1, (maxy - miny) or 1
     marg = 30
     esc = (largura_px - 2 * marg) / w
     altura_px = int(h * esc + 2 * marg)
+    linha_leg = 17
+    n_col = 3
+    linhas_lista = -(-len(res.ambientes) // n_col)
+    altura_total = altura_px + 40 + (linhas_lista + 2) * linha_leg
 
     def X(x):
         return marg + (x - minx) * esc
@@ -48,9 +56,11 @@ def gerar(res: Resultado, destino: str | Path, largura_px: int = 1400) -> Path:
             partes.append("M" + " L".join(f"{X(x):.1f},{Y(y):.1f}" for x, y in cs) + " Z")
         return " ".join(partes)
 
-    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {largura_px} {altura_px + 40}" '
-           f'width="{largura_px}" height="{altura_px + 40}" font-family="Arial, sans-serif">',
-           '<rect width="100%" height="100%" fill="#ffffff"/>']
+    out = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {largura_px} {altura_total}" '
+           f'width="{largura_px}" height="{altura_total}" font-family="Arial, sans-serif">',
+           '<rect width="100%" height="100%" fill="#ffffff"/>',
+           f'<clipPath id="quadro"><rect x="0" y="0" width="{largura_px}" height="{altura_px}"/></clipPath>',
+           '<g clip-path="url(#quadro)">']
     for cat in ("terreno", "permeavel", "construida"):
         for a in res.outras.get(cat, []):
             out.append(f'<path d="{caminho(a.geom)}" fill-rule="evenodd" {ESTILO[cat][0]}><title>'
@@ -65,19 +75,30 @@ def gerar(res: Resultado, destino: str | Path, largura_px: int = 1400) -> Path:
                    f'{escape(a.nome)}: {num(a.area)} m², perímetro {num(a.perimetro)} m</title></path>')
     for a in res.ambientes:
         c = a.geom.representative_point()
+        larg_amb = (a.geom.bounds[2] - a.geom.bounds[0]) * esc
+        rotulo = f"{a.numero}. {a.nome}"
+        if 0.6 * fonte * len(rotulo) > 0.95 * larg_amb:
+            rotulo = str(a.numero)  # ambiente estreito: só o número; o nome está na lista abaixo
         out.append(f'<text x="{X(c.x):.1f}" y="{Y(c.y):.1f}" font-size="{fonte:.0f}" text-anchor="middle" '
-                   f'fill="#0b2545"><tspan font-weight="bold">{a.numero}. {escape(a.nome)}</tspan>'
+                   f'fill="#0b2545"><tspan font-weight="bold">{escape(rotulo)}</tspan>'
                    f'<tspan x="{X(c.x):.1f}" dy="{fonte * 1.2:.0f}">{num(a.area)} m²</tspan></text>')
     for al in res.alertas:
         if al.x is not None and al.nivel in ("erro", "atencao"):
             # um pouco acima do ponto, para não cobrir o nome do ambiente
             out.append(f'<circle cx="{X(al.x):.1f}" cy="{Y(al.y) - 2.2 * fonte:.1f}" r="7" fill="none" stroke="#c00000" '
                        f'stroke-width="2.5"><title>{escape(al.mensagem)}</title></circle>')
+    out.append("</g>")
     s = res.resumo
+    larg_col = (largura_px - 2 * marg) / n_col
+    for i, a in enumerate(res.ambientes):
+        col, lin = i // linhas_lista, i % linhas_lista
+        out.append(f'<text x="{marg + col * larg_col:.0f}" y="{altura_px + 40 + (lin + 1) * linha_leg}" '
+                   f'font-size="12" fill="#0b2545">{a.numero}. {escape(a.nome)} — {num(a.area)} m²</text>')
     legenda = (f"Área útil {num(s['area_util'])} m²  |  Ambientes {s['n_ambientes']}  |  "
                f"Terreno {num(s['area_terreno'])} m²  |  Construída {num(s['area_construida'])} m²  |  "
                f"Círculos vermelhos = alertas (passe o mouse)")
-    out.append(f'<text x="{marg}" y="{altura_px + 25}" font-size="13" fill="#333">{escape(legenda)}</text>')
+    out.append(f'<text x="{marg}" y="{altura_px + 22}" font-size="13" font-weight="bold" fill="#333">'
+               f'{escape(legenda)}</text>')
     out.append("</svg>")
     destino.write_text("\n".join(out), encoding="utf-8")
     return destino

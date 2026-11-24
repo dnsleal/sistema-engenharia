@@ -6,10 +6,14 @@
     "construida": ["CONSTRUIDA*", "AREA-CONSTRUIDA*", "PROJECAO*", "AREA-PROJECAO*"],
     "permeavel": ["PERMEAVEL*", "AREA-PERMEAVEL*"],
     "nomes": [],
-    "_nomes": "Camadas dos textos com o nome dos ambientes. Vazio = aceita texto de qualquer camada."
+    "_nomes": "Camadas dos textos com o nome dos ambientes. Vazio = aceita texto de qualquer camada.",
+    "numeros": [],
+    "_numeros": "Camadas com o número de cada ambiente. Se todos tiverem número sem repetir, a lista segue essa numeração."
   },
   "pe_direito_padrao": 2.80,
   "tolerancia_fechamento_m": 0.02,
+  "distancia_rotulo_m": 1.0,
+  "_distancia_rotulo_m": "Ambiente pequeno com nome escrito do lado de fora: o texto vai para o ambiente sem nome mais próximo até esta distância.",
   "area_minima_m2": 0.20,
   "diferenca_declarada_m2": 0.05,
   "ignorar_textos": [

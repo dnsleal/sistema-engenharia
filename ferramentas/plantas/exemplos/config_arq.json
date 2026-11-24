@@ -1,0 +1,11 @@
+{
+  "_leia": "Padrão de camadas ARQ- (ex.: projetos das USF). Ambientes = hachura de setorização da planta NOVA. Use: --config exemplos/config_arq.json",
+  "camadas": {
+    "ambientes": ["ARQ-HACH-SETOR"],
+    "terreno": ["ARQ-LOTE"],
+    "construida": ["ARQ-PROJECAO"],
+    "permeavel": ["ARQ-PAISAGISMO-PERMEAVEL", "ARQ-PERMEAVEL"],
+    "nomes": ["ARQ-TEXTOS", "ARQ-AREAS"],
+    "numeros": ["ARQ-NUMEROS"]
+  }
+}
